@@ -6,7 +6,13 @@
 import argparse
 import sys
 import collections
+import operator
 import matplotlib.pyplot as plt
+
+# for specific joins dictionary filtering
+LOWER_BOUND = 15
+UPPER_BOUND = 25
+WINDOW = 2
 
 # parse command line arguments
 parser = argparse.ArgumentParser(description='Give me a .work path')
@@ -278,8 +284,8 @@ sorted_join_dict = collections.OrderedDict(sorted(total_join_dict.items()))
 sorted_filter_dict = collections.OrderedDict(sorted(total_filter_dict.items()))
 sorted_tables_dict = collections.OrderedDict(sorted(total_tables_dict.items()))
 sorted_columns_dict = collections.OrderedDict(sorted(columns_dict.items()))
-sorted_columns_in_table_dict = collections.OrderedDict(sorted(columns_in_table_dict.items())) # doesn't work as desired
-sorted_specific_joins_dict = collections.OrderedDict(sorted(specific_joins_dict.items()))
+sorted_columns_in_table_dict = collections.OrderedDict(sorted(columns_in_table_dict.items(), key=operator.itemgetter(0))) # doesn't work as desired
+sorted_specific_joins_dict = collections.OrderedDict(sorted(specific_joins_dict.items(), key=operator.itemgetter(1), reverse=True))
 
 # Plot the join data
 print("Frequency of joins per query")
@@ -338,4 +344,23 @@ plt.xticks(range(len(sorted_specific_joins_dict)), list(sorted_specific_joins_di
 plt.title("Frequency of specific joins per query")
 plt.xlabel("Joins")
 plt.ylabel("Frequency of joins")
+plt.show()
+
+# Plot the specific joins data filtered
+sorted_specific_joins_dict_filtered_middle = dict((k, v) for k, v in sorted_specific_joins_dict.items() if (v >= LOWER_BOUND and v <= UPPER_BOUND))
+sorted_specific_joins_dict_filtered_middle = collections.OrderedDict(sorted(sorted_specific_joins_dict_filtered_middle.items(), key=operator.itemgetter(1), reverse=True))
+sorted_specific_joins_dict_filtered = {}
+elements = 0
+for key in sorted_specific_joins_dict_filtered_middle:
+    if elements < WINDOW:
+        sorted_specific_joins_dict_filtered[key] = sorted_specific_joins_dict_filtered_middle[key]
+    elements += 1
+sorted_specific_joins_dict_filtered = collections.OrderedDict(sorted(sorted_specific_joins_dict_filtered.items(), key=operator.itemgetter(1), reverse=True))
+
+print("Frequency of specific joins per query. LB = " + str(LOWER_BOUND) + ", UB = " + str(UPPER_BOUND) + ", W = " + str(WINDOW))
+plt.bar(range(len(sorted_specific_joins_dict_filtered)), list(sorted_specific_joins_dict_filtered.values()), align='center')
+plt.xticks(range(len(sorted_specific_joins_dict_filtered)), list(sorted_specific_joins_dict_filtered.keys()))
+plt.title("Frequency of specific joins per query filtered")
+plt.xlabel("Joins filtered")
+plt.ylabel("Frequency of joins filtered")
 plt.show()
