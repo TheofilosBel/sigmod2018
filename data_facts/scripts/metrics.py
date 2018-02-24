@@ -32,9 +32,13 @@ total_tables_dict = {}
 # Dictionary that maps number of columns
 # to their respective tables
 columns_dict = {}
-# Dictionary that maps the number of columns of each table
+# Dictionary of dictionaries that maps
+# the number of columns of each table
 # to their frequency in that table
 columns_in_table_dict = {}
+# Dictionary that maps the specific joins
+# to their frequency in the queries
+specific_joins_dict = {}
 
 queries_counter = 0
 
@@ -63,6 +67,7 @@ with open(path, "r") as file:
         # Count the join predicates
         for predicate in predicates:
             # Check for equality and inequalities
+            # if it is an equality it can either be a join or a filter predicate
             if "=" in predicate:
                 predicate = predicate.split("=")
 
@@ -94,6 +99,35 @@ with open(path, "r") as file:
                     else:
                         columns_dict[right_predicate[0]] = 1
 
+                    if left_predicate[0] in columns_in_table_dict:
+                        if left_predicate[1] in columns_in_table_dict[left_predicate[0]]:
+                            columns_in_table_dict[left_predicate[0]][left_predicate[1]] += 1
+                        else:
+                            columns_in_table_dict[left_predicate[0]][left_predicate[1]] = 1
+                    else:
+                        columns_in_table_dict[left_predicate[0]] = {}
+                        columns_in_table_dict[left_predicate[0]][left_predicate[1]] = 1
+
+                    if right_predicate[0] in columns_in_table_dict:
+                        if right_predicate[1] in columns_in_table_dict[right_predicate[0]]:
+                            columns_in_table_dict[right_predicate[0]][right_predicate[1]] += 1
+                        else:
+                            columns_in_table_dict[right_predicate[0]][right_predicate[1]] = 1
+                    else:
+                        columns_in_table_dict[right_predicate[0]] = {}
+                        columns_in_table_dict[right_predicate[0]][right_predicate[1]] = 1
+
+                    join_str = predicate[0] + " = " + predicate[1]
+                    rev_join_str = predicate[1] + " = " + predicate[0]
+
+                    if join_str in specific_joins_dict:
+                        specific_joins_dict[join_str] += 1
+                    elif rev_join_str in specific_joins_dict:
+                        specific_joins_dict[rev_join_str] += 1
+                    else:
+                        specific_joins_dict[join_str] = 1
+
+                # otherwise, it is a filter predicate
                 elif (("." in predicate[0]) and not ("." in predicate[1])) or (not ("." in predicate[0]) and ("." in predicate[1])):
                     filter_counter += 1
 
@@ -109,6 +143,15 @@ with open(path, "r") as file:
                             columns_dict[left_predicate[0]] += 1
                         else:
                             columns_dict[left_predicate[0]] = 1
+
+                        if left_predicate[0] in columns_in_table_dict:
+                            if left_predicate[1] in columns_in_table_dict[left_predicate[0]]:
+                                columns_in_table_dict[left_predicate[0]][left_predicate[1]] += 1
+                            else:
+                                columns_in_table_dict[left_predicate[0]][left_predicate[1]] = 1
+                        else:
+                            columns_in_table_dict[left_predicate[0]] = {}
+                            columns_in_table_dict[left_predicate[0]][left_predicate[1]] = 1
                     else:
                         right_predicate = predicate[1].split(".")
                         if right_predicate[0] in columns_dict:
@@ -116,6 +159,16 @@ with open(path, "r") as file:
                         else:
                             columns_dict[right_predicate[0]] = 1
 
+                        if right_predicate[0] in columns_in_table_dict:
+                            if right_predicate[1] in columns_in_table_dict[right_predicate[0]]:
+                                columns_in_table_dict[right_predicate[0]][right_predicate[1]] += 1
+                            else:
+                                columns_in_table_dict[right_predicate[0]][right_predicate[1]] = 1
+                        else:
+                            columns_in_table_dict[right_predicate[0]] = {}
+                            columns_in_table_dict[right_predicate[0]][right_predicate[1]] = 1
+
+            # it must be a filter predicate
             elif ">" in predicate:
                 predicate = predicate.split(">")
 
@@ -136,12 +189,32 @@ with open(path, "r") as file:
                             columns_dict[left_predicate[0]] += 1
                         else:
                             columns_dict[left_predicate[0]] = 1
+
+                        if left_predicate[0] in columns_in_table_dict:
+                            if left_predicate[1] in columns_in_table_dict[left_predicate[0]]:
+                                columns_in_table_dict[left_predicate[0]][left_predicate[1]] += 1
+                            else:
+                                columns_in_table_dict[left_predicate[0]][left_predicate[1]] = 1
+                        else:
+                            columns_in_table_dict[left_predicate[0]] = {}
+                            columns_in_table_dict[left_predicate[0]][left_predicate[1]] = 1
                     else:
                         right_predicate = predicate[1].split(".")
                         if right_predicate[0] in columns_dict:
                             columns_dict[right_predicate[0]] += 1
                         else:
                             columns_dict[right_predicate[0]] = 1
+
+                        if right_predicate[0] in columns_in_table_dict:
+                            if right_predicate[1] in columns_in_table_dict[right_predicate[0]]:
+                                columns_in_table_dict[right_predicate[0]][right_predicate[1]] += 1
+                            else:
+                                columns_in_table_dict[right_predicate[0]][right_predicate[1]] = 1
+                        else:
+                            columns_in_table_dict[right_predicate[0]] = {}
+                            columns_in_table_dict[right_predicate[0]][right_predicate[1]] = 1
+
+            # it must be a filter predicate
             elif "<" in predicate:
                 predicate = predicate.split("<")
 
@@ -162,12 +235,30 @@ with open(path, "r") as file:
                             columns_dict[left_predicate[0]] += 1
                         else:
                             columns_dict[left_predicate[0]] = 1
+
+                        if left_predicate[0] in columns_in_table_dict:
+                            if left_predicate[1] in columns_in_table_dict[left_predicate[0]]:
+                                columns_in_table_dict[left_predicate[0]][left_predicate[1]] += 1
+                            else:
+                                columns_in_table_dict[left_predicate[0]][left_predicate[1]] = 1
+                        else:
+                            columns_in_table_dict[left_predicate[0]] = {}
+                            columns_in_table_dict[left_predicate[0]][left_predicate[1]] = 1
                     else:
                         right_predicate = predicate[1].split(".")
                         if right_predicate[0] in columns_dict:
                             columns_dict[right_predicate[0]] += 1
                         else:
                             columns_dict[right_predicate[0]] = 1
+
+                        if right_predicate[0] in columns_in_table_dict:
+                            if right_predicate[1] in columns_in_table_dict[right_predicate[0]]:
+                                columns_in_table_dict[right_predicate[0]][right_predicate[1]] += 1
+                            else:
+                                columns_in_table_dict[right_predicate[0]][right_predicate[1]] = 1
+                        else:
+                            columns_in_table_dict[right_predicate[0]] = {}
+                            columns_in_table_dict[right_predicate[0]][right_predicate[1]] = 1
             # END if
 
         # Update the dictionary
@@ -187,35 +278,64 @@ sorted_join_dict = collections.OrderedDict(sorted(total_join_dict.items()))
 sorted_filter_dict = collections.OrderedDict(sorted(total_filter_dict.items()))
 sorted_tables_dict = collections.OrderedDict(sorted(total_tables_dict.items()))
 sorted_columns_dict = collections.OrderedDict(sorted(columns_dict.items()))
+sorted_columns_in_table_dict = collections.OrderedDict(sorted(columns_in_table_dict.items())) # doesn't work as desired
+sorted_specific_joins_dict = collections.OrderedDict(sorted(specific_joins_dict.items()))
 
 # Plot the join data
+print("Frequency of joins per query")
 plt.bar(range(len(sorted_join_dict)), list(sorted_join_dict.values()), align='center')
 plt.xticks(range(len(sorted_join_dict)), list(sorted_join_dict.keys()))
-plt.title("Frequency I")
+plt.title("Frequency of joins per query")
 plt.xlabel("Number of joins")
 plt.ylabel("Frequency of joins")
 plt.show()
 
 # Plot the filter data
+print("Frequency of filters per query")
 plt.bar(range(len(sorted_filter_dict)), list(sorted_filter_dict.values()), align='center')
 plt.xticks(range(len(sorted_filter_dict)), list(sorted_filter_dict.keys()))
-plt.title("Frequency II")
+plt.title("Frequency of filters per query")
 plt.xlabel("Number of filters")
 plt.ylabel("Frequency of filters")
 plt.show()
 
 # Plot the tables data
+print("Frequency of tables per query")
 plt.bar(range(len(sorted_tables_dict)), list(sorted_tables_dict.values()), align='center')
 plt.xticks(range(len(sorted_tables_dict)), list(sorted_tables_dict.keys()))
-plt.title("Frequency III")
+plt.title("Frequency of tables per query")
 plt.xlabel("Number of tables")
 plt.ylabel("Frequency of tables")
 plt.show()
 
 # Plot the columns data
+print("Columns per table")
 plt.bar(range(len(sorted_columns_dict)), list(sorted_columns_dict.values()), align='center')
 plt.xticks(range(len(sorted_columns_dict)), list(sorted_columns_dict.keys()))
 plt.title("Columns per table")
 plt.xlabel("Number of table")
 plt.ylabel("Number of columns")
+plt.show()
+
+# Plot the columns in table data
+print("Columns from each table")
+for table in columns_in_table_dict:
+    sorted_columns_in_table_table_dict = collections.OrderedDict(sorted(sorted_columns_in_table_dict[table].items()))
+
+    # Plot the columns frequency data
+    print("Columns in table " + table)
+    plt.bar(range(len(sorted_columns_in_table_table_dict)), list(sorted_columns_in_table_table_dict.values()), align='center')
+    plt.xticks(range(len(sorted_columns_in_table_table_dict)), list(sorted_columns_in_table_table_dict.keys()))
+    plt.title("Columns in table " + table + " frequency")
+    plt.xlabel("Number of columns")
+    plt.ylabel("Frequency of columns")
+    plt.show()
+
+# Plot the specific joins data
+print("Frequency of specific joins per query")
+plt.bar(range(len(sorted_specific_joins_dict)), list(sorted_specific_joins_dict.values()), align='center')
+plt.xticks(range(len(sorted_specific_joins_dict)), list(sorted_specific_joins_dict.keys()))
+plt.title("Frequency of specific joins per query")
+plt.xlabel("Joins")
+plt.ylabel("Frequency of joins")
 plt.show()

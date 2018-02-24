@@ -23,3 +23,5 @@ with open(path, 'r') as f:
     num_columns = data.shape[1]
     print(str(num_rows) + " rows")
     print(str(num_columns) + " columns")
+
+f.close()
