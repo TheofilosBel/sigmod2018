@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # CREATED BY ORESTIS
-# ADDITIONS BY YORGOS
+# CONTINUED BY YORGOS
 
 import argparse
 import sys
@@ -61,9 +61,13 @@ with open(path, "r") as file:
         # Set that collects the different tables in each query
         tables = set()
 
+        # Extract the relations to be joined
+        query_relations = (line.split("|")[0]).split(" ")
+        query_relations = [int(i) for i in query_relations]
+
         # Extract the predicates
-        line = line.split("|")[1]
-        predicates = line.split("&")
+        query_operations = line.split("|")[1]
+        predicates = query_operations.split("&")
 
         # update counters
         join_counter = 0
@@ -82,6 +86,19 @@ with open(path, "r") as file:
                 # it is a join predicate
                 # otherwise, it is a filter predicate
                 if (("." in predicate[0]) and ("." in predicate[1])):
+                    # Extract the table and its column
+                    # for the left hand side of the predicate
+                    left_table = query_relations[int(predicate[0].split(".")[0])]
+                    left_column = int(predicate[0].split(".")[1])
+                    # Extract the table and its column
+                    # for the right hand side of the predicate
+                    right_table = query_relations[int(predicate[1].split(".")[0])]
+                    right_column = int(predicate[1].split(".")[1])
+
+                    # Add the tables
+                    tables.add(left_table)
+                    tables.add(right_table)
+
                     join_counter += 1
                     # Update the dictionary
                     if join_counter in total_join_dict:
@@ -89,39 +106,33 @@ with open(path, "r") as file:
                     else:
                         total_join_dict[join_counter] = 1
 
-                    # Extract the tables
-                    left_predicate = predicate[0].split(".")
-                    right_predicate = predicate[1].split(".")
-                    tables.add(left_predicate[0])
-                    tables.add(right_predicate[0])
-
-                    if left_predicate[0] in columns_dict:
-                        columns_dict[left_predicate[0]] += 1
+                    if left_table in columns_dict:
+                        columns_dict[left_table] += 1
                     else:
-                        columns_dict[left_predicate[0]] = 1
+                        columns_dict[left_table] = 1
 
-                    if right_predicate[0] in columns_dict:
-                        columns_dict[right_predicate[0]] += 1
+                    if right_table in columns_dict:
+                        columns_dict[right_table] += 1
                     else:
-                        columns_dict[right_predicate[0]] = 1
+                        columns_dict[right_table] = 1
 
-                    if left_predicate[0] in columns_in_table_dict:
-                        if left_predicate[1] in columns_in_table_dict[left_predicate[0]]:
-                            columns_in_table_dict[left_predicate[0]][left_predicate[1]] += 1
+                    if left_table in columns_in_table_dict:
+                        if left_column in columns_in_table_dict[left_table]:
+                            columns_in_table_dict[left_table][left_column] += 1
                         else:
-                            columns_in_table_dict[left_predicate[0]][left_predicate[1]] = 1
+                            columns_in_table_dict[left_table][left_column] = 1
                     else:
-                        columns_in_table_dict[left_predicate[0]] = {}
-                        columns_in_table_dict[left_predicate[0]][left_predicate[1]] = 1
+                        columns_in_table_dict[left_table] = {}
+                        columns_in_table_dict[left_table][left_column] = 1
 
-                    if right_predicate[0] in columns_in_table_dict:
-                        if right_predicate[1] in columns_in_table_dict[right_predicate[0]]:
-                            columns_in_table_dict[right_predicate[0]][right_predicate[1]] += 1
+                    if right_table in columns_in_table_dict:
+                        if right_column in columns_in_table_dict[right_table]:
+                            columns_in_table_dict[right_table][right_column] += 1
                         else:
-                            columns_in_table_dict[right_predicate[0]][right_predicate[1]] = 1
+                            columns_in_table_dict[right_table][right_column] = 1
                     else:
-                        columns_in_table_dict[right_predicate[0]] = {}
-                        columns_in_table_dict[right_predicate[0]][right_predicate[1]] = 1
+                        columns_in_table_dict[right_table] = {}
+                        columns_in_table_dict[right_table][right_column] = 1
 
                     join_str = predicate[0] + " = " + predicate[1]
                     rev_join_str = predicate[1] + " = " + predicate[0]
@@ -144,35 +155,49 @@ with open(path, "r") as file:
                         total_filter_dict[filter_counter] = 1
 
                     if "." in predicate[0]:
-                        left_predicate = predicate[0].split(".")
-                        if left_predicate[0] in columns_dict:
-                            columns_dict[left_predicate[0]] += 1
-                        else:
-                            columns_dict[left_predicate[0]] = 1
+                        # Extract the table and its column
+                        # for the left hand side of the predicate
+                        left_table = query_relations[int(predicate[0].split(".")[0])]
+                        left_column = int(predicate[0].split(".")[1])
 
-                        if left_predicate[0] in columns_in_table_dict:
-                            if left_predicate[1] in columns_in_table_dict[left_predicate[0]]:
-                                columns_in_table_dict[left_predicate[0]][left_predicate[1]] += 1
-                            else:
-                                columns_in_table_dict[left_predicate[0]][left_predicate[1]] = 1
+                        # Add the tables
+                        tables.add(left_table)
+
+                        if left_table in columns_dict:
+                            columns_dict[left_table] += 1
                         else:
-                            columns_in_table_dict[left_predicate[0]] = {}
-                            columns_in_table_dict[left_predicate[0]][left_predicate[1]] = 1
+                            columns_dict[left_table] = 1
+
+                        if left_table in columns_in_table_dict:
+                            if left_column in columns_in_table_dict[left_table]:
+                                columns_in_table_dict[left_table][left_column] += 1
+                            else:
+                                columns_in_table_dict[left_table][left_column] = 1
+                        else:
+                            columns_in_table_dict[left_table] = {}
+                            columns_in_table_dict[left_table][left_column] = 1
                     else:
-                        right_predicate = predicate[1].split(".")
-                        if right_predicate[0] in columns_dict:
-                            columns_dict[right_predicate[0]] += 1
-                        else:
-                            columns_dict[right_predicate[0]] = 1
+                        # Extract the table and its column
+                        # for the right hand side of the predicate
+                        right_table = query_relations[int(predicate[1].split(".")[0])]
+                        right_column = int(predicate[1].split(".")[1])
 
-                        if right_predicate[0] in columns_in_table_dict:
-                            if right_predicate[1] in columns_in_table_dict[right_predicate[0]]:
-                                columns_in_table_dict[right_predicate[0]][right_predicate[1]] += 1
-                            else:
-                                columns_in_table_dict[right_predicate[0]][right_predicate[1]] = 1
+                        # Add the tables
+                        tables.add(right_table)
+
+                        if right_table in columns_dict:
+                            columns_dict[right_table] += 1
                         else:
-                            columns_in_table_dict[right_predicate[0]] = {}
-                            columns_in_table_dict[right_predicate[0]][right_predicate[1]] = 1
+                            columns_dict[right_table] = 1
+
+                        if right_table in columns_in_table_dict:
+                            if right_column in columns_in_table_dict[right_table]:
+                                columns_in_table_dict[right_table][right_column] += 1
+                            else:
+                                columns_in_table_dict[right_table][right_column] = 1
+                        else:
+                            columns_in_table_dict[right_table] = {}
+                            columns_in_table_dict[right_table][right_column] = 1
 
             # it must be a filter predicate
             elif ">" in predicate:
@@ -190,35 +215,49 @@ with open(path, "r") as file:
                         total_filter_dict[filter_counter] = 1
 
                     if "." in predicate[0]:
-                        left_predicate = predicate[0].split(".")
-                        if left_predicate[0] in columns_dict:
-                            columns_dict[left_predicate[0]] += 1
-                        else:
-                            columns_dict[left_predicate[0]] = 1
+                        # Extract the table and its column
+                        # for the left hand side of the predicate
+                        left_table = query_relations[int(predicate[0].split(".")[0])]
+                        left_column = int(predicate[0].split(".")[1])
 
-                        if left_predicate[0] in columns_in_table_dict:
-                            if left_predicate[1] in columns_in_table_dict[left_predicate[0]]:
-                                columns_in_table_dict[left_predicate[0]][left_predicate[1]] += 1
-                            else:
-                                columns_in_table_dict[left_predicate[0]][left_predicate[1]] = 1
+                        # Add the tables
+                        tables.add(left_table)
+
+                        if left_table in columns_dict:
+                            columns_dict[left_table] += 1
                         else:
-                            columns_in_table_dict[left_predicate[0]] = {}
-                            columns_in_table_dict[left_predicate[0]][left_predicate[1]] = 1
+                            columns_dict[left_table] = 1
+
+                        if left_table in columns_in_table_dict:
+                            if left_column in columns_in_table_dict[left_table]:
+                                columns_in_table_dict[left_table][left_column] += 1
+                            else:
+                                columns_in_table_dict[left_table][left_column] = 1
+                        else:
+                            columns_in_table_dict[left_table] = {}
+                            columns_in_table_dict[left_table][left_column] = 1
                     else:
-                        right_predicate = predicate[1].split(".")
-                        if right_predicate[0] in columns_dict:
-                            columns_dict[right_predicate[0]] += 1
-                        else:
-                            columns_dict[right_predicate[0]] = 1
+                        # Extract the table and its column
+                        # for the right hand side of the predicate
+                        right_table = query_relations[int(predicate[1].split(".")[0])]
+                        right_column = int(predicate[1].split(".")[1])
 
-                        if right_predicate[0] in columns_in_table_dict:
-                            if right_predicate[1] in columns_in_table_dict[right_predicate[0]]:
-                                columns_in_table_dict[right_predicate[0]][right_predicate[1]] += 1
-                            else:
-                                columns_in_table_dict[right_predicate[0]][right_predicate[1]] = 1
+                        # Add the tables
+                        tables.add(right_table)
+
+                        if right_table in columns_dict:
+                            columns_dict[right_table] += 1
                         else:
-                            columns_in_table_dict[right_predicate[0]] = {}
-                            columns_in_table_dict[right_predicate[0]][right_predicate[1]] = 1
+                            columns_dict[right_table] = 1
+
+                        if right_table in columns_in_table_dict:
+                            if right_column in columns_in_table_dict[right_table]:
+                                columns_in_table_dict[right_table][right_column] += 1
+                            else:
+                                columns_in_table_dict[right_table][right_column] = 1
+                        else:
+                            columns_in_table_dict[right_table] = {}
+                            columns_in_table_dict[right_table][right_column] = 1
 
             # it must be a filter predicate
             elif "<" in predicate:
@@ -236,35 +275,49 @@ with open(path, "r") as file:
                         total_filter_dict[filter_counter] = 1
 
                     if "." in predicate[0]:
-                        left_predicate = predicate[0].split(".")
-                        if left_predicate[0] in columns_dict:
-                            columns_dict[left_predicate[0]] += 1
-                        else:
-                            columns_dict[left_predicate[0]] = 1
+                        # Extract the table and its column
+                        # for the left hand side of the predicate
+                        left_table = query_relations[int(predicate[0].split(".")[0])]
+                        left_column = int(predicate[0].split(".")[1])
 
-                        if left_predicate[0] in columns_in_table_dict:
-                            if left_predicate[1] in columns_in_table_dict[left_predicate[0]]:
-                                columns_in_table_dict[left_predicate[0]][left_predicate[1]] += 1
-                            else:
-                                columns_in_table_dict[left_predicate[0]][left_predicate[1]] = 1
+                        # Add the tables
+                        tables.add(left_table)
+
+                        if left_table in columns_dict:
+                            columns_dict[left_table] += 1
                         else:
-                            columns_in_table_dict[left_predicate[0]] = {}
-                            columns_in_table_dict[left_predicate[0]][left_predicate[1]] = 1
+                            columns_dict[left_table] = 1
+
+                        if left_table in columns_in_table_dict:
+                            if left_column in columns_in_table_dict[left_table]:
+                                columns_in_table_dict[left_table][left_column] += 1
+                            else:
+                                columns_in_table_dict[left_table][left_column] = 1
+                        else:
+                            columns_in_table_dict[left_table] = {}
+                            columns_in_table_dict[left_table][left_column] = 1
                     else:
-                        right_predicate = predicate[1].split(".")
-                        if right_predicate[0] in columns_dict:
-                            columns_dict[right_predicate[0]] += 1
-                        else:
-                            columns_dict[right_predicate[0]] = 1
+                        # Extract the table and its column
+                        # for the right hand side of the predicate
+                        right_table = query_relations[int(predicate[1].split(".")[0])]
+                        right_column = int(predicate[1].split(".")[1])
 
-                        if right_predicate[0] in columns_in_table_dict:
-                            if right_predicate[1] in columns_in_table_dict[right_predicate[0]]:
-                                columns_in_table_dict[right_predicate[0]][right_predicate[1]] += 1
-                            else:
-                                columns_in_table_dict[right_predicate[0]][right_predicate[1]] = 1
+                        # Add the tables
+                        tables.add(right_table)
+
+                        if right_table in columns_dict:
+                            columns_dict[right_table] += 1
                         else:
-                            columns_in_table_dict[right_predicate[0]] = {}
-                            columns_in_table_dict[right_predicate[0]][right_predicate[1]] = 1
+                            columns_dict[right_table] = 1
+
+                        if right_table in columns_in_table_dict:
+                            if right_column in columns_in_table_dict[right_table]:
+                                columns_in_table_dict[right_table][right_column] += 1
+                            else:
+                                columns_in_table_dict[right_table][right_column] = 1
+                        else:
+                            columns_in_table_dict[right_table] = {}
+                            columns_in_table_dict[right_table][right_column] = 1
             # END if
 
         # Update the dictionary
@@ -329,10 +382,10 @@ for table in columns_in_table_dict:
     sorted_columns_in_table_table_dict = collections.OrderedDict(sorted(sorted_columns_in_table_dict[table].items()))
 
     # Plot the columns frequency data
-    print("Columns in table " + table)
+    print("Columns in table " + str(table))
     plt.bar(range(len(sorted_columns_in_table_table_dict)), list(sorted_columns_in_table_table_dict.values()), align='center')
     plt.xticks(range(len(sorted_columns_in_table_table_dict)), list(sorted_columns_in_table_table_dict.keys()))
-    plt.title("Columns in table " + table + " frequency")
+    plt.title("Columns in table " + str(table) + " frequency")
     plt.xlabel("Number of columns")
     plt.ylabel("Frequency of columns")
     plt.show()
