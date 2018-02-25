@@ -100,11 +100,6 @@ with open(path, "r") as file:
                     tables.add(right_table)
 
                     join_counter += 1
-                    # Update the dictionary
-                    if join_counter in total_join_dict:
-                        total_join_dict[join_counter] += 1
-                    else:
-                        total_join_dict[join_counter] = 1
 
                     if left_table in columns_dict:
                         columns_dict[left_table] += 1
@@ -321,13 +316,19 @@ with open(path, "r") as file:
             # END if
 
         # Update the dictionary
-        if queries_counter in total_tables_dict:
+        if len(tables) in total_tables_dict:
             total_tables_dict[len(tables)] += 1
         else:
             total_tables_dict[len(tables)] = 1
-        #END for
-    #END for
-# END with
+        # END for predicate
+
+        # Update the joins frequency dictionary
+        if join_counter in total_join_dict:
+            total_join_dict[join_counter] += 1
+        else:
+            total_join_dict[join_counter] = 1
+    # END for line
+# END with file open
 
 # close .work file
 file.close()
@@ -337,7 +338,7 @@ sorted_join_dict = collections.OrderedDict(sorted(total_join_dict.items()))
 sorted_filter_dict = collections.OrderedDict(sorted(total_filter_dict.items()))
 sorted_tables_dict = collections.OrderedDict(sorted(total_tables_dict.items()))
 sorted_columns_dict = collections.OrderedDict(sorted(columns_dict.items()))
-sorted_columns_in_table_dict = collections.OrderedDict(sorted(columns_in_table_dict.items(), key=operator.itemgetter(0))) # doesn't work as desired
+sorted_columns_in_table_dict = collections.OrderedDict(sorted(columns_in_table_dict.items()))
 sorted_specific_joins_dict = collections.OrderedDict(sorted(specific_joins_dict.items(), key=operator.itemgetter(1), reverse=True))
 
 # Plot the join data
@@ -359,10 +360,10 @@ plt.ylabel("Frequency of filters")
 plt.show()
 
 # Plot the tables data
-print("Frequency of tables per query")
+print("Frequency of number of tables per query")
 plt.bar(range(len(sorted_tables_dict)), list(sorted_tables_dict.values()), align='center')
 plt.xticks(range(len(sorted_tables_dict)), list(sorted_tables_dict.keys()))
-plt.title("Frequency of tables per query")
+plt.title("Frequency of number of tables per query")
 plt.xlabel("Number of tables")
 plt.ylabel("Frequency of tables")
 plt.show()
