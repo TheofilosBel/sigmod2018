@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import argparse
 import sys
 import pandas as pd
+from decimal import *
 
 # parse command line arguments
 parser = argparse.ArgumentParser(description='Give me path to directory of .tbl files. Give me number of .tbl files. I will start from 0 and try to reach your given number minus 1. Also, give me an order.')
@@ -47,6 +48,9 @@ sorted_columns_counter = [0] * relations
 # Dictionary that maps the sorted columns of every relation
 # to their respective relation
 sorted_columns_dict = {}
+# Dictionary that maps the number of unique elements per column
+# to their respective table
+unique_elements_dict = {}
 
 for i in range(relations):
     relation_file = "r" + str(i) + ".tbl"
@@ -56,6 +60,8 @@ for i in range(relations):
         latest_element = []
         # can a column be sorted from what we have seen so far?
         is_sorted = []
+        # an array of sets that hold the (unique) elements of each column
+        column_elements_set = []
 
         for line in file:
             # count columns
@@ -63,6 +69,7 @@ for i in range(relations):
                 columns_counter[i] = line.count('|')
                 latest_element = [-1] * columns_counter[i]
                 is_sorted = [True] * columns_counter[i]
+                column_elements_set = [set() for _ in xrange(columns_counter[i])]
 
             # Remove the trailing "|" + newline characters
             line = line.split("|\n")[0];
@@ -85,14 +92,22 @@ for i in range(relations):
                                 is_sorted[index] = False
 
                 latest_element[index] = column
+                column_elements_set[index].add(column)
 
                 index += 1
             # END for column
 
             # count rows
             rows_counter[i] += 1
-
         # END for line
+
+        if i in unique_elements_dict:
+            for index in range(0, columns_counter[i]):
+                unique_elements_dict[i][index] = len(column_elements_set[index])
+        else:
+            unique_elements_dict[i] = [-1] * columns_counter[i]
+            for index in range(0, columns_counter[i]):
+                unique_elements_dict[i][index] = len(column_elements_set[index])
 
         sorted_columns_dict[i] = []
 
@@ -145,3 +160,12 @@ for table in sorted_columns_dict:
         for i in sorted_columns_dict[table]:
             print(str(i) + " ")
         print("sorted.")
+
+# Details regarding unique elements
+getcontext().prec = 3 # set precision
+for table in unique_elements_dict:
+    print("Table " + str(table) + " has " + str(rows_counter[table]) + " rows and:")
+    index = 0
+    for column in unique_elements_dict[table]:
+        print("Column " + str(index) + " with " + str(column) + " (Fq = " + str(Decimal(column)/ Decimal(rows_counter[table])) + ") unique elements.")
+        index += 1
