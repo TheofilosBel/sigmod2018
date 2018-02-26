@@ -15,7 +15,7 @@ UPPER_BOUND = 25
 WINDOW = 2
 
 # parse command line arguments
-parser = argparse.ArgumentParser(description='Give me a .work path')
+parser = argparse.ArgumentParser(description='Give me a .work path.')
 parser.add_argument('path', metavar='P', type=str, nargs='+',
                    help='a path for the accumulator')
 
@@ -35,11 +35,11 @@ total_filter_dict = {}
 # Dictionary that maps number of tables
 # to their frequency in the queries
 total_tables_dict = {}
-# Dictionary that maps number of columns
+# Dictionary that maps the number of column requests
 # to their respective tables
 columns_dict = {}
 # Dictionary of dictionaries that maps
-# the number of columns of each table
+# the number of column requests of each table
 # to their frequency in that table
 columns_in_table_dict = {}
 # Dictionary that maps the specific joins
@@ -171,6 +171,7 @@ with open(path, "r") as file:
                         else:
                             columns_in_table_dict[left_table] = {}
                             columns_in_table_dict[left_table][left_column] = 1
+
                     else:
                         # Extract the table and its column
                         # for the right hand side of the predicate
@@ -231,6 +232,7 @@ with open(path, "r") as file:
                         else:
                             columns_in_table_dict[left_table] = {}
                             columns_in_table_dict[left_table][left_column] = 1
+
                     else:
                         # Extract the table and its column
                         # for the right hand side of the predicate
@@ -291,6 +293,7 @@ with open(path, "r") as file:
                         else:
                             columns_in_table_dict[left_table] = {}
                             columns_in_table_dict[left_table][left_column] = 1
+
                     else:
                         # Extract the table and its column
                         # for the right hand side of the predicate
@@ -369,24 +372,24 @@ plt.ylabel("Frequency of tables")
 plt.show()
 
 # Plot the columns data
-print("Columns per table")
+print("Column requests per table")
 plt.bar(range(len(sorted_columns_dict)), list(sorted_columns_dict.values()), align='center')
 plt.xticks(range(len(sorted_columns_dict)), list(sorted_columns_dict.keys()))
-plt.title("Columns per table")
+plt.title("Column requests per table")
 plt.xlabel("Number of table")
-plt.ylabel("Number of columns")
+plt.ylabel("Number of column requests")
 plt.show()
 
 # Plot the columns in table data
-print("Columns from each table")
+print("Columns requested from each table")
 for table in columns_in_table_dict:
     sorted_columns_in_table_table_dict = collections.OrderedDict(sorted(sorted_columns_in_table_dict[table].items()))
 
     # Plot the columns frequency data
-    print("Columns in table " + str(table))
+    print("Columns requested from table " + str(table))
     plt.bar(range(len(sorted_columns_in_table_table_dict)), list(sorted_columns_in_table_table_dict.values()), align='center')
     plt.xticks(range(len(sorted_columns_in_table_table_dict)), list(sorted_columns_in_table_table_dict.keys()))
-    plt.title("Columns in table " + str(table) + " frequency")
+    plt.title("Columns requested from table " + str(table) + " frequency")
     plt.xlabel("Number of columns")
     plt.ylabel("Frequency of columns")
     plt.show()
