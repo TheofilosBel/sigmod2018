@@ -201,7 +201,7 @@ int main(int argc, char *argv[]) {
   if (set_nonblocking(stdin_pipe[1]) == -1) {
     perror("fcntl");
     exit(EXIT_FAILURE);
-  }
+  }1
 
   // Start the stopwatch
   struct timeval start;
