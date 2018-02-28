@@ -1,6 +1,8 @@
 #ifndef  __JOINER_H__
 #define  __JOINER_H__
 
+#include "iostream"
+
 /*  The row id Table
 +--------------------------------------+
 |  rows_S*  |  rows_R*  |   ...  | ... |
@@ -19,7 +21,7 @@ typedef struct {
 } joiner_t;
 
 typedef struct {
-  int tables_id;
+  int table_id;
   int *values;
   int size;
 } column_t;
@@ -46,6 +48,14 @@ joiner_t* join(column_t *column_r, column_t *column_s, joiner_t *joiner);
  */
  column_t* construct(column_t *column, joiner_t *joiner);
 
+
+/* Column Print Function
+ *
+ * Prints a column
+ *
+ * Arguments : A @column of column_t type
+ */
+void PrintColumn(column_t *column);
 
 
 
