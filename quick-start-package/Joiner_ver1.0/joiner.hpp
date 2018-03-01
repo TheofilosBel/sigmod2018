@@ -2,6 +2,7 @@
 #define  __JOINER_H__
 
 #include <iostream>
+#include <vector>
 #include <unordered_map>
 
 /*  The row id Table
@@ -17,7 +18,7 @@
 */
 
 typedef struct {
-  std::vector<int> **row_ids;       /* It keeps the row Ids of the reults of all the joined tables,put vector to do*/
+  std::vector<int> **row_ids;       /* It keeps the row Ids of the reults of all the joined tables,update:vector instead of int */
   int *sizes;                       /* It keeps the sizes of all the tables of the above array of tables */
 } joiner_t;
 
@@ -49,6 +50,14 @@ joiner_t* join(column_t *column_r, column_t *column_s, joiner_t *joiner);
  */
  column_t* construct(column_t *column, joiner_t *joiner);
 
+
+/* Column Print Function
+ *
+ * Prints a column
+ *
+ * Arguments : A @column of column_t type
+ */
+void PrintColumn(column_t *column);
 
 
 
