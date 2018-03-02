@@ -71,7 +71,7 @@ void PrintColumn(column_t *column);
  * Arguments: @column_r is an array with the values of the r relation , and @size_r it's size
  *            @column_s is an array with the values of the s relation , and @size_s it's size
  */
-joiner_t* join(column_t *column_r, column_t *column_s, joiner_t *joiner);
+void join(const column_t *column_r, const column_t *column_s, joiner_t *joiner);
 
 
 /* The construct function

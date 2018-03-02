@@ -4,12 +4,13 @@
  * 2)Create hashtable from the row_table with the lowest size
  * 3)Ids E [0,...,size-1]
 */
-joiner_t* join(column_t *column_r, column_t *column_s, joiner_t *joiner) {
+void join(const column_t *column_r, const column_t *column_s, joiner_t *joiner) {
 	/* create hash_table for the hash_join phase */
 	std::unordered_map<int, int> hash_c;
+	std::vector<int> ** const row_ids  = joiner->row_ids;
 
 	/* hash_size->size of the hashtable,iter_size->size to iterate over to find same vals */
-	int hash_size,iter_size;
+	uint64_t hash_size,iter_size;
 
 	/* check for size to decide wich hash_table to create for the hash join */
 	if (column_r->size <= column_s->size) {
@@ -23,8 +24,8 @@ joiner_t* join(column_t *column_r, column_t *column_s, joiner_t *joiner) {
 
 	/* wipe out the vectors first */
 	/* to store the new ids */
-	joiner->row_ids[column_r->table_id]->resize(0);
-	joiner->row_ids[column_s->table_id]->resize(0);
+	row_ids[column_r->table_id]->resize(0);
+	row_ids[column_s->table_id]->resize(0);
 
 	/* now put the values of the column_r in the hash_table */
 	for (int i = 0; i < hash_size; i++)
@@ -37,11 +38,10 @@ joiner_t* join(column_t *column_r, column_t *column_s, joiner_t *joiner) {
 		if (search != hash_c.end()) {
 		/* update both of row_ids vectors */
 			std::cout << "search result key->" << search->first << ",val->" << search->second << "\n";
-			joiner->row_ids[column_r->table_id]->push_back(search->second);
-			joiner->row_ids[column_s->table_id]->push_back(i);
+			row_ids[column_r->table_id]->push_back(search->second);
+			row_ids[column_s->table_id]->push_back(i);
 		}
 	}
-	return joiner;
 }
 
 column_t* construct(const column_t *column, const joiner_t *joiner) {
