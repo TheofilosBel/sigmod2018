@@ -53,12 +53,13 @@ int main(int argc, char const *argv[]) {
 		s->values[i] = i*20;
 	}
 
-	joiner_t *join_result = join(r, s, joiner);
+	/* join phase */
+	join(r, s, joiner);
 
 	std::cout<<"Print rowids:"<<std::endl;
 	for (int i = 0; i < 2; i++) {
 		std::cout<<"**Print rowids of relation->"<<i<<std::endl;
-		for(auto k : *(join_result->row_ids[i]))
+		for(auto k : *(joiner->row_ids[i]))
 			std::cout<<k<<"\n";
 		std::cout<<"End of relation->"<<i<<"**"<<"\n\n";
 	}
