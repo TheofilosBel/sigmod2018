@@ -171,7 +171,7 @@ static void dumpPart(stringstream& ss,vector<T> elements) {
             ss << T::delimiter;
     }
 }
-
+/*
 template <typename T>
 static void dumpPartSQL(stringstream& ss,vector<T> elements) {
     for (unsigned i=0;i<elements.size();++i) {
@@ -180,7 +180,7 @@ static void dumpPartSQL(stringstream& ss,vector<T> elements) {
             ss << T::delimiterSQL;
     }
 }
-
+*/
 // Dump text format
 string QueryInfo::dumpText() {
     stringstream text;
@@ -203,6 +203,7 @@ string QueryInfo::dumpText() {
 }
 
 // Dump SQL
+/*
 string QueryInfo::dumpSQL() {
     stringstream sql;
     sql << "SELECT ";
@@ -229,7 +230,7 @@ string QueryInfo::dumpSQL() {
 
     return sql.str();
 }
-
+*/
 QueryInfo::QueryInfo(string rawQuery) { parseQuery(rawQuery); }
 
 bool SelectInfo::operator==(const SelectInfo& o) const {

@@ -33,7 +33,7 @@ void Joiner::join(QueryInfo& i) {
 
 int main(int argc, char* argv[]) {
     Joiner joiner;
-    
+
     // Read join relations
     string line;
     while (getline(cin, line)) {
