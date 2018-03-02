@@ -47,9 +47,9 @@ joiner_t * JoinerCreate();
 /*------COLUMN STURCT & FUNCTIONS----------*/
 
 typedef struct {
-    int      table_id;
+    int       table_id;
     int      *values;
-    uint64_t size;
+    uint64_t  size;
 } column_t;
 
 /* Column Print Function
