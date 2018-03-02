@@ -1,2 +1,7 @@
-# Don't commit the quick start folder
-./quick-start-package/*
+# Don't commit the build folder
+quick-start-package/build/
+# Don't commit the test folder
+quick-start-package/test/
+# Dont commit the CMake Folder
+quick-start-package/CMakeFiles/
+

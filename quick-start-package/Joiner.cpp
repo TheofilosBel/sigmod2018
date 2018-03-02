@@ -16,6 +16,16 @@ using namespace std;
 
 void  Joiner::join(PredicateInfo pinfo) {
 
+
+
+    /* Get the relations from the predicate */
+    
+
+
+
+
+
+
 }
 
 /*
