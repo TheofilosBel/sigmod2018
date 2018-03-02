@@ -2,6 +2,7 @@
 quick-start-package/build/
 # Don't commit the test folder
 quick-start-package/test/
-# Dont commit the CMake Folder
+# Don't commit the CMake Folder
 quick-start-package/CMakeFiles/
-
+# Don't push the CMakeList.txt
+quick-start-package/CMakeLists.txt
