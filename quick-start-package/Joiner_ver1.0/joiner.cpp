@@ -28,11 +28,11 @@ void join(const column_t *column_r, const column_t *column_s, joiner_t *joiner) 
 	row_ids[column_s->table_id]->resize(0);
 
 	/* now put the values of the column_r in the hash_table */
-	for (int i = 0; i < hash_size; i++)
+	for (uint64_t i = 0; i < hash_size; i++)
 		hash_c.insert({column_r->values[i], i});
 
 	/* now the phase of hashing */
-	for (int i = 0; i < iter_size; i++) {
+	for (uint64_t i = 0; i < iter_size; i++) {
 		auto search = hash_c.find(column_s->values[i]);
 		/* if we found it */
 		if (search != hash_c.end()) {
