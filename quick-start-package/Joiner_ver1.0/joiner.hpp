@@ -1,7 +1,9 @@
 #ifndef  __JOINER_H__
 #define  __JOINER_H__
 
-#include "iostream"
+#include <iostream>
+#include <vector>
+#include <unordered_map>
 
 /*--------- JOINER STUCT & FUNCTIONS---------*/
 
@@ -20,8 +22,8 @@
 */
 
 typedef struct {
-  int **row_ids;      /* It keeps the row Ids of the reults of all the joined tables */
-  int *sizes;         /* It keeps the sizes of all the tables of the above array of tables */
+  std::vector<int> **row_ids;       /* It keeps the row Ids of the reults of all the joined tables,update:vector instead of int */
+  int *sizes;                       /* It keeps the sizes of all the tables of the above array of tables */
 } joiner_t;
 
 /*
@@ -80,6 +82,6 @@ joiner_t* join(column_t *column_r, column_t *column_s, joiner_t *joiner);
  * Arguments: @column is an array with the values of the r relation
  *            @joiner is the object that holds the row_ids of the reults after the joins
  */
- column_t* construct(column_t *column, joiner_t *joiner);
+ column_t* construct(const column_t *column, const joiner_t *joiner);
 
 #endif
