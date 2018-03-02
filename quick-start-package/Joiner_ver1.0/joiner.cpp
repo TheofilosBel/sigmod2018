@@ -49,14 +49,14 @@ column_t* construct(const column_t *column, const joiner_t *joiner) {
     /* Innitilize helping variables */
     const uint64_t col_size = joiner->sizes[column->table_id];
     const int      col_id   = column->table_id;
-    const int * col_values  = column->values;
-    std::vector<int> ** const row_ids  = joiner->row_ids;
+    const int     *col_values  = column->values;
+    std::vector<int> **const row_ids = joiner->row_ids;
 
     /* Create - Initilize  a new column */
     column_t * const new_column = new column_t;
-    new_column->table_id    = column->table_id;
-    new_column->size        = col_size;
-    int * const new_values  = new int[new_column->size];
+    new_column->table_id   = column->table_id;
+    new_column->size       = col_size;
+    int *const new_values  = new int[new_column->size];
 
 
     /* Pass the values of the old column to the new one, based on the row ids of the joiner */
