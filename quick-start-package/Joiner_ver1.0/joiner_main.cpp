@@ -41,7 +41,7 @@ int main(int argc, char const *argv[]) {
 	r->size = 5;
 	r->table_id = 0;
 	for (int i = 0; i < 5; i++) {
-		r->values[i] = i;
+		r->values[i] = i*2;
 	}
 
 	column_t *s = new column_t;
@@ -49,7 +49,7 @@ int main(int argc, char const *argv[]) {
 	s->size = 12;
 	s->table_id = 1;
 	for (int i = 0; i < 12; i++) {
-		s->values[i] = i;
+		s->values[i] = i*20;
 	}
 
 	joiner_t *joiner = new joiner_t;
