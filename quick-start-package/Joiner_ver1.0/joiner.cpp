@@ -36,7 +36,7 @@ joiner_t* join(column_t *column_r, column_t *column_s, joiner_t *joiner) {
 		/* if we found it */
 		if (search != hash_c.end()) {
 		/* update both of row_ids vectors */
-			std::cout<<"search result key->"<<search->first<<",val->"<<search->second<<std::endl;
+			std::cout << "search result key->" << search->first << ",val->" << search->second << "\n";
 			joiner->row_ids[column_r->table_id]->push_back(search->second);
 			joiner->row_ids[column_s->table_id]->push_back(i);
 		}
@@ -49,7 +49,6 @@ joiner_t* join(column_t *column_r, column_t *column_s, joiner_t *joiner) {
 column_t* construct(column_t *column, joiner_t *joiner) {
 
 	/* Create - Initilize  a new column */
-	
 	/*column_t *new_column = new column_t;
 	new_column->table_id = column->table_id;
 	new_column->size     = joiner->sizes[column->table_id];
@@ -57,14 +56,12 @@ column_t* construct(column_t *column, joiner_t *joiner) {
 	*/
 
 	/* Pass the values of the old column to the new one, based on the row ids of the joiner */
-	
 	/*int *values_array = column->values;
 	for (int element_counter = 0; element_counter < new_column->size; element_counter++) {
 		std::cout << "Row id " << joiner->row_ids[column->table_id][element_counter] << '\n';
 		new_values[element_counter] = values_array[joiner->row_ids[column->table_id][element_counter]];
-	}
-	*/
-	
+	}*/
+
 	/* Add the new values to the new column */
 	//new_column->values = new_values;   /* --- Rember to delete[]  ---- */
 
