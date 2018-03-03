@@ -92,8 +92,9 @@ void Joiner::low_join() {
 	/* wipe out the vectors first */
 	/* to store the new ids */
     std::vector<std::vector<int>>  rowIds = *row_ids;
-	rowIds[hash_col->table_id].resize(0);
-	rowIds[iter_col->table_id].resize(0);
+	
+    /*rowIds[hash_col->table_id].resize(0);
+	rowIds[iter_col->table_id].resize(0);*/
 
 	/* now put the values of the column_r in the hash_table */
 	for (uint64_t i = 0; i < hash_size; i++)
