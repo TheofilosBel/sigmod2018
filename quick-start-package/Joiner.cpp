@@ -14,6 +14,7 @@ using namespace std;
    |The joiner functions |
    +---------------------+ */
 
+#ifdef def
 void Joiner::RowIdArrayInit(QueryInfo &query_info) {
 
     /* Initilize helping variables */
@@ -27,8 +28,6 @@ void Joiner::RowIdArrayInit(QueryInfo &query_info) {
 
         /* Each relation at the begging of the query has all its rows */
         int total_row_num = getRelation(relation_Id).size;
-        //row_ids[rel_allias] = new std::vector<int>;
-        //row_ids[rel_allias].reserve(total_row_num);  // Rerve the space , instead of pushing back
         for (int row_n = 0; row_n < total_row_num; row_n++) {
             rowIds[rel_allias].push_back(row_n + 1);
         }
@@ -39,20 +38,21 @@ void Joiner::RowIdArrayInit(QueryInfo &query_info) {
 
 }
 
+
 void  Joiner::join(PredicateInfo &pred_info) {
 
     /* Initialize helping variables */
 
 
-    /* Get the Columns from the predicate */
+    /* Get the Columns from the predicate
     Relation &left_rel  = getRelation(pred_info.left.relId);
     Relation &right_rel = getRelation(pred_info.right.relId);
     left_column.values  = left_rel.columns.at(pred_info.left.colId);
     right_column.values = right_rel.columns.at(pred_info.right.colId);
     left_column.size  = left_rel.size;
     right_column.size = right_rel.size;
-    left_column.table_id  = pred_info.left.binding;
-    right_column.table_id = pred_info.right.binding;
+    left_column.table_index  = pred_info.left.binding;
+    right_column.table_index = pred_info.right.binding;*/
 
     /* Construct the columns if needed */
 
@@ -66,7 +66,7 @@ void  Joiner::join(PredicateInfo &pred_info) {
  * 2)Create hashtable from the row_table with the lowest size
  * 3)Ids E [0,...,size-1]
 */
-void Joiner::low_join() {
+void Joiner::low_join(table_t &table_r, table_t &table_s) {
     /* create hash_table for the hash_join phase */
 	std::unordered_map<uint64_t, uint64_t> hash_c;
 	/* hash_size->size of the hashtable,iter_size->size to iterate over to find same vals */
@@ -93,12 +93,13 @@ void Joiner::low_join() {
 	/* wipe out the vectors first */
 	/* to store the new ids */
     std::vector<std::vector<int>>  rowIds = *row_ids;
-	rowIds[hash_col->table_id].resize(0);
-	rowIds[iter_col->table_id].resize(0);
+	rowIds[hash_col->].resize(0);
+	rowIds[iter_col->table_index].resize(0);
 
 	/* now put the values of the column_r in the hash_table */
 	for (uint64_t i = 0; i < hash_size; i++)
 		hash_c.insert({hash_col->values[i], i});
+
 	/* now the phase of hashing */
 	for (uint64_t i = 0; i < iter_size; i++) {
         auto search = hash_c.find(iter_col->values[i]);
@@ -106,8 +107,10 @@ void Joiner::low_join() {
 		if (search != hash_c.end()) {
 		/* update both of rowIds vectors */
 			//std::cerr << "search result key->" << search->first << ",val->" << search->second << "\n";
-			rowIds[hash_col->table_id].push_back(search->second);
-			rowIds[iter_col->table_id].push_back(i);
+			rowIds[hash_col->table_index].push_back(search->second);
+			rowIds[iter_col->table_index].push_back(i);
+
+            /* Use a vector row for one line push_back */
 		}
 	}
 	return ;
@@ -116,20 +119,20 @@ void Joiner::low_join() {
 column_t* Joiner::construct(const column_t *column) {
 
     /* Innitilize helping variables */
-    const uint64_t  col_size = this->sizes[column->table_id];
-    const int       col_id   = column->table_id;
+    const uint64_t  col_size = this->sizes[column->table_index];
+    const int       col_id   = column->table_index;
     const uint64_t *col_values  = column->values;
     std::vector<std::vector<int>>  rowIds = *row_ids;
 
     /* Create - Initilize  a new column */
     column_t * const new_column = new column_t;
-    new_column->table_id   = column->table_id;
+    new_column->table_index   = column->table_index;
     new_column->size       = col_size;
     uint64_t *const new_values  = new uint64_t[col_size];
 
     /* Pass the values of the old column to the new one, based on the row ids of the joiner */
     for (int i = 0; i < col_size; i++) {
-        //std::cout << "Row id " << joiner->row_ids[column->table_id][i] << '\n';
+        //std::cout << "Row id " << joiner->row_ids[column->table_index][i] << '\n';
     	new_values[i] = col_values[rowIds[col_id][i]];
     }
 
@@ -139,6 +142,8 @@ column_t* Joiner::construct(const column_t *column) {
     /* Return the new column */
     return new_column;
 }
+
+#endif
 
 // Loads a relation from disk
 void Joiner::addRelation(const char* fileName) {
@@ -158,13 +163,6 @@ Relation& Joiner::getRelation(unsigned relationId) {
 // The check should be NULL if there is no qualifying tuple
 void Joiner::join(QueryInfo& i) {
     //TODO implement
-    // print result to std::cout
-
-    /* Initilize the row_ids of the joiner */
-    RowIdArrayInit(i);
-
-    /* Take the first predicate and put it through our function */
-    join(i.predicates[0]);
     cout << "Implement join..." << endl;
 }
 
@@ -175,7 +173,7 @@ void Joiner::join(QueryInfo& i) {
 
 void PrintColumn(column_t *column) {
     /* Print the column's table id */
-    std::cerr << "Column of table " << column->table_id << " and size " << column->size << '\n';
+    std::cerr << "Column of table " << column->table_index << " and size " << column->size << '\n';
 
     /* Iterate over the column's values and print them */
     for (int i = 0; i < column->size; i++) {
