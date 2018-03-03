@@ -55,6 +55,9 @@ class Joiner {
     // Get relation
     Relation& getRelation(unsigned id);
 
+    // Get the total number of relations
+    int getRelationsCount();
+
     // Joins a given set of relations
     void join(QueryInfo& i);
     void join(PredicateInfo &pred_info);

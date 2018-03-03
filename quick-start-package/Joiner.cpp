@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 #include "Parser.hpp"
+#include "QueryGraph.hpp"
 
 using namespace std;
 
@@ -142,15 +143,20 @@ Relation& Joiner::getRelation(unsigned relationId) {
     return relations[relationId];
 }
 
+// Get the total number of relations
+int Joiner::getRelationsCount() {
+    return relations.size();
+}
+
 // Hashes a value and returns a check-sum
 // The check should be NULL if there is no qualifying tuple
 void Joiner::join(QueryInfo& i) {
     //TODO implement
     // print result to std::cout
-    //cout << "Implement join..." << endl;
+    cout << "Implement join..." << endl;
 
     /* Initilize the row_ids of the joiner */
-    RowIdArrayInit(i);
+    //RowIdArrayInit(i);
 
     /* Take the first predicate and put it through our function */
     //join(i.predicates[0]);
@@ -184,12 +190,25 @@ int main(int argc, char* argv[]) {
     // Preparation phase (not timed)
     // Build histograms, indices,...
 
+    // Create a persistent query graph
+    QueryGraph queryGraph(joiner.getRelationsCount());
+
     // The test harness will send the first query after 1 second.
     QueryInfo i;
     while (getline(cin, line)) {
         if (line == "F") continue; // End of a batch
+
+        // Parse the query
         i.parseQuery(line);
+
+        // Fill the query graph
+        queryGraph.fill(i.predicates);
+
+        // Join the relations
         joiner.join(i);
+
+        // Clear the graph for the next query
+        queryGraph.clear();
     }
 
     return 0;
