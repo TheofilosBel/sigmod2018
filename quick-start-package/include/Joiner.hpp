@@ -23,8 +23,8 @@ void PrintColumn(column_t *column);
 class Joiner {
 
     std::vector<Relation> relations;  // The relations that might be joined
-    std::vector<int> **row_ids;       /* It keeps the row Ids of the reults of all the joined tables,update:vector instead of int */
-    int *sizes;                       /* It keeps the sizes of all the tables of the above array of tables */
+    std::vector<std::vector<int>> *row_ids;  /* It keeps the row Ids of the reults of all the joined tables,update:vector instead of int */
+    int *sizes;                              /* It keeps the sizes of all the tables of the above array of tables */
 
     /* Each Join has two columns */
     column_t left_column;             /**/
@@ -65,7 +65,7 @@ class Joiner {
      * Arguments: @column_r is an array with the values of the r relation , and @size_r it's size
      *            @column_s is an array with the values of the s relation , and @size_s it's size
      */
-    void low_join(column_t *column_r, column_t *column_s);
+    void low_join();
 
     /* The construct function
      *

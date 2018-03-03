@@ -2,7 +2,7 @@ OBJS 	= joiner_main.o joiner.o
 SOURCE	= joiner_main.cpp joiner.cpp
 HEADER  = joiner.hpp
 OUT 	= join
-CC		= g++
+CC	= g++
 FLAGS   = -g3 -c -std=c++11
 #-g3 for valgrind
 all: $(OBJS)
