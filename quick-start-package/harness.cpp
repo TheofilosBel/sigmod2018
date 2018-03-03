@@ -277,11 +277,13 @@ int main(int argc, char *argv[]) {
             }
 
             bool matched = val == result_batches[batch][i];
+            cout << val << endl;
+            /*
             if (!matched) {
                 cerr << "Result mismatch for query " << query_no << ", expected: " << result_batches[batch][i]
                     << ", actual: " << val << endl;
                 ++failure_cnt;
-            }
+            }*/
             /*if (matched)
             {
                 cout << endl << val << endl <<  endl << result_batches[batch][i];

@@ -1,0 +1,34 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/orestis/Desktop/sigmod2018/quick-start-package/harness.cpp
+errno.h
+-
+fcntl.h
+-
+stdio.h
+-
+stdlib.h
+-
+sys/time.h
+-
+thread
+-
+unistd.h
+-
+fstream
+-
+iostream
+-
+sstream
+-
+string
+-
+vector
+-
+

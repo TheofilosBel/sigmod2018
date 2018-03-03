@@ -1,0 +1,7 @@
+/home/orestis/Desktop/sigmod2018/quick-start-package/build/release/CMakeFiles/edit_cache.dir
+/home/orestis/Desktop/sigmod2018/quick-start-package/build/release/CMakeFiles/link_target.dir
+/home/orestis/Desktop/sigmod2018/quick-start-package/build/release/CMakeFiles/rebuild_cache.dir
+/home/orestis/Desktop/sigmod2018/quick-start-package/build/release/CMakeFiles/database.dir
+/home/orestis/Desktop/sigmod2018/quick-start-package/build/release/CMakeFiles/harness.dir
+/home/orestis/Desktop/sigmod2018/quick-start-package/build/release/CMakeFiles/Joiner.dir
+/home/orestis/Desktop/sigmod2018/quick-start-package/build/release/CMakeFiles/Query2SQL.dir

@@ -1,0 +1,1 @@
+/usr/bin/c++  -O3 -DNDEBUG  -rdynamic CMakeFiles/Query2SQL.dir/Query2SQL.cpp.o CMakeFiles/Query2SQL.dir/Relation.cpp.o CMakeFiles/Query2SQL.dir/Parser.cpp.o CMakeFiles/Query2SQL.dir/Utils.cpp.o  -o Query2SQL 

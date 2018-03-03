@@ -1,0 +1,1 @@
+/usr/bin/c++  -O3 -DNDEBUG  -rdynamic CMakeFiles/Joiner.dir/Joiner.cpp.o CMakeFiles/Joiner.dir/Relation.cpp.o CMakeFiles/Joiner.dir/Parser.cpp.o CMakeFiles/Joiner.dir/Utils.cpp.o  -o Joiner libdatabase.a 
