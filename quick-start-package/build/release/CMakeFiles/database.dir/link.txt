@@ -1,2 +1,0 @@
-/usr/bin/ar qc libdatabase.a  CMakeFiles/database.dir/Relation.cpp.o CMakeFiles/database.dir/Parser.cpp.o CMakeFiles/database.dir/Utils.cpp.o
-/usr/bin/ranlib libdatabase.a
