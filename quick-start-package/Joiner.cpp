@@ -19,17 +19,17 @@ void Joiner::RowIdArrayInit(QueryInfo &query_info) {
     /* Initilize helping variables */
 
     /* Initilize the row ids vector */
-    row_ids = new std::vector<int>*[query_info.relationIds.size()];
+    //row_ids = new std::vector<int>*[query_info.relationIds.size()];
+    row_ids.reserve(query_info.relationIds.size());
     int rel_allias = 0;
     for (RelationId relation_Id : query_info.relationIds) {
 
         /* Each relation at the begging of the query has all its rows */
         int total_row_num = getRelation(relation_Id).size;
-        row_ids[rel_allias] = new std::vector<int>;
-        row_ids[rel_allias]->reserve(total_row_num);  // Rerve the space , instead of pushing back
-
+        //row_ids[rel_allias] = new std::vector<int>;
+        row_ids[rel_allias].reserve(total_row_num);  // Rerve the space , instead of pushing back
         for (int row_n = 0; row_n < total_row_num; row_n++) {
-            row_ids[rel_allias]->push_back(row_n + 1);
+            row_ids[rel_allias].push_back(row_n + 1);
         }
 
         /* Go to the next relation */
@@ -56,7 +56,7 @@ void  Joiner::join(PredicateInfo &pred_info) {
     /* Construct the columns if needed */
 
     /* Join the columns */
-    low_join(&left_column, &right_column);
+    low_join();
 
 }
 
@@ -65,41 +65,47 @@ void  Joiner::join(PredicateInfo &pred_info) {
  * 2)Create hashtable from the row_table with the lowest size
  * 3)Ids E [0,...,size-1]
 */
-void Joiner::low_join(column_t *column_r, column_t *column_s) {
-	/* create hash_table for the hash_join phase */
-	std::unordered_map<uint64_t, int> hash_c;
-
+void Joiner::low_join() {
+    /* create hash_table for the hash_join phase */
+	std::unordered_map<uint64_t, uint64_t> hash_c;
 	/* hash_size->size of the hashtable,iter_size->size to iterate over to find same vals */
-	int hash_size,iter_size;
+	uint64_t hash_size,iter_size;
+    /* first ptr points to values that will use to create the hash_table */
+    /* second ptr points to values that will be hashed for join */
+    column_t *hash_col;
+    column_t *iter_col;
 
 	/* check for size to decide wich hash_table to create for the hash join */
-	if (column_r->size <= column_s->size) {
-		hash_size = column_r->size;
-		iter_size = column_s->size;
+	if (left_column.size <= right_column.size) {
+		hash_size = left_column.size;
+        hash_col = &left_column;
+        iter_size = right_column.size;
+        iter_col = &right_column;
 	}
 	else {
-		hash_size = column_s->size;
-		iter_size = column_r->size;
+		hash_size = right_column.size;
+        hash_col = &right_column;
+		iter_size = left_column.size;
+        iter_col = &left_column;
 	}
 
 	/* wipe out the vectors first */
 	/* to store the new ids */
-	this->row_ids[column_r->table_id]->resize(0);
-	this->row_ids[column_s->table_id]->resize(0);
+	row_ids[hash_col->table_id].resize(0);
+	row_ids[iter_col->table_id].resize(0);
 
 	/* now put the values of the column_r in the hash_table */
-	for (int i = 0; i < hash_size; i++)
-		hash_c.insert({column_r->values[i], i});
-
+	for (uint64_t i = 0; i < hash_size; i++)
+		hash_c.insert({hash_col->values[i], i});
 	/* now the phase of hashing */
-	for (int i = 0; i < iter_size; i++) {
-		auto search = hash_c.find(column_s->values[i]);
+	for (uint64_t i = 0; i < iter_size; i++) {
+        auto search = hash_c.find(iter_col->values[i]);
 		/* if we found it */
 		if (search != hash_c.end()) {
 		/* update both of row_ids vectors */
-			//std::cout << "search result key->" << search->first << ",val->" << search->second << "\n";
-			this->row_ids[column_r->table_id]->push_back(search->second);
-			this->row_ids[column_s->table_id]->push_back(i);
+			//std::cerr << "search result key->" << search->first << ",val->" << search->second << "\n";
+			row_ids[hash_col->table_id].push_back(search->second);
+			row_ids[iter_col->table_id].push_back(i);
 		}
 	}
 	return ;
@@ -111,7 +117,6 @@ column_t* Joiner::construct(const column_t *column) {
     const uint64_t  col_size = this->sizes[column->table_id];
     const int       col_id   = column->table_id;
     const uint64_t *col_values  = column->values;
-    std::vector<int> **const row_ids = this->row_ids;
 
     /* Create - Initilize  a new column */
     column_t * const new_column = new column_t;
@@ -122,7 +127,7 @@ column_t* Joiner::construct(const column_t *column) {
     /* Pass the values of the old column to the new one, based on the row ids of the joiner */
     for (int i = 0; i < col_size; i++) {
         //std::cout << "Row id " << joiner->row_ids[column->table_id][i] << '\n';
-    	new_values[i] = col_values[row_ids[col_id]->at(i)];
+    	new_values[i] = col_values[row_ids[col_id][i]];
     }
 
     /* Add the new values to the new column */
@@ -153,11 +158,10 @@ void Joiner::join(QueryInfo& i) {
     // print result to std::cout
 
     /* Initilize the row_ids of the joiner */
-    RowIdArrayInit(i);
+    //RowIdArrayInit(i);
 
     /* Take the first predicate and put it through our function */
-    join(i.predicates[0]);
-
+    //join(i.predicates[0]);
     cout << "Implement join..." << endl;
 }
 
