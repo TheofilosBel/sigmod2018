@@ -27,3 +27,6 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size);
 
 /* Print plan -- for debugging */
 void jTreePrintPlan(int* plan, int plan_size);
+
+
+JTree *treegen(QueryInfo *);
