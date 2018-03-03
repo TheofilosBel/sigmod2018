@@ -54,8 +54,7 @@ void  Joiner::join(PredicateInfo &pred_info) {
     right_column.table_id = pred_info.right.binding;
 
     /* Construct the columns if needed */
-
-
+    
     /* Join the columns */
     low_join();
 
