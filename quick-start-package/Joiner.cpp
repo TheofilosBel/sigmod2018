@@ -55,7 +55,6 @@ void  Joiner::join(PredicateInfo &pred_info) {
 
     /* Construct the columns if needed */
 
-
     /* Join the columns */
     low_join(&left_column, &right_column);
 
@@ -157,7 +156,7 @@ void Joiner::join(QueryInfo& i) {
     RowIdArrayInit(i);
 
     /* Take the first predicate and put it through our function */
-    //join(i.predicates[0]);
+    join(i.predicates[0]);
 
     cout << "Implement join..." << endl;
 }
@@ -169,11 +168,11 @@ void Joiner::join(QueryInfo& i) {
 
 void PrintColumn(column_t *column) {
     /* Print the column's table id */
-    std::cout << "Column of table " << column->table_id << " and size " << column->size << '\n';
+    std::cerr << "Column of table " << column->table_id << " and size " << column->size << '\n';
 
     /* Iterate over the column's values and print them */
     for (int i = 0; i < column->size; i++) {
-        std::cout << column->values[i] << '\n';
+        std::cerr << column->values[i] << '\n';
     }
 }
 
