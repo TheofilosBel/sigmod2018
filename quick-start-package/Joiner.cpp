@@ -20,14 +20,15 @@ void Joiner::RowIdArrayInit(QueryInfo &query_info) {
 
     /* Initilize the row ids vector */
     //row_ids = new std::vector<int>*[query_info.relationIds.size()];
-    row_ids.reserve(query_info.relationIds.size());
+    row_ids.resize(query_info.relationIds.size(), std::vector<int>(0));
     int rel_allias = 0;
     for (RelationId relation_Id : query_info.relationIds) {
+
 
         /* Each relation at the begging of the query has all its rows */
         int total_row_num = getRelation(relation_Id).size;
         //row_ids[rel_allias] = new std::vector<int>;
-        row_ids[rel_allias].reserve(total_row_num);  // Rerve the space , instead of pushing back
+        //row_ids[rel_allias].reserve(total_row_num);  // Rerve the space , instead of pushing back
         for (int row_n = 0; row_n < total_row_num; row_n++) {
             row_ids[rel_allias].push_back(row_n + 1);
         }
@@ -158,7 +159,7 @@ void Joiner::join(QueryInfo& i) {
     // print result to std::cout
 
     /* Initilize the row_ids of the joiner */
-    //RowIdArrayInit(i);
+    RowIdArrayInit(i);
 
     /* Take the first predicate and put it through our function */
     //join(i.predicates[0]);
