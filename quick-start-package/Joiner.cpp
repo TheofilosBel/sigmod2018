@@ -14,6 +14,7 @@ using namespace std;
    |The joiner functions |
    +---------------------+ */
 
+#ifdef def
 void Joiner::RowIdArrayInit(QueryInfo &query_info) {
 
     /* Initilize helping variables */
@@ -27,8 +28,6 @@ void Joiner::RowIdArrayInit(QueryInfo &query_info) {
 
         /* Each relation at the begging of the query has all its rows */
         int total_row_num = getRelation(relation_Id).size;
-        //row_ids[rel_allias] = new std::vector<int>;
-        //row_ids[rel_allias].reserve(total_row_num);  // Rerve the space , instead of pushing back
         for (int row_n = 0; row_n < total_row_num; row_n++) {
             rowIds[rel_allias].push_back(row_n + 1);
         }
@@ -39,20 +38,21 @@ void Joiner::RowIdArrayInit(QueryInfo &query_info) {
 
 }
 
+
 void  Joiner::join(PredicateInfo &pred_info) {
 
     /* Initialize helping variables */
 
 
-    /* Get the Columns from the predicate */
+    /* Get the Columns from the predicate
     Relation &left_rel  = getRelation(pred_info.left.relId);
     Relation &right_rel = getRelation(pred_info.right.relId);
     left_column.values  = left_rel.columns.at(pred_info.left.colId);
     right_column.values = right_rel.columns.at(pred_info.right.colId);
     left_column.size  = left_rel.size;
     right_column.size = right_rel.size;
-    left_column.table_id  = pred_info.left.binding;
-    right_column.table_id = pred_info.right.binding;
+    left_column.table_index  = pred_info.left.binding;
+    right_column.table_index = pred_info.right.binding;*/
 
     /* Construct the columns if needed */
     /* Join the columns */
@@ -65,71 +65,96 @@ void  Joiner::join(PredicateInfo &pred_info) {
  * 2)Create hashtable from the row_table with the lowest size
  * 3)Ids E [0,...,size-1]
 */
-void Joiner::low_join() {
+table_t& Joiner::low_join(table_t &table_r, table_t &table_s) {
     /* create hash_table for the hash_join phase */
-	std::unordered_map<uint64_t, uint64_t> hash_c;
-	/* hash_size->size of the hashtable,iter_size->size to iterate over to find same vals */
+	std::unordered_multimap<uint64_t, hash_entry> hash_c;
+    
+    /* hash_size->size of the hashtable,iter_size->size to iterate over to find same vals */
 	uint64_t hash_size,iter_size;
+    
     /* first ptr points to values that will use to create the hash_table */
     /* second ptr points to values that will be hashed for join */
     column_t *hash_col;
     column_t *iter_col;
+    std::vector<std::vector<int>> &h_rows;
+    std::vector<std::vector<int>> &i_rows;
+    
+    /* the new table_t to continue the joins */
+    table_t updated_table_t = new table_t;
 
-	/* check for size to decide wich hash_table to create for the hash join */
-	if (left_column.size <= right_column.size) {
-		hash_size = left_column.size;
-        hash_col = &left_column;
-        iter_size = right_column.size;
-        iter_col = &right_column;
+    /* check for size to decide wich hash_table to create for the hash join */
+	if (table_r.column_j->size <= table_s.column_j->size) {
+		hash_size = table_r.column_j->size;
+        hash_col = table_r.column_j;
+        h_rows = table_r.relations_row_ids;
+        
+        iter_size = table_s.column_j->size;
+        iter_col = table_s.column_j;
+        i_rows = table_s.relations_row_ids;
 	}
 	else {
-		hash_size = right_column.size;
-        hash_col = &right_column;
-		iter_size = left_column.size;
-        iter_col = &left_column;
+		hash_size = table_s.column_j->size;
+        hash_col = table_s.column_j;
+        h_rows = table_s.relations_row_ids;
+		
+        iter_size = table_r.column_j->size;
+        iter_col = table_r.column_j;
+        i_rows = table_r.relations_row_ids;
 	}
 
-	/* wipe out the vectors first */
-	/* to store the new ids */
-    std::vector<std::vector<int>>  rowIds = *row_ids;
-	
-    /*rowIds[hash_col->table_id].resize(0);
-	rowIds[iter_col->table_id].resize(0);*/
+	/* now put the values of the column_r in the hash_table(construction phase) */
+	for (uint64_t i = 0; i < hash_size; i++) {
+        /* store hash[value of the column] = {rowid, index} */
+        hash_entry hs;
+        hs.row_id = h_rows[hash_col->table_index][i];
+		hs.index = i;
+        hash_c.insert({hash_col->values[i], hs});
+    }
+    /* create the updated relations_row_ids, merge the sizes*/
+    updated_table_t.relations_row_ids.resize(h_rows.size()+i_rows.size());
 
-	/* now put the values of the column_r in the hash_table */
-	for (uint64_t i = 0; i < hash_size; i++)
-		hash_c.insert({hash_col->values[i], i});
 	/* now the phase of hashing */
 	for (uint64_t i = 0; i < iter_size; i++) {
-        auto search = hash_c.find(iter_col->values[i]);
-		/* if we found it */
-		if (search != hash_c.end()) {
-		/* update both of rowIds vectors */
-			//std::cerr << "search result key->" << search->first << ",val->" << search->second << "\n";
-			rowIds[hash_col->table_id].push_back(search->second);
-			rowIds[iter_col->table_id].push_back(i);
-		}
+        /* remember we may have multi vals in 1 key,if it isnt a primary key */
+        /* vals->first = key ,vals->second = value */ 
+        auto range_vals = hash_c.equal_range(iter_col->values[i]);
+        for(auto vals = range_vals.first; i != range_vals.second; vals++) {
+            /* store all the result then push it int the new row ids */
+            /* its faster than to push back 1 every time */
+            std::vector<int> temp_row_ids;
+            /* get the first values from the r's rows ids */
+            for (uint64_t j = 0 ; j < h_rows.size(); j++)
+                temp_row_ids.push_back(h_rows[j][vals.hs.index]);
+            /* then go to the s's row ids to get the values */
+            for (uint64_t j = 0 ; j < i_rows.size(); j++)
+                temp_row_ids.push_back(i_rows[j][i])
+            updated_table_t.relations_row_ids.push_back(temp_row_ids);
+        }
 	}
-	return ;
+    /* concatenate the relaitons ids for the merge */
+    updated_table_t.relation_ids.resize(table_r.relation_ids.size()+table_s.relation_ids.size());
+	updated_table_t.relation_ids.insert(updated_table_t.relation_ids.end() ,table_r.relation_ids.begin(), table_r.relation_ids.end());
+    updated_table_t.relation_ids.insert(updated_table_t.relation_ids.end() ,table_s.relation_ids.begin(), table_s.relation_ids.end());
+    return updated_table_t;
 }
 
 column_t* Joiner::construct(const column_t *column) {
 
     /* Innitilize helping variables */
-    const uint64_t  col_size = this->sizes[column->table_id];
-    const int       col_id   = column->table_id;
+    const uint64_t  col_size = this->sizes[column->table_index];
+    const int       col_id   = column->table_index;
     const uint64_t *col_values  = column->values;
     std::vector<std::vector<int>>  rowIds = *row_ids;
 
     /* Create - Initilize  a new column */
     column_t * const new_column = new column_t;
-    new_column->table_id   = column->table_id;
+    new_column->table_index   = column->table_index;
     new_column->size       = col_size;
     uint64_t *const new_values  = new uint64_t[col_size];
 
     /* Pass the values of the old column to the new one, based on the row ids of the joiner */
     for (int i = 0; i < col_size; i++) {
-        //std::cout << "Row id " << joiner->row_ids[column->table_id][i] << '\n';
+        //std::cout << "Row id " << joiner->row_ids[column->table_index][i] << '\n';
     	new_values[i] = col_values[rowIds[col_id][i]];
     }
 
@@ -139,6 +164,8 @@ column_t* Joiner::construct(const column_t *column) {
     /* Return the new column */
     return new_column;
 }
+
+#endif
 
 // Loads a relation from disk
 void Joiner::addRelation(const char* fileName) {
@@ -158,13 +185,6 @@ Relation& Joiner::getRelation(unsigned relationId) {
 // The check should be NULL if there is no qualifying tuple
 void Joiner::join(QueryInfo& i) {
     //TODO implement
-    // print result to std::cout
-
-    /* Initilize the row_ids of the joiner */
-    RowIdArrayInit(i);
-
-    /* Take the first predicate and put it through our function */
-    join(i.predicates[0]);
     cout << "Implement join..." << endl;
 }
 
@@ -175,7 +195,7 @@ void Joiner::join(QueryInfo& i) {
 
 void PrintColumn(column_t *column) {
     /* Print the column's table id */
-    std::cerr << "Column of table " << column->table_id << " and size " << column->size << '\n';
+    std::cerr << "Column of table " << column->table_index << " and size " << column->size << '\n';
 
     /* Iterate over the column's values and print them */
     for (int i = 0; i < column->size; i++) {
