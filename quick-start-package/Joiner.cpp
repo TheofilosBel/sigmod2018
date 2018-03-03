@@ -14,17 +14,50 @@ using namespace std;
    |The joiner functions |
    +---------------------+ */
 
-void  Joiner::join(PredicateInfo pinfo) {
+void Joiner::RowIdArrayInit(QueryInfo &query_info) {
+
+    /* Initilize helping variables */
+
+    /* Initilize the row ids vector */
+    row_ids = new std::vector<int>*[query_info.relationIds.size()];
+    int rel_allias = 0;
+    for (RelationId relation_Id : query_info.relationIds) {
+
+        /* Each relation at the begging of the query has all its rows */
+        int total_row_num = getRelation(relation_Id).size;
+        row_ids[rel_allias] = new std::vector<int>;
+        row_ids[rel_allias]->reserve(total_row_num);  // Rerve the space , instead of pushing back
+
+        for (int row_n = 0; row_n < total_row_num; row_n++) {
+            row_ids[rel_allias]->push_back(row_n + 1);
+        }
+
+        /* Go to the next relation */
+        rel_allias++;
+    }
+
+}
+
+void  Joiner::join(PredicateInfo &pred_info) {
+
+    /* Initialize helping variables */
 
 
+    /* Get the Columns from the predicate */
+    Relation &left_rel  = getRelation(pred_info.left.relId);
+    Relation &right_rel = getRelation(pred_info.right.relId);
+    left_column.values  = left_rel.columns.at(pred_info.left.colId);
+    right_column.values = right_rel.columns.at(pred_info.right.colId);
+    left_column.size  = left_rel.size;
+    right_column.size = right_rel.size;
+    left_column.table_id  = pred_info.left.binding;
+    right_column.table_id = pred_info.right.binding;
 
-    /* Get the relations from the predicate */
-    
+    /* Construct the columns if needed */
 
 
-
-
-
+    /* Join the columns */
+    low_join(&left_column, &right_column);
 
 }
 
@@ -35,7 +68,7 @@ void  Joiner::join(PredicateInfo pinfo) {
 */
 void Joiner::low_join(column_t *column_r, column_t *column_s) {
 	/* create hash_table for the hash_join phase */
-	std::unordered_map<int, int> hash_c;
+	std::unordered_map<uint64_t, int> hash_c;
 
 	/* hash_size->size of the hashtable,iter_size->size to iterate over to find same vals */
 	int hash_size,iter_size;
@@ -65,7 +98,7 @@ void Joiner::low_join(column_t *column_r, column_t *column_s) {
 		/* if we found it */
 		if (search != hash_c.end()) {
 		/* update both of row_ids vectors */
-			std::cout << "search result key->" << search->first << ",val->" << search->second << "\n";
+			//std::cout << "search result key->" << search->first << ",val->" << search->second << "\n";
 			this->row_ids[column_r->table_id]->push_back(search->second);
 			this->row_ids[column_s->table_id]->push_back(i);
 		}
@@ -76,17 +109,16 @@ void Joiner::low_join(column_t *column_r, column_t *column_s) {
 column_t* Joiner::construct(const column_t *column) {
 
     /* Innitilize helping variables */
-    const uint64_t col_size = this->sizes[column->table_id];
-    const int      col_id   = column->table_id;
-    const int     *col_values  = column->values;
+    const uint64_t  col_size = this->sizes[column->table_id];
+    const int       col_id   = column->table_id;
+    const uint64_t *col_values  = column->values;
     std::vector<int> **const row_ids = this->row_ids;
 
     /* Create - Initilize  a new column */
     column_t * const new_column = new column_t;
     new_column->table_id   = column->table_id;
     new_column->size       = col_size;
-    int *const new_values  = new int[new_column->size];
-
+    uint64_t *const new_values  = new uint64_t[col_size];
 
     /* Pass the values of the old column to the new one, based on the row ids of the joiner */
     for (int i = 0; i < col_size; i++) {
@@ -120,6 +152,13 @@ Relation& Joiner::getRelation(unsigned relationId) {
 void Joiner::join(QueryInfo& i) {
     //TODO implement
     // print result to std::cout
+
+    /* Initilize the row_ids of the joiner */
+    RowIdArrayInit(i);
+
+    /* Take the first predicate and put it through our function */
+    //join(i.predicates[0]);
+
     cout << "Implement join..." << endl;
 }
 
