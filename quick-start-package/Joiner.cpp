@@ -18,17 +18,22 @@ void Joiner::RowIdArrayInit(QueryInfo &query_info) {
 
     /* Initilize helping variables */
 
-    /* Initilize the vector row ids vector */
+    /* Initilize the row ids vector */
     row_ids = new std::vector<int>*[query_info.relationIds.size()];
     int rel_allias = 0;
     for (RelationId relation_Id : query_info.relationIds) {
 
-        /* Each relation at the begging has all its rows */
+        /* Each relation at the begging of the query has all its rows */
         int total_row_num = getRelation(relation_Id).size;
         row_ids[rel_allias] = new std::vector<int>;
-        for (int row_n = 1; row_n <= total_row_num; row_n++) {
-            row_ids[rel_allias]->at(row_n) = row_n;
+        row_ids[rel_allias]->reserve(total_row_num);  // Rerve the space , instead of pushing back
+
+        for (int row_n = 0; row_n < total_row_num; row_n++) {
+            row_ids[rel_allias]->push_back(row_n + 1);
         }
+
+        /* Go to the next relation */
+        rel_allias++;
     }
 
 }
@@ -93,7 +98,7 @@ void Joiner::low_join(column_t *column_r, column_t *column_s) {
 		/* if we found it */
 		if (search != hash_c.end()) {
 		/* update both of row_ids vectors */
-			std::cout << "search result key->" << search->first << ",val->" << search->second << "\n";
+			//std::cout << "search result key->" << search->first << ",val->" << search->second << "\n";
 			this->row_ids[column_r->table_id]->push_back(search->second);
 			this->row_ids[column_s->table_id]->push_back(i);
 		}
@@ -147,13 +152,14 @@ Relation& Joiner::getRelation(unsigned relationId) {
 void Joiner::join(QueryInfo& i) {
     //TODO implement
     // print result to std::cout
-    //cout << "Implement join..." << endl;
 
     /* Initilize the row_ids of the joiner */
     RowIdArrayInit(i);
 
     /* Take the first predicate and put it through our function */
     //join(i.predicates[0]);
+
+    cout << "Implement join..." << endl;
 }
 
 

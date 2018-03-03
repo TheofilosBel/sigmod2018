@@ -12,10 +12,8 @@ typedef struct {
     int       table_id;
 } column_t;
 
-/* Column Print Function
- *
+/*
  * Prints a column
- *
  * Arguments : A @column of column_t type
  */
 void PrintColumn(column_t *column);
