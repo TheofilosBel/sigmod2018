@@ -1,2 +1,5 @@
 # Don't commit the quick start folder
 ./quick-start-package/*
+
+# for now...
+execution_plan/
