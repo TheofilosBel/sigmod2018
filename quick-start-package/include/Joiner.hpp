@@ -7,9 +7,9 @@
 
 /*------COLUMN STURCT & FUNCTIONS----------*/
 typedef struct {
-    int       table_id;
-    int      *values;
+    uint64_t *values;
     uint64_t  size;
+    int       table_id;
 } column_t;
 
 /* Column Print Function
@@ -24,9 +24,13 @@ void PrintColumn(column_t *column);
 /*--------- JOINER STUCT & FUNCTIONS---------*/
 class Joiner {
 
-    std::vector<Relation> relations; // The relations that might be joined
+    std::vector<Relation> relations;  // The relations that might be joined
     std::vector<int> **row_ids;       /* It keeps the row Ids of the reults of all the joined tables,update:vector instead of int */
     int *sizes;                       /* It keeps the sizes of all the tables of the above array of tables */
+
+    /* Each Join has two columns */
+    column_t left_column;             /**/
+    column_t right_column;            /**/
 
     /*  The row id Table
     +--------------------------------------+
@@ -42,21 +46,8 @@ class Joiner {
     */
     public:
 
-    /*
-     * Construct the joiner object
-     *
-     * Returns   : Returns the joiner object initilized
-     * Arguments : Columns
-     */
-    
-
-    /*
-     * Destroys the joiner object
-     *
-     * Returns   : Void
-     * Arguments : The @joiner to be destroyed
-     */
-
+    /* Initialize the row_id Array */
+    void RowIdArrayInit(QueryInfo &query_info);
 
     // Add relation
     void addRelation(const char* fileName);
@@ -66,7 +57,7 @@ class Joiner {
 
     // Joins a given set of relations
     void join(QueryInfo& i);
-    void join(PredicateInfo pinfo);
+    void join(PredicateInfo &pred_info);
 
     /* The join function
      *
