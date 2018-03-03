@@ -57,7 +57,7 @@ void  Joiner::join(PredicateInfo &pred_info) {
 
 
     /* Join the columns */
-    low_join(&left_column, &right_column);
+    low_join();
 
 }
 
@@ -66,41 +66,47 @@ void  Joiner::join(PredicateInfo &pred_info) {
  * 2)Create hashtable from the row_table with the lowest size
  * 3)Ids E [0,...,size-1]
 */
-void Joiner::low_join(column_t *column_r, column_t *column_s) {
-	/* create hash_table for the hash_join phase */
-	std::unordered_map<uint64_t, int> hash_c;
-
+void Joiner::low_join() {
+    /* create hash_table for the hash_join phase */
+	std::unordered_map<uint64_t, uint64_t> hash_c;
 	/* hash_size->size of the hashtable,iter_size->size to iterate over to find same vals */
-	int hash_size,iter_size;
+	uint64_t hash_size,iter_size;
+    /* first ptr points to values that will use to create the hash_table */
+    /* second ptr points to values that will be hashed for join */
+    column_t *hash_col;
+    column_t *iter_col;
 
 	/* check for size to decide wich hash_table to create for the hash join */
-	if (column_r->size <= column_s->size) {
-		hash_size = column_r->size;
-		iter_size = column_s->size;
+	if (left_column.size <= right_column.size) {
+		hash_size = left_column.size;
+        hash_col = &left_column;
+        iter_size = right_column.size;
+        iter_col = &right_column;
 	}
 	else {
-		hash_size = column_s->size;
-		iter_size = column_r->size;
+		hash_size = right_column.size;
+        hash_col = &right_column;
+		iter_size = left_column.size;
+        iter_col = &left_column;
 	}
 
 	/* wipe out the vectors first */
 	/* to store the new ids */
-	this->row_ids[column_r->table_id]->resize(0);
-	this->row_ids[column_s->table_id]->resize(0);
+	row_ids[hash_col->table_id]->resize(0);
+	row_ids[iter_col->table_id]->resize(0);
 
 	/* now put the values of the column_r in the hash_table */
-	for (int i = 0; i < hash_size; i++)
-		hash_c.insert({column_r->values[i], i});
-
+	for (uint64_t i = 0; i < hash_size; i++)
+		hash_c.insert({hash_col->values[i], i});
 	/* now the phase of hashing */
-	for (int i = 0; i < iter_size; i++) {
-		auto search = hash_c.find(column_s->values[i]);
+	for (uint64_t i = 0; i < iter_size; i++) {
+        auto search = hash_c.find(iter_col->values[i]);
 		/* if we found it */
 		if (search != hash_c.end()) {
 		/* update both of row_ids vectors */
-			//std::cout << "search result key->" << search->first << ",val->" << search->second << "\n";
-			this->row_ids[column_r->table_id]->push_back(search->second);
-			this->row_ids[column_s->table_id]->push_back(i);
+			//std::cerr << "search result key->" << search->first << ",val->" << search->second << "\n";
+			row_ids[hash_col->table_id]->push_back(search->second);
+			row_ids[iter_col->table_id]->push_back(i);
 		}
 	}
 	return ;
@@ -157,8 +163,7 @@ void Joiner::join(QueryInfo& i) {
     RowIdArrayInit(i);
 
     /* Take the first predicate and put it through our function */
-    //join(i.predicates[0]);
-
+    join(i.predicates[0]);
     cout << "Implement join..." << endl;
 }
 

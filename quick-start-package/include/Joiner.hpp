@@ -65,7 +65,7 @@ class Joiner {
      * Arguments: @column_r is an array with the values of the r relation , and @size_r it's size
      *            @column_s is an array with the values of the s relation , and @size_s it's size
      */
-    void low_join(column_t *column_r, column_t *column_s);
+    void low_join();
 
     /* The construct function
      *
