@@ -269,7 +269,7 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
                 currPtr->intermediate_res = joiner.join(left_table, right_table);
               }
               else {
-
+                joiner.Select(*(currPtr->filterPtr), currPtr->intermediate_res);
               }
             }
             else if (currPtr->right && currPtr->right->intermediate_res) {
@@ -277,9 +277,10 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
               if (currPtr->predPtr) {
                 left_table = joiner.SelectInfoToTableT(currPtr->predPtr->left);
                 joiner.AddColumnToIntermediatResult(currPtr->predPtr->right, right_table);
+                currPtr->intermediate_res = joiner.join(left_table, right_table);
               }
               else {
-                // joiner.Select(currPtr->filterPtr, currPtr->intermediate_res);
+                joiner.Select(*(currPtr->filterPtr), currPtr->intermediate_res);
               }
             }
             else {
@@ -288,7 +289,7 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
                 right_table = joiner.SelectInfoToTableT(currPtr->predPtr->right);
                 currPtr->intermediate_res = joiner.join(left_table, right_table);
               } else {
-                // joiner.Select(currPtr->filterPtr, currPtr->intermediate_res);
+                joiner.Select(*(currPtr->filterPtr), currPtr->intermediate_res);
               }
             }
 
