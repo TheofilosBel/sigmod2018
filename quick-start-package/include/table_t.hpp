@@ -14,6 +14,7 @@ struct column_t {
     uint64_t *values;
     uint64_t  size;
     uint64_t  table_index;
+    unsigned id;
 };
 
 struct table_t {

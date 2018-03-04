@@ -15,6 +15,7 @@ using namespace std;
    |The joiner functions |
    +---------------------+ */
 
+/* Its better not to use it TODO change it */
 table_t* Joiner::Select(FilterInfo &fil_info) {
 
     /* Create table */
@@ -129,12 +130,13 @@ void Joiner::AddColumnToIntermediatResult(SelectInfo &sel_info, table_t *table) 
     Relation &rel = getRelation(sel_info.relId);
     column.size   = rel.size;
     column.values = rel.columns.at(sel_info.colId);
+    column.id     = sel_info.colId;
     column.table_index = -1;
-    RelationId relation_id = sel_info.colId;
+    RelationId relation_id = sel_info.relId;
 
     /* Get the right index from the relation id table */
     for (size_t index = 0; index < relation_ids.size(); index++) {
-        if (relation_ids[index] = relation_id){
+        if (relation_ids[index] == relation_id){
             column.table_index = index;
         }
     }
@@ -152,15 +154,18 @@ table_t* Joiner::SelectInfoToTableT(SelectInfo &sel_info) {
 
     table_t_ptr->intermediate_res = false;
     table_t_ptr->column_j = new column_t;
-    column_t &column = *table_t_ptr->column_j;
     table_t_ptr->relations_row_ids = new std::vector<std::vector<int>>;
+
+    column_t &column = *table_t_ptr->column_j;
     std::vector<std::vector<int>> &rel_row_ids = *table_t_ptr->relations_row_ids;
 
-    /* Get the needed data from the predicate */
+    /* Get the relation */
     Relation &rel  = getRelation(sel_info.relId);
 
+    /* Initialize the column_t */
     column.values = rel.columns.at(sel_info.colId);
     column.size   = rel.size;
+    column.id     = sel_info.colId;
     column.table_index  = 0;
 
     /* Create the relations_row_ids and relation_ids vectors */
@@ -182,8 +187,7 @@ table_t* Joiner::join(table_t *table_r, table_t *table_s) {
     (table_s->intermediate_res)? (construct(table_s)) : ((void)0);
 
     /* Join the columns */
-    //low_join(table_r, table_s);
-    return NULL;
+    return low_join(table_r, table_s);
 }
 
 //#ifdef def
@@ -352,13 +356,16 @@ void Joiner::join(QueryInfo& i) {
     table_t *table_r = SelectInfoToTableT(i.predicates[0].left);
     table_t *table_s = SelectInfoToTableT(i.predicates[0].right);
 
-    std::cerr << "Table rows" << table_r->column_j->size << '\n';
-    SelectEqual(table_r, 1000);
-    construct(table_r);
-    std::cerr << "Table rows after " << table_r->column_j->size << '\n';
+    std::cerr << "Left Table " << table_r->relation_ids[0]  << "." << table_r->column_j->id;
+    std::cerr << " rows " << table_r->column_j->size << '\n';
+    std::cerr << "Right Table " << table_s->relation_ids[0]  << "." << table_s->column_j->id;
+    std::cerr << " rows " << table_s->column_j->size << '\n';
 
-    SelectLess(table_s, 1000);
-    //join(table_r, table_s);
+    table_t *result = join(table_r, table_s);
+
+    std::cerr << "Intermediate Table " << result->relation_ids[0] << "&" << result->relation_ids[1];
+    std::cerr << " rows " << result->relations_row_ids->size() << '\n';
+    std::cerr << "-----------------------------------------------------" << '\n';
 
 }
 
