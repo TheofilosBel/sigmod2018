@@ -47,6 +47,10 @@ void Joiner::SelectEqual(table_t *table, int filter) {
     /* Update the row ids of the table */
     for (size_t index = 0; index < size; index++) {
         if (values[old_row_ids[table_index][index]] == filter) {
+
+            std::cerr << "Values " << values[old_row_ids[table_index][index]];
+            std::cerr << " Row ids " << old_row_ids[table_index][index] << '\n';
+
             for (size_t rel_index = 0; rel_index < rel_num; rel_index++) {
                 new_row_ids->operator[](rel_index).push_back(old_row_ids[rel_index][index]);
             }
@@ -122,7 +126,7 @@ void Joiner::AddColumnToIntermediatResult(SelectInfo &sel_info, table_t *table) 
 
     /* Get the relation from joiner */
     Relation &rel = getRelation(sel_info.relId);
-    std::cerr << "In add " << sel_info.relId << '\n';
+    std::cerr << "In add " << sel_info.colId << '\n';
     flush(cerr);
     column.size   = rel.size;
     column.values = rel.columns.at(sel_info.colId);
@@ -239,8 +243,6 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
             for(auto &vals = range_vals.first; vals != range_vals.second; vals++) {
                 /* store all the result then push it int the new row ids */
                 /* its faster than to push back 1 every time */
-                updated_table_t->relations_row_ids->push_back(std::vector<int>());
-
                 /* get the first values from the r's rows ids */
                 for (uint64_t j = 0 ; j < h_rows.size(); j++)
                     update_row_ids[j].push_back(h_rows[j][vals->second.index]);
@@ -283,6 +285,10 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
             for(auto &vals = range_vals.first; vals != range_vals.second; vals++) {
                 /* store all the result then push it int the new row ids */
                 /* its faster than to push back 1 every time */
+                std::cerr << "------------" << '\n';
+                if (vals->second.row_id == 378){
+                    std::cerr << "$$$$$$FOUND in here" << '\n';
+                }
 
                 for (uint64_t j = 0 ; j < h_rows.size(); j++)
                     update_row_ids[j].push_back(h_rows[j][vals->second.index]);
@@ -314,19 +320,32 @@ void Joiner::construct(table_t *table) {
 
     /* Innitilize helping variables */
     column_t &column = *table->column_j;
+
+    for (size_t i = 0; i < column.size; i++) {
+        if (column.values[i] == 9881) {
+            std::cerr << "FOUND 0nd HERE " << i << '\n';
+            flush(cerr);
+        }
+    }
+
     const uint64_t *column_values = column.values;
     const int       table_index   = column.table_index;
     const uint64_t  column_size   = table->relations_row_ids->operator[](table_index).size();
     std::vector<std::vector<int>> &row_ids = *table->relations_row_ids;
 
 
-    std::cerr << "Column size " << column_size << '\n';
+    std::cerr << "Column size " << column_size << " table index "<< table_index << '\n';
 
     /* Create a new value's array  */
     uint64_t *const new_values  = new uint64_t[column_size];
 
     /* Pass the values of the old column to the new one, based on the row ids of the joiner */
     for (int i = 0; i < column_size; i++) {
+        if (column_values[row_ids[table_index][i]] == 9881) {
+            std::cerr << "FOUND 1st HERE : row Id: " << row_ids[table_index][i];
+            std::cerr << " INDEX " << i << '\n';
+            flush(cerr);
+        }
     	new_values[i] = column_values[row_ids[table_index][i]];
     }
 
@@ -378,18 +397,19 @@ void Joiner::join(QueryInfo& i) {
 
         /* Take the filter and apply it to the table to the */
         AddColumnToIntermediatResult(filter.filterColumn, result);
-        std::cerr << "Padded Add " << '\n';
+        std::cerr << "Passed Add " << '\n';
         flush(cerr);
 
         construct(result);
-        std::cerr << "Padded construct " << '\n';
+        std::cerr << "Passed construct " << '\n';
         flush(cerr);
 
         std::cerr << "Column size after " << result->column_j->size << '\n';
 
         Select(filter, result);
-        std::cerr << "Padded Select " << '\n';
+        std::cerr << "Passed Select " << '\n';
         flush(cerr);
+
         //construct(result);
         //std::cerr << "Padded construct " << '\n';
         //flush(cerr);
@@ -397,6 +417,7 @@ void Joiner::join(QueryInfo& i) {
 
     std::cerr << "Intermediate Table " << result->relation_ids[0] << "&" << result->relation_ids[1];
     std::cerr << " rows " << result->relations_row_ids->operator[](0).size() << '\n';
+
     std::cerr << "-----------------------------------------------------" << '\n';
 
 }
