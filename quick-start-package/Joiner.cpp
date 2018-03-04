@@ -85,18 +85,18 @@ void  Joiner::join(PredicateInfo &pred_info) {
 */
 table_t& Joiner::low_join(table_t &table_r, table_t &table_s) {
     /* create hash_table for the hash_join phase */
-	std::unordered_multimap<uint64_t, hash_entry> hash_c;
-    
+    std::unordered_multimap<uint64_t, hash_entry> hash_c;
+
     /* hash_size->size of the hashtable,iter_size->size to iterate over to find same vals */
-	uint64_t hash_size,iter_size;
-    
+    uint64_t hash_size,iter_size;
+
     /* first ptr points to values that will use to create the hash_table */
     /* second ptr points to values that will be hashed for join */
     column_t *hash_col;
     column_t *iter_col;
     std::vector<std::vector<int>> &h_rows;
     std::vector<std::vector<int>> &i_rows;
-    
+
     /* the new table_t to continue the joins */
     table_t updated_table_t = new table_t;
 
@@ -151,7 +151,7 @@ table_t& Joiner::low_join(table_t &table_r, table_t &table_s) {
 	}
     /* concatenate the relaitons ids for the merge */
     updated_table_t.relation_ids.resize(table_r.relation_ids.size()+table_s.relation_ids.size());
-	updated_table_t.relation_ids.insert(updated_table_t.relation_ids.end() ,table_r.relation_ids.begin(), table_r.relation_ids.end());
+    updated_table_t.relation_ids.insert(updated_table_t.relation_ids.end() ,table_r.relation_ids.begin(), table_r.relation_ids.end());
     updated_table_t.relation_ids.insert(updated_table_t.relation_ids.end() ,table_s.relation_ids.begin(), table_s.relation_ids.end());
     return updated_table_t;
 }
