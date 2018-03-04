@@ -361,7 +361,7 @@ uint64_t Joiner::check_sum(SelectInfo &sel_info, table_t *table) {
     construct(table);
     
     const uint64_t* col = table->column_j->values;
-    uint64_t size = table->column_j->size;
+    const uint64_t size = table->column_j->size;
     uint64_t sum = 0;
 
     for (uint64_t i = 0 ; i < size; i++)
