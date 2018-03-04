@@ -1,15 +1,15 @@
-#include "../include/header.hpp"
+#include "./include/header.hpp"
 
 #include <set>
 #include <map>
 
 #include <cstdio>
 
-JTree *treegen(QueryInfo *info) 
+JTree *treegen(QueryInfo *info)
 {
 
 	using namespace std;
-	
+
 	map<int,JTree*> worklist;
 
 	map<JTree*,set<int>*> nodeSets;
@@ -23,7 +23,7 @@ JTree *treegen(QueryInfo *info)
 		node->predPtr = NULL;
 		node->predPtr = NULL;
 
-		
+
 
 		node->right = NULL;
 		node->left = NULL;
@@ -45,7 +45,7 @@ JTree *treegen(QueryInfo *info)
 		node->left = NULL;
 		node->parent = NULL;
 
-		
+
 		node->left = worklist[info->filters[i].filterColumn.binding];
 
 		for (set<int>::iterator it=nodeSets[node->left]->begin(); it != nodeSets[node->left]->end(); ++it) {
@@ -54,7 +54,7 @@ JTree *treegen(QueryInfo *info)
 		}
 		nodeSets[node] = nodeSets[node->left];
 
-		
+
 		node->left->parent = node;
 
 
@@ -96,7 +96,7 @@ JTree *treegen(QueryInfo *info)
 			node->right = NULL;
 		else {
 
-			
+
 			for (set<int>::iterator it=nodeSets[node->right]->begin(); it != nodeSets[node->right]->end(); ++it) {
 
 				worklist[*it] = node;

@@ -7,7 +7,7 @@
 #include <vector>
 #include "Parser.hpp"
 #include "QueryGraph.hpp"
-#include "execution_plan/include/header.hpp"
+#include "./include/header.hpp"
 
 using namespace std;
 
@@ -414,6 +414,9 @@ int main(int argc, char* argv[]) {
         i.parseQuery(line);
 
         JTree *jTreePtr = treegen(&i);
+
+        int *plan = NULL, plan_size = 0;
+        plan = jTreeMakePlan(jTreePtr, &plan_size);
     }
 
     return 0;

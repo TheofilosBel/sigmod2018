@@ -1,4 +1,4 @@
-#include "../include/functions.hpp"
+#include "./include/functions.hpp"
 
 /*          Sample query tree:
                                              --- (7) B1<1000
@@ -128,7 +128,7 @@ void jTreeDestr(JTree* jTreePtr) {
     /* destruct query-tree in a DFS fassion */
     JTree *currPtr = jTreePtr;
     bool from_left = false;
-    
+
     while(currPtr) {
         /* if there are left children */
         if (currPtr->left) {
@@ -175,7 +175,7 @@ void jTreePrintTree(JTree* jTreePtr) {
     /* print query-tree in a DFS fassion */
     JTree *currPtr = jTreePtr;
     bool from_left = true, went_left = false, went_right = false;
-    
+
     while(currPtr) {
         /* if you can go to the left children */
         if (!went_left && currPtr->left) {
@@ -220,7 +220,7 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size) {
 
     JTree *currPtr = jTreePtr;
     bool from_left = true, went_left = false, went_right = false;
-    
+
     while(currPtr) {
         /* if you can go to the left children */
         if (!went_left && currPtr->left) {
