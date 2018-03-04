@@ -327,6 +327,22 @@ void Joiner::construct(table_t *table) {
     column.size   = column_size;
 }
 
+//CHECK SUM FUNCTION
+uint64_t Joiner::check_sum(SelectInfo &sel_info, table_t *table) {
+    /* to create the final cehcksum column */
+    AddColumnToIntermediatResult(sel_info, table);
+    construct(table);
+    
+    const uint64_t* col = table->column_j->values;
+    const uint64_t size = table->column_j->size;
+    uint64_t sum = 0;
+
+    for (uint64_t i = 0 ; i < size; i++)
+        sum += col[i];
+
+    return sum;
+}
+
 // Loads a relation from disk
 void Joiner::addRelation(const char* fileName) {
     relations.emplace_back(fileName);
