@@ -285,9 +285,8 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
             for(auto &vals = range_vals.first; vals != range_vals.second; vals++) {
                 /* store all the result then push it int the new row ids */
                 /* its faster than to push back 1 every time */
-                std::cerr << "------------" << '\n';
-                if (vals->second.row_id == 378){
-                    std::cerr << "$$$$$$FOUND in here" << '\n';
+                if (vals->second.index == 378){
+                    std::cerr << "$$$$$$FOUND in here " << vals->first << " Values " << iter_col->values[i] << " at " << i << '\n';
                 }
 
                 for (uint64_t j = 0 ; j < h_rows.size(); j++)
