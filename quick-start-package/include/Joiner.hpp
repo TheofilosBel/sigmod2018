@@ -28,6 +28,11 @@ class Joiner {
     // Get relation
     Relation& getRelation(unsigned id);
 
+    // Get the total number of relations
+    int getRelationsCount();
+
+    table_t* PredicateToTableT(PredicateInfo &pred_info);
+
     // Joins a given set of relations
     void join(QueryInfo& i);
     void join(PredicateInfo &pred_info);
@@ -50,5 +55,5 @@ class Joiner {
      * Arguments: @column is an array with the values of the r relation
      *            @joiner is the object that holds the row_ids of the reults after the joins
      */
-     column_t* construct(const table_t &table);
+     void construct(table_t &table);
 };

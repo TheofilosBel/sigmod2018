@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 #include "Parser.hpp"
+#include "QueryGraph.hpp"
 
 using namespace std;
 
@@ -14,51 +15,68 @@ using namespace std;
    |The joiner functions |
    +---------------------+ */
 
-#ifdef def
-void Joiner::RowIdArrayInit(QueryInfo &query_info) {
+table_t* Joiner::PredicateToTableT(PredicateInfo &pred_info) {
 
-    /* Initilize helping variables */
+    /* Crate - Initialize array that holds 2 table_t */
+    table_t *const table_t_ptr = new table_t[2];
 
-    /* Initilize the row ids vector */
-    row_ids = new std::vector<std::vector<int>> (query_info.relationIds.size());
-    //row_ids.resize(query_info.relationIds.size(), std::vector<int>(0));
-    std::vector<std::vector<int>>  rowIds = *row_ids;
-    int rel_allias = 0;
-    for (RelationId relation_Id : query_info.relationIds) {
+    table_t_ptr[0].intermediate_res = false;
+    table_t_ptr[0].column_j = new column_t;
+    column_t &left_column = *table_t_ptr[0].column_j;
+    std::vector<std::vector<int>> &left_rel_row_ids = table_t_ptr[0].relations_row_ids;
 
-        /* Each relation at the begging of the query has all its rows */
-        int total_row_num = getRelation(relation_Id).size;
-        for (int row_n = 0; row_n < total_row_num; row_n++) {
-            rowIds[rel_allias].push_back(row_n + 1);
+    table_t_ptr[1].intermediate_res = false;
+    table_t_ptr[1].column_j = new column_t;
+    column_t &right_column = *table_t_ptr[1].column_j;
+    std::vector<std::vector<int>> &right_rel_row_ids = table_t_ptr[1].relations_row_ids;
+
+    /* Get the needed data from the predicate */
+    Relation &left_rel  = getRelation(pred_info.left.relId);
+    Relation &right_rel = getRelation(pred_info.right.relId);
+
+    left_column.values  = left_rel.columns.at(pred_info.left.colId);
+    left_column.size  = left_rel.size;
+    left_column.table_index  = 0;
+
+    right_column.values = right_rel.columns.at(pred_info.right.colId);
+    right_column.size = right_rel.size;
+    right_column.table_index = 1;
+
+    /* Create the relations_row_ids and relation_ids vectors */
+    uint64_t left_rel_size  = left_column.size;
+    uint64_t right_rel_size = right_column.size;
+
+    left_rel_row_ids.resize(1);
+    right_rel_row_ids.resize(1);
+    for (size_t i = 0;  i < left_rel_size || i < right_rel_size; i++) {
+        if (i < right_rel_size && i < left_rel_size) {
+            left_rel_row_ids[0].push_back(i);
+            right_rel_row_ids[0].push_back(i);
+        } else if (i < right_rel_size) {
+            right_rel_row_ids[0].push_back(i);
+        } else {
+            left_rel_row_ids[0].push_back(i);
         }
-
-        /* Go to the next relation */
-        rel_allias++;
     }
 
-}
+    table_t_ptr[0].relation_ids.push_back(pred_info.left.relId);
+    table_t_ptr[1].relation_ids.push_back(pred_info.right.relId);
 
+    return table_t_ptr;
+}
 
 void  Joiner::join(PredicateInfo &pred_info) {
 
     /* Initialize helping variables */
 
-
-    /* Get the Columns from the predicate
-    Relation &left_rel  = getRelation(pred_info.left.relId);
-    Relation &right_rel = getRelation(pred_info.right.relId);
-    left_column.values  = left_rel.columns.at(pred_info.left.colId);
-    right_column.values = right_rel.columns.at(pred_info.right.colId);
-    left_column.size  = left_rel.size;
-    right_column.size = right_rel.size;
-    left_column.table_index  = pred_info.left.binding;
-    right_column.table_index = pred_info.right.binding;*/
-
     /* Construct the columns if needed */
     /* Join the columns */
-    low_join();
+    //low_join();
 
 }
+
+
+#ifdef def
 
 /*
  * 1)Classic hash_join implementation with unorderd_map(stl)
@@ -138,34 +156,29 @@ table_t& Joiner::low_join(table_t &table_r, table_t &table_s) {
     return updated_table_t;
 }
 
-column_t* Joiner::construct(const column_t *column) {
+#endif
+
+void Joiner::construct(table_t &table) {
 
     /* Innitilize helping variables */
-    const uint64_t  col_size = this->sizes[column->table_index];
-    const int       col_id   = column->table_index;
-    const uint64_t *col_values  = column->values;
-    std::vector<std::vector<int>>  rowIds = *row_ids;
+    column_t &column = *table.column_j;
+    const uint64_t *column_values = column.values;
+    const int       table_index   = column.table_index;
+    const uint64_t  column_size   = table.relations_row_ids[table_index].size();
+    std::vector<std::vector<int>> row_ids = table.relations_row_ids;
 
-    /* Create - Initilize  a new column */
-    column_t * const new_column = new column_t;
-    new_column->table_index   = column->table_index;
-    new_column->size       = col_size;
-    uint64_t *const new_values  = new uint64_t[col_size];
+    /* Create a new value's array  */
+    uint64_t *const new_values  = new uint64_t[column_size];
 
     /* Pass the values of the old column to the new one, based on the row ids of the joiner */
-    for (int i = 0; i < col_size; i++) {
-        //std::cout << "Row id " << joiner->row_ids[column->table_index][i] << '\n';
-    	new_values[i] = col_values[rowIds[col_id][i]];
+    for (int i = 0; i < column_size; i++) {
+    	new_values[i] = column_values[row_ids[table_index][i]];
     }
 
-    /* Add the new values to the new column */
-    new_column->values = new_values;   /* --- Rember to delete[]  ---- */
-
-    /* Return the new column */
-    return new_column;
+    /* Update the column of the table */
+    column.values = new_values;
+    column.size   = column_size;
 }
-
-#endif
 
 // Loads a relation from disk
 void Joiner::addRelation(const char* fileName) {
@@ -181,11 +194,26 @@ Relation& Joiner::getRelation(unsigned relationId) {
     return relations[relationId];
 }
 
+// Get the total number of relations
+int Joiner::getRelationsCount() {
+    return relations.size();
+}
+
 // Hashes a value and returns a check-sum
 // The check should be NULL if there is no qualifying tuple
 void Joiner::join(QueryInfo& i) {
     //TODO implement
+    // print result to std::cout
     cout << "Implement join..." << endl;
+
+    /* Initilize the row_ids of the joiner */
+    //RowIdArrayInit(i);
+
+    /* Call a construct function
+    table_t *tables = PredicateToTableT(i.predicates[0]);
+    table_t &table_ref = tables[0];
+    construct(table_ref);
+    */
 }
 
 
@@ -216,12 +244,25 @@ int main(int argc, char* argv[]) {
     // Preparation phase (not timed)
     // Build histograms, indices,...
 
+    // Create a persistent query graph
+    QueryGraph queryGraph(joiner.getRelationsCount());
+
     // The test harness will send the first query after 1 second.
     QueryInfo i;
     while (getline(cin, line)) {
         if (line == "F") continue; // End of a batch
+
+        // Parse the query
         i.parseQuery(line);
+
+        // Fill the query graph
+        queryGraph.fill(i.predicates);
+
+        // Join the relations
         joiner.join(i);
+
+        // Clear the graph for the next query
+        queryGraph.clear();
     }
 
     return 0;
