@@ -245,53 +245,118 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
             plan = (int *) realloc(plan, (*plan_size) * sizeof(int));
             plan[(*plan_size)-1] = currPtr->node_id;
 
+            /* Start calling the Join or Select functions on the 2 tables */
             table_t *left_table, *right_table;
+            
+#ifdef teo_s_code
+            JTree *left_child  = currPtr->left;
+            JTree *right_child = currPtr->right;
 
-            if (currPtr->left && currPtr->left->intermediate_res) {
-              left_table = currPtr->left->intermediate_res;
+            /* If left child exists */
+            if(left_child) {
+                /* a) If it's intermediate result : Add the column what we will need */
+                if (left_child->intermediate_res) {
+                    joiner.AddColumnToIntermediatResult(currPtr->predPtr->left, left_table);
+                }
+                /* b) If its not intermediate : Translate the SelectInfo to a table_t */
+                else {
+                    left_table = joiner.SelectInfoToTableT(currPtr->predPtr->left);
+                }
+            }
 
-              if (currPtr->predPtr)
-                joiner.AddColumnToIntermediatResult(currPtr->predPtr->left, left_table);
+            /* If right child exists */
+            if(right_child) {
+                /* a) If it's intermediate result : Add the column what we will need */
+                if (right_child->intermediate_res) {
+                    joiner.AddColumnToIntermediatResult(currPtr->predPtr->right, right_table);
+                }
+                /* b) If its not intermediate : Translate the SelectInfo to a table_t */
+                else {
+                    right_table = joiner.SelectInfoToTableT(currPtr->predPtr->right);
+                }
+            }
 
-              if (currPtr->right && currPtr->right->intermediate_res) {
-                right_table = currPtr->right->intermediate_res;
+            /* In case of no children */
+            if (currPtr->left == NULL && currPtr->right == NULL) {
 
+                /* a) If we have a Join : Craete the two tables_t's from SelectInfo's */
                 if (currPtr->predPtr) {
-                  joiner.AddColumnToIntermediatResult(currPtr->predPtr->right, right_table);
-                  currPtr->intermediate_res = joiner.join(left_table, right_table);
+                    left_table = joiner.SelectInfoToTableT(currPtr->predPtr->left);
+                    left_table = joiner.SelectInfoToTableT(currPtr->predPtr->left);
+                }
+                /* b) If we have a filter : Create one table from SelectInfo */
+                else if (currPtr->filterPtr) {
+                    currPtr->intermediate_res = joiner.SelectInfoToTableT(currPtr->filterPtr->filterColumn);
+                }
+            }
+
+            /* Call join or select based on the Pointer */
+            if (currPtr->predPtr) {
+                currPtr->intermediate_res = joiner.join(left_table, right_table);
+            }
+            /* b) If we have a filter : Create one table from SelectInfo */
+            else if (currPtr->filterPtr) {
+                joiner.Select(*(currPtr->filterPtr), currPtr->intermediate_res);
+            }
+            /* Somethig whent wrong here */
+            else std::cerr << "Error in MakePlan: No Predicate or Filter Info" << '\n';
+#endif
+#ifdef george_s_code
+            /* In case of left child been intermediate results */
+            if (currPtr->left && currPtr->left->intermediate_res) {
+                left_table = currPtr->left->intermediate_res;
+
+                /* In case of Join */
+                if (currPtr->predPtr)
+                    joiner.AddColumnToIntermediatResult(currPtr->predPtr->left, left_table);
+
+                /* Check the eight child */
+                if (currPtr->right && currPtr->right->intermediate_res) {
+                    right_table = currPtr->right->intermediate_res;
+
+                    if (currPtr->predPtr) {
+                        joiner.AddColumnToIntermediatResult(currPtr->predPtr->right, right_table);
+                        currPtr->intermediate_res = joiner.join(left_table, right_table);
+                    }
+                    else {
+                        // NO ELSE I THINK
+                    }
+                }
+                else if (currPtr->right) {
+                    right_table = joiner.SelectInfoToTableT(currPtr->predPtr->right);
+                    currPtr->intermediate_res = joiner.join(left_table, right_table);
                 }
                 else {
-                  // NO ELSE I THINK
+                    joiner.Select(*(currPtr->filterPtr), currPtr->intermediate_res);
                 }
-              }
-              else if (currPtr->right) {
-                right_table = joiner.SelectInfoToTableT(currPtr->predPtr->right);
-                currPtr->intermediate_res = joiner.join(left_table, right_table);
-              }
-              else {
-                joiner.Select(*(currPtr->filterPtr), currPtr->intermediate_res);
-              }
             }
+            /* In case of right child with intermediate result */
             else if (currPtr->right && currPtr->right->intermediate_res) {
-              right_table = currPtr->right->intermediate_res;
-              if (currPtr->predPtr) {
-                left_table = joiner.SelectInfoToTableT(currPtr->predPtr->left);
-                joiner.AddColumnToIntermediatResult(currPtr->predPtr->right, right_table);
-                currPtr->intermediate_res = joiner.join(left_table, right_table);
-              }
-              else {
-                joiner.Select(*(currPtr->filterPtr), currPtr->intermediate_res);
-              }
+                right_table = currPtr->right->intermediate_res;
+                if (currPtr->predPtr) {
+                    left_table = joiner.SelectInfoToTableT(currPtr->predPtr->left);
+                    joiner.AddColumnToIntermediatResult(currPtr->predPtr->right, right_table);
+                    currPtr->intermediate_res = joiner.join(left_table, right_table);
+                }
+                else {
+                    joiner.Select(*(currPtr->filterPtr), currPtr->intermediate_res);
+                }
             }
+            /* In case of no children: */
             else {
-              if (currPtr->predPtr) {
-                left_table = joiner.SelectInfoToTableT(currPtr->predPtr->left);
-                right_table = joiner.SelectInfoToTableT(currPtr->predPtr->right);
-                currPtr->intermediate_res = joiner.join(left_table, right_table);
-              } else {
-                joiner.Select(*(currPtr->filterPtr), currPtr->intermediate_res);
-              }
+                /* a) If we have a predicate : Create the 2 tables_t's from the PredInfo*/
+                if (currPtr->predPtr) {
+                    left_table = joiner.SelectInfoToTableT(currPtr->predPtr->left);
+                    right_table = joiner.SelectInfoToTableT(currPtr->predPtr->right);
+                    currPtr->intermediate_res = joiner.join(left_table, right_table);
+                }
+                /* b) If we have a join : Create the 2 tables_t's from the PredInfo*/
+                else {
+                    joiner.Select(*(currPtr->filterPtr), currPtr->intermediate_res);
+                }
             }
+#endif
+
 
             /* go to the parent */
             currPtr = currPtr->parent;
