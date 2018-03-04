@@ -213,7 +213,7 @@ void jTreePrintTree(JTree* jTreePtr) {
 }
 
 /* Make an execution plan out of a query-tree */
-int* jTreeMakePlan(JTree* jTreePtr, int* plan_size) {
+int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
     /* construct plan by iterating through the query-tree in a DFS fassion */
     *plan_size = 0;
     int* plan = NULL;
@@ -244,6 +244,26 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size) {
             (*plan_size)++;
             plan = (int *) realloc(plan, (*plan_size) * sizeof(int));
             plan[(*plan_size)-1] = currPtr->node_id;
+
+            table_t *left_table, *right_table;
+
+            if (currPtr->left && currPtr->left->intermediate_res) {
+              if (currPtr->right->intermediate_res) {
+
+              }
+            }
+            else if (currPtr->right && currPtr->right->intermediate_res) {
+
+            }
+            else {
+              if (currPtr->predPtr) {
+                left_table = joiner.SelectInfoToTableT(currPtr->predPtr->left);
+                right_table = joiner.SelectInfoToTableT(currPtr->predPtr->right);
+                currPtr->intermediate_res = joiner.join(left_table, right_table);
+              } else {
+                currPtr->intermediate_res = joiner.Select(currPtr->filterPtr);
+              }
+            }
 
             /* go to the parent */
             currPtr = currPtr->parent;

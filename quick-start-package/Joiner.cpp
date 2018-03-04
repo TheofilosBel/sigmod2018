@@ -5,9 +5,10 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
-#include "Parser.hpp"
-#include "QueryGraph.hpp"
-#include "./include/header.hpp"
+#include "include/Parser.hpp"
+#include "include/Joiner.hpp"
+#include "include/QueryGraph.hpp"
+#include "include/header.hpp"
 
 using namespace std;
 
@@ -416,7 +417,7 @@ int main(int argc, char* argv[]) {
         JTree *jTreePtr = treegen(&i);
 
         int *plan = NULL, plan_size = 0;
-        plan = jTreeMakePlan(jTreePtr, &plan_size);
+        plan = jTreeMakePlan(jTreePtr, &plan_size, joiner);
     }
 
     return 0;
