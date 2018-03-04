@@ -228,7 +228,7 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
         }
         /* create the updated relations_row_ids, merge the sizes*/
         updated_table_t->relations_row_ids = new std::vector<std::vector<int>>;
-        updated_table_t->relations_row_ids->resize(h_rows.size()+i_rows.size());
+        updated_table_t->relations_row_ids->resize(h_rows.size()+i_rows.size(), std::vector<int>());
         std::vector<std::vector<int>> &update_row_ids = *updated_table_t->relations_row_ids;
 
         /* now the phase of hashing */
@@ -246,8 +246,8 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
                     update_row_ids[j].push_back(h_rows[j][vals->second.index]);
                
                 /* then go to the s's row ids to get the values */
-                for (uint64_t jj = h_rows.size(); jj < h_rows.size()+i_rows.size(); jj++)
-                    update_row_ids[jj].push_back(i_rows[jj-h_rows.size()][i]);
+                for (uint64_t j = 0; j < i_rows.size(); j++)
+                    update_row_ids[j + h_rows.size()].push_back(i_rows[j][i]);
             }
         }
     }
@@ -272,14 +272,9 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
 
         /* create the updated relations_row_ids, merge the sizes*/
         updated_table_t->relations_row_ids = new std::vector<std::vector<int>>;
-<<<<<<< HEAD
-        updated_table_t->relations_row_ids->resize(h_rows.size()+i_rows.size());
-        std::vector<std::vector<int>> &update_row_ids = *updated_table_t->relations_row_ids;
-=======
         updated_table_t->relations_row_ids->resize(h_rows.size()+i_rows.size(), std::vector<int>());
         std::vector<std::vector<int>> &update_row_ids = *updated_table_t->relations_row_ids;
-
->>>>>>> 880cb3591abb0c0e2465c76b07e7195129c6910a
+        
         /* now the phase of hashing */
         for (uint64_t i = 0; i < iter_size; i++) {
             /* remember we may have multi vals in 1 key,if it isnt a primary key */
@@ -288,23 +283,13 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
             for(auto &vals = range_vals.first; vals != range_vals.second; vals++) {
                 /* store all the result then push it int the new row ids */
                 /* its faster than to push back 1 every time */
-<<<<<<< HEAD
-                updated_table_t->relations_row_ids->push_back(std::vector<int>());
 
-                for (uint64_t j = 0 ; j < h_rows.size(); j++)
-                    update_row_ids[j].push_back(h_rows[j][vals->second.index]);
-                
-                /* then go to the s's row ids to get the values */
-                for (uint64_t jj = h_rows.size(); jj < h_rows.size()+i_rows.size(); jj++)
-                    update_row_ids[jj].push_back(i_rows[jj-h_rows.size()][i]);
-=======
                 for (uint64_t j = 0 ; j < h_rows.size(); j++)
                     update_row_ids[j].push_back(h_rows[j][vals->second.index]);
 
                 /* then go to the s's row ids to get the values */
                 for (uint64_t j = 0; j < i_rows.size(); j++)
                     update_row_ids[j + h_rows.size()].push_back(i_rows[j][i]);
->>>>>>> 880cb3591abb0c0e2465c76b07e7195129c6910a
             }
         }
     }
