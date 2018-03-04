@@ -248,12 +248,39 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
             table_t *left_table, *right_table;
 
             if (currPtr->left && currPtr->left->intermediate_res) {
-              if (currPtr->right->intermediate_res) {
+              left_table = currPtr->left->intermediate_res;
+
+              if (currPtr->predPtr)
+                joiner.AddColumnToIntermediatResult(currPtr->predPtr->left, left_table);
+
+              if (currPtr->right && currPtr->right->intermediate_res) {
+                right_table = currPtr->right->intermediate_res;
+
+                if (currPtr->predPtr) {
+                  joiner.AddColumnToIntermediatResult(currPtr->predPtr->right, right_table);
+                  currPtr->intermediate_res = joiner.join(left_table, right_table);
+                }
+                else {
+                  // NO ELSE I THINK
+                }
+              }
+              else if (currPtr->right) {
+                right_table = joiner.SelectInfoToTableT(currPtr->predPtr->right);
+                currPtr->intermediate_res = joiner.join(left_table, right_table);
+              }
+              else {
 
               }
             }
             else if (currPtr->right && currPtr->right->intermediate_res) {
-
+              right_table = currPtr->right->intermediate_res;
+              if (currPtr->predPtr) {
+                left_table = joiner.SelectInfoToTableT(currPtr->predPtr->left);
+                joiner.AddColumnToIntermediatResult(currPtr->predPtr->right, right_table);
+              }
+              else {
+                // joiner.Select(currPtr->filterPtr, currPtr->intermediate_res);
+              }
             }
             else {
               if (currPtr->predPtr) {
@@ -261,7 +288,7 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
                 right_table = joiner.SelectInfoToTableT(currPtr->predPtr->right);
                 currPtr->intermediate_res = joiner.join(left_table, right_table);
               } else {
-                currPtr->intermediate_res = joiner.Select(currPtr->filterPtr);
+                // joiner.Select(currPtr->filterPtr, currPtr->intermediate_res);
               }
             }
 
