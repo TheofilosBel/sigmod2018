@@ -182,87 +182,124 @@ table_t* Joiner::join(table_t *table_r, table_t *table_s) {
     (table_s->intermediate_res)? (construct(table_s)) : ((void)0);
 
     /* Join the columns */
-    return NULL;//low_join(table_r, table_s);
+    //low_join(table_r, table_s);
+    return NULL;
 }
 
-#ifdef def
+//#ifdef def
 /*
  * 1)Classic hash_join implementation with unorderd_map(stl)
  * 2)Create hashtable from the row_table with the lowest size
  * 3)Ids E [0,...,size-1]
+ * 4)Made the code repeatable to put some & in the arrays of row ids
 */
 table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
     /* create hash_table for the hash_join phase */
     std::unordered_multimap<uint64_t, hash_entry> hash_c;
+    
+    /* the new table_t to continue the joins */
+    table_t *updated_table_t = new table_t;
 
     /* hash_size->size of the hashtable,iter_size->size to iterate over to find same vals */
     uint64_t hash_size,iter_size;
-
-    /* first ptr points to values that will use to create the hash_table */
-    /* second ptr points to values that will be hashed for join */
     column_t *hash_col;
     column_t *iter_col;
-    std::vector<std::vector<int>> &h_rows;
-    std::vector<std::vector<int>> &i_rows;
-
-    /* the new table_t to continue the joins */
-    table_t updated_table_t = new table_t;
-
-    /* check for size to decide wich hash_table to create for the hash join */
+    
+    /* check on wich table will create the hash_table */
     if (table_r->column_j->size <= table_s->column_j->size) {
         hash_size = table_r->column_j->size;
         hash_col = table_r->column_j;
-        h_rows = table_r->relations_row_ids;
+        std::vector<std::vector<int>> &h_rows = *table_r->relations_row_ids;
 
         iter_size = table_s->column_j->size;
         iter_col = table_s->column_j;
-        i_rows = table_s->relations_row_ids;
+        std::vector<std::vector<int>> &i_rows = *table_s->relations_row_ids;
+
+        /* now put the values of the column_r in the hash_table(construction phase) */
+        for (uint64_t i = 0; i < hash_size; i++) {
+            /* store hash[value of the column] = {rowid, index} */
+            hash_entry hs;
+            hs.row_id = h_rows[hash_col->table_index][i];
+            hs.index = i;
+            hash_c.insert({hash_col->values[i], hs});
+        }
+        /* create the updated relations_row_ids, merge the sizes*/
+        updated_table_t->relations_row_ids = new std::vector<std::vector<int>>;
+        updated_table_t->relations_row_ids->resize(h_rows.size()+i_rows.size());
+
+        /* now the phase of hashing */
+        for (uint64_t i = 0; i < iter_size; i++) {
+            /* remember we may have multi vals in 1 key,if it isnt a primary key */
+            /* vals->first = key ,vals->second = value */
+            auto range_vals = hash_c.equal_range(iter_col->values[i]);
+            for(auto vals = range_vals.first; vals != range_vals.second; vals++) {
+                /* store all the result then push it int the new row ids */
+                /* its faster than to push back 1 every time */
+                std::vector<int> temp_row_ids;
+                /* get the first values from the r's rows ids */
+                for (uint64_t j = 0 ; j < h_rows.size(); j++)
+                    temp_row_ids.push_back(h_rows[j][vals->second.index]);
+                /* then go to the s's row ids to get the values */
+                for (uint64_t j = 0 ; j < i_rows.size(); j++)
+                    temp_row_ids.push_back(i_rows[j][i]);
+                updated_table_t->relations_row_ids->push_back(temp_row_ids);
+            }
+        }
     }
+    /* table_r->column_j->size > table_s->column_j->size */
     else {
         hash_size = table_s->column_j->size;
         hash_col = table_s->column_j;
-        h_rows = table_s->relations_row_ids;
+        std::vector<std::vector<int>> &h_rows = *table_s->relations_row_ids;
 
         iter_size = table_r->column_j->size;
         iter_col = table_r->column_j;
-        i_rows = table_r->relations_row_ids;
-    }
-    /* now put the values of the column_r in the hash_table(construction phase) */
-    for (uint64_t i = 0; i < hash_size; i++) {
-        /* store hash[value of the column] = {rowid, index} */
-        hash_entry hs;
-        hs.row_id = h_rows[hash_col->table_index][i];
-        hs.index = i;
-        hash_c.insert({hash_col->values[i], hs});
-    }
-    /* create the updated relations_row_ids, merge the sizes*/
-    updated_table_t.relations_row_ids.resize(h_rows.size()+i_rows.size());
+        std::vector<std::vector<int>> &i_rows = *table_r->relations_row_ids;
 
-    /* now the phase of hashing */
-    for (uint64_t i = 0; i < iter_size; i++) {
-        /* remember we may have multi vals in 1 key,if it isnt a primary key */
-        /* vals->first = key ,vals->second = value */
-        auto range_vals = hash_c.equal_range(iter_col->values[i]);
-        for(auto vals = range_vals.first; i != range_vals.second; vals++) {
-            /* store all the result then push it int the new row ids */
-            /* its faster than to push back 1 every time */
-            std::vector<int> temp_row_ids;
-            /* get the first values from the r's rows ids */
-            for (uint64_t j = 0 ; j < h_rows.size(); j++)
-                temp_row_ids.push_back(h_rows[j][vals.hs.index]);
-            /* then go to the s's row ids to get the values */
-            for (uint64_t j = 0 ; j < i_rows.size(); j++)
-                temp_row_ids.push_back(i_rows[j][i])
-            updated_table_t.relations_row_ids.push_back(temp_row_ids);
+        /* now put the values of the column_r in the hash_table(construction phase) */
+        for (uint64_t i = 0; i < hash_size; i++) {
+            /* store hash[value of the column] = {rowid, index} */
+            hash_entry hs;
+            hs.row_id = h_rows[hash_col->table_index][i];
+            hs.index = i;
+            hash_c.insert({hash_col->values[i], hs});
+        }
+        /* create the updated relations_row_ids, merge the sizes*/
+        updated_table_t->relations_row_ids = new std::vector<std::vector<int>>;
+        updated_table_t->relations_row_ids->resize(h_rows.size()+i_rows.size());
+
+        /* now the phase of hashing */
+        for (uint64_t i = 0; i < iter_size; i++) {
+            /* remember we may have multi vals in 1 key,if it isnt a primary key */
+            /* vals->first = key ,vals->second = value */
+            auto range_vals = hash_c.equal_range(iter_col->values[i]);
+            for(auto vals = range_vals.first; vals != range_vals.second; vals++) {
+                /* store all the result then push it int the new row ids */
+                /* its faster than to push back 1 every time */
+                std::vector<int> temp_row_ids;
+                /* get the first values from the r's rows ids */
+                for (uint64_t j = 0 ; j < h_rows.size(); j++)
+                    temp_row_ids.push_back(h_rows[j][vals->second.index]);
+                /* then go to the s's row ids to get the values */
+                for (uint64_t j = 0 ; j < i_rows.size(); j++)
+                    temp_row_ids.push_back(i_rows[j][i]);
+                updated_table_t->relations_row_ids->push_back(temp_row_ids);
+            }
         }
     }
     /* concatenate the relaitons ids for the merge */
-    updated_table_t.relation_ids.resize(table_r->relation_ids.size()+table_s->relation_ids.size());
-    updated_table_t.relation_ids.insert(updated_table_t.relation_ids.end() ,table_r->relation_ids.begin(), table_r->relation_ids.end());
-    updated_table_t.relation_ids.insert(updated_table_t.relation_ids.end() ,table_s->relation_ids.begin(), table_s->relation_ids.end());
+    updated_table_t->relation_ids.resize(table_r->relation_ids.size()+table_s->relation_ids.size());
+    updated_table_t->relation_ids.insert(updated_table_t->relation_ids.end() ,table_r->relation_ids.begin(), table_r->relation_ids.end());
+    updated_table_t->relation_ids.insert(updated_table_t->relation_ids.end() ,table_s->relation_ids.begin(), table_s->relation_ids.end());
+
+    /* do the cleaning */
+    /* delete table_r->relations_row_ids;
+    delete table_r;
+    delete table_s->relations_row_ids;
+    delete table_s; */
     return updated_table_t;
 }
-#endif
+//#endif
 
 
 void Joiner::construct(table_t *table) {
