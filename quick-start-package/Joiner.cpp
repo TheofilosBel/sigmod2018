@@ -181,11 +181,9 @@ table_t* Joiner::SelectInfoToTableT(SelectInfo &sel_info) {
 }
 
 table_t* Joiner::join(table_t *table_r, table_t *table_s) {
-
     /* Construct the tables in case of intermediate results */
     (table_r->intermediate_res)? (construct(table_r)) : ((void)0);
     (table_s->intermediate_res)? (construct(table_s)) : ((void)0);
-
     /* Join the columns */
     return low_join(table_r, table_s);
 }
@@ -208,6 +206,7 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
     uint64_t hash_size,iter_size;
     column_t *hash_col;
     column_t *iter_col;
+
 
     /* check on wich table will create the hash_table */
     if (table_r->column_j->size <= table_s->column_j->size) {
@@ -236,16 +235,20 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
             /* remember we may have multi vals in 1 key,if it isnt a primary key */
             /* vals->first = key ,vals->second = value */
             auto range_vals = hash_c.equal_range(iter_col->values[i]);
-            for(auto vals = range_vals.first; vals != range_vals.second; vals++) {
+            for(auto &vals = range_vals.first; vals != range_vals.second; vals++) {
                 /* store all the result then push it int the new row ids */
                 /* its faster than to push back 1 every time */
                 updated_table_t->relations_row_ids->push_back(std::vector<int>());
+                std::vector<std::vector<int>> &update_row_ids = *updated_table_t->relations_row_ids;
+
                 /* get the first values from the r's rows ids */
                 for (uint64_t j = 0 ; j < h_rows.size(); j++)
-                    updated_table_t->relations_row_ids->operator[](j).push_back(h_rows[j][vals->second.index]);
+                    update_row_ids[j].push_back(h_rows[j][vals->second.index]);
                 /* then go to the s's row ids to get the values */
-                for (uint64_t j = 0 ; j < i_rows.size(); j++)
-                    updated_table_t->relations_row_ids->operator[](j).push_back(i_rows[j][i]);
+                for (uint64_t jj = 0; jj < i_rows.size(); jj++) {
+                    for (uint64_t jjj = h_rows.size(); jjj < h_rows.size()+i_rows.size(); jjj++)
+                        update_row_ids[jjj].push_back(i_rows[jj][i]);
+                }
             }
         }
     }
@@ -267,6 +270,7 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
             hs.index = i;
             hash_c.insert({hash_col->values[i], hs});
         }
+
         /* create the updated relations_row_ids, merge the sizes*/
         updated_table_t->relations_row_ids = new std::vector<std::vector<int>>;
         updated_table_t->relations_row_ids->resize(h_rows.size()+i_rows.size());
@@ -276,16 +280,19 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
             /* remember we may have multi vals in 1 key,if it isnt a primary key */
             /* vals->first = key ,vals->second = value */
             auto range_vals = hash_c.equal_range(iter_col->values[i]);
-            for(auto vals = range_vals.first; vals != range_vals.second; vals++) {
+            for(auto &vals = range_vals.first; vals != range_vals.second; vals++) {
                 /* store all the result then push it int the new row ids */
                 /* its faster than to push back 1 every time */
                 updated_table_t->relations_row_ids->push_back(std::vector<int>());
-                /* get the first values from the r's rows ids */
+                std::vector<std::vector<int>> &update_row_ids = *updated_table_t->relations_row_ids;
+
                 for (uint64_t j = 0 ; j < h_rows.size(); j++)
-                    updated_table_t->relations_row_ids->operator[](j).push_back(h_rows[j][vals->second.index]);
+                    update_row_ids[j].push_back(h_rows[j][vals->second.index]);
                 /* then go to the s's row ids to get the values */
-                for (uint64_t j = 0 ; j < i_rows.size(); j++)
-                    updated_table_t->relations_row_ids->operator[](j).push_back(i_rows[j][i]);
+                for (uint64_t jj = 0; jj < i_rows.size(); jj++) {
+                    for (uint64_t jjj = h_rows.size(); jjj < h_rows.size()+i_rows.size(); jjj++)
+                        update_row_ids[jjj].push_back(i_rows[jj][i]);
+                }
             }
         }
     }
