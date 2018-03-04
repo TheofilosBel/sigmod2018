@@ -28,20 +28,22 @@ class Joiner {
     // Get relation
     Relation& getRelation(unsigned id);
 
-    // Predicate to Table
-    table_t* PredicateToTableT(PredicateInfo &pred_info);
-    void AddColumnToIntermediatResult(SelectInfo &sel_info, table_t &table);
+    // Get the total number of relations
+    int getRelationsCount();
+
+    table_t* SelectInfoToTableT(SelectInfo &sel_info);
+    void AddColumnToIntermediatResult(SelectInfo &sel_info, table_t *table);
 
 
     // The select functions
-    table_t& Select(SelectInfo &sel_info);
-    table_t& SelectEqual(table_t &table, int filter);
-    table_t& SelectGreater(table_t &table, int filter);
-    table_t& SelectLess(table_t &table, int filter);
+    table_t* Select(FilterInfo &sel_info);
+    void SelectEqual(table_t *table, int filter);
+    void SelectGreater(table_t *table, int filter);
+    void SelectLess(table_t *table, int filter);
 
     // Joins a given set of relations
     void join(QueryInfo& i);
-    void join(table_t &table_r, table_t &table_s);
+    void join(table_t *table_r, table_t *table_s);
 
     /* The join function
      *
@@ -51,7 +53,7 @@ class Joiner {
      * Arguments: @column_r is an array with the values of the r relation , and @size_r it's size
      *            @column_s is an array with the values of the s relation , and @size_s it's size
      */
-    void low_join(table_t &table_r, table_t &table_s);
+    table_t* low_join(table_t *table_r, table_t *table_s);
 
     /* The construct function
      *
@@ -61,5 +63,5 @@ class Joiner {
      * Arguments: @column is an array with the values of the r relation
      *            @joiner is the object that holds the row_ids of the reults after the joins
      */
-     void construct(table_t &table);
+     void construct(table_t *table);
 };
