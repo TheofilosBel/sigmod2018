@@ -7,6 +7,7 @@
 #include <vector>
 #include "Parser.hpp"
 #include "QueryGraph.hpp"
+#include "execution_plan/include/header.hpp"
 
 using namespace std;
 
@@ -396,14 +397,7 @@ int main(int argc, char* argv[]) {
         // Parse the query
         i.parseQuery(line);
 
-        // Fill the query graph
-        queryGraph.fill(i.predicates);
-
-        // Join the relations
-        joiner.join(i);
-
-        // Clear the graph for the next query
-        queryGraph.clear();
+        JTree *jTreePtr = treegen(&i);
     }
 
     return 0;
