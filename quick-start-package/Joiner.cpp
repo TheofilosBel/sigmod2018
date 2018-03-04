@@ -102,19 +102,19 @@ table_t& Joiner::low_join(table_t &table_r, table_t &table_s) {
 
     /* check for size to decide wich hash_table to create for the hash join */
 	if (table_r.column_j->size <= table_s.column_j->size) {
-		hash_size = table_r.column_j->size;
+        hash_size = table_r.column_j->size;
         hash_col = table_r.column_j;
         h_rows = table_r.relations_row_ids;
-        
+
         iter_size = table_s.column_j->size;
         iter_col = table_s.column_j;
         i_rows = table_s.relations_row_ids;
 	}
 	else {
-		hash_size = table_s.column_j->size;
+        hash_size = table_s.column_j->size;
         hash_col = table_s.column_j;
         h_rows = table_s.relations_row_ids;
-		
+
         iter_size = table_r.column_j->size;
         iter_col = table_r.column_j;
         i_rows = table_r.relations_row_ids;
@@ -148,7 +148,7 @@ table_t& Joiner::low_join(table_t &table_r, table_t &table_s) {
                 temp_row_ids.push_back(i_rows[j][i])
             updated_table_t.relations_row_ids.push_back(temp_row_ids);
         }
-	}
+    }
     /* concatenate the relaitons ids for the merge */
     updated_table_t.relation_ids.resize(table_r.relation_ids.size()+table_s.relation_ids.size());
     updated_table_t.relation_ids.insert(updated_table_t.relation_ids.end() ,table_r.relation_ids.begin(), table_r.relation_ids.end());
