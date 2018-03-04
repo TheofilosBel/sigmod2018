@@ -196,7 +196,7 @@ table_t* Joiner::join(table_t *table_r, table_t *table_s) {
 table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
     /* create hash_table for the hash_join phase */
     std::unordered_multimap<uint64_t, hash_entry> hash_c;
-    
+
     /* the new table_t to continue the joins */
     table_t *updated_table_t = new table_t;
 
@@ -204,7 +204,7 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
     uint64_t hash_size,iter_size;
     column_t *hash_col;
     column_t *iter_col;
-    
+
     /* check on wich table will create the hash_table */
     if (table_r->column_j->size <= table_s->column_j->size) {
         hash_size = table_r->column_j->size;
@@ -235,14 +235,13 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
             for(auto vals = range_vals.first; vals != range_vals.second; vals++) {
                 /* store all the result then push it int the new row ids */
                 /* its faster than to push back 1 every time */
-                std::vector<int> temp_row_ids;
+                updated_table_t->relations_row_ids->push_back(std::vector<int>());
                 /* get the first values from the r's rows ids */
                 for (uint64_t j = 0 ; j < h_rows.size(); j++)
-                    temp_row_ids.push_back(h_rows[j][vals->second.index]);
+                    updated_table_t->relations_row_ids->operator[](j).push_back(h_rows[j][vals->second.index]);
                 /* then go to the s's row ids to get the values */
                 for (uint64_t j = 0 ; j < i_rows.size(); j++)
-                    temp_row_ids.push_back(i_rows[j][i]);
-                updated_table_t->relations_row_ids->push_back(temp_row_ids);
+                    updated_table_t->relations_row_ids->operator[](j).push_back(i_rows[j][i]);
             }
         }
     }
@@ -276,14 +275,13 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
             for(auto vals = range_vals.first; vals != range_vals.second; vals++) {
                 /* store all the result then push it int the new row ids */
                 /* its faster than to push back 1 every time */
-                std::vector<int> temp_row_ids;
+                updated_table_t->relations_row_ids->push_back(std::vector<int>());
                 /* get the first values from the r's rows ids */
                 for (uint64_t j = 0 ; j < h_rows.size(); j++)
-                    temp_row_ids.push_back(h_rows[j][vals->second.index]);
+                    updated_table_t->relations_row_ids->operator[](j).push_back(h_rows[j][vals->second.index]);
                 /* then go to the s's row ids to get the values */
                 for (uint64_t j = 0 ; j < i_rows.size(); j++)
-                    temp_row_ids.push_back(i_rows[j][i]);
-                updated_table_t->relations_row_ids->push_back(temp_row_ids);
+                    updated_table_t->relations_row_ids->operator[](j).push_back(i_rows[j][i]);
             }
         }
     }
@@ -354,11 +352,13 @@ void Joiner::join(QueryInfo& i) {
     table_t *table_r = SelectInfoToTableT(i.predicates[0].left);
     table_t *table_s = SelectInfoToTableT(i.predicates[0].right);
 
-    //std::cerr << "Table rows" << table->column_j->size << '\n';
-    SelectLess(table_r, 1000);
+    std::cerr << "Table rows" << table_r->column_j->size << '\n';
+    SelectEqual(table_r, 1000);
+    construct(table_r);
+    std::cerr << "Table rows after " << table_r->column_j->size << '\n';
+
     SelectLess(table_s, 1000);
-    //std::cerr << "Table rows" << table->column_j->size << '\n';
-    join(table_r, table_s);
+    //join(table_r, table_s);
 
 }
 
