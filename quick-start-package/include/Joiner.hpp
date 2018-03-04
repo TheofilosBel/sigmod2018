@@ -18,7 +18,9 @@ class Joiner {
     std::vector<Relation> relations;  // The relations that might be joined
 
     public:
-
+    /* do the checksum */
+    uint64_t check_sum(SelectInfo &sel_info, table_t *table);
+    
     /* Initialize the row_id Array */
     void RowIdArrayInit(QueryInfo &query_info);
 
@@ -33,7 +35,6 @@ class Joiner {
 
     table_t* SelectInfoToTableT(SelectInfo &sel_info);
     void AddColumnToIntermediatResult(SelectInfo &sel_info, table_t *table);
-
 
     // The select functions
     void Select(FilterInfo &sel_info, table_t *table);
