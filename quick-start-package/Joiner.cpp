@@ -398,6 +398,7 @@ int main(int argc, char* argv[]) {
         i.parseQuery(line);
 
         JTree *jTreePtr = treegen(&i);
+
     }
 
     return 0;
