@@ -36,7 +36,7 @@ class Joiner {
 
 
     // The select functions
-    table_t* Select(FilterInfo &sel_info);
+    void Select(FilterInfo &sel_info, table_t *table);
     void SelectEqual(table_t *table, int filter);
     void SelectGreater(table_t *table, int filter);
     void SelectLess(table_t *table, int filter);

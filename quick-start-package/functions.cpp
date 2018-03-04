@@ -1,4 +1,4 @@
-#include "../include/functions.hpp"
+#include "./include/functions.hpp"
 
 /*          Sample query tree:
                                              --- (7) B1<1000
@@ -128,7 +128,7 @@ void jTreeDestr(JTree* jTreePtr) {
     /* destruct query-tree in a DFS fassion */
     JTree *currPtr = jTreePtr;
     bool from_left = false;
-    
+
     while(currPtr) {
         /* if there are left children */
         if (currPtr->left) {
@@ -175,7 +175,7 @@ void jTreePrintTree(JTree* jTreePtr) {
     /* print query-tree in a DFS fassion */
     JTree *currPtr = jTreePtr;
     bool from_left = true, went_left = false, went_right = false;
-    
+
     while(currPtr) {
         /* if you can go to the left children */
         if (!went_left && currPtr->left) {
@@ -213,14 +213,14 @@ void jTreePrintTree(JTree* jTreePtr) {
 }
 
 /* Make an execution plan out of a query-tree */
-int* jTreeMakePlan(JTree* jTreePtr, int* plan_size) {
+int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
     /* construct plan by iterating through the query-tree in a DFS fassion */
     *plan_size = 0;
     int* plan = NULL;
 
     JTree *currPtr = jTreePtr;
     bool from_left = true, went_left = false, went_right = false;
-    
+
     while(currPtr) {
         /* if you can go to the left children */
         if (!went_left && currPtr->left) {
@@ -244,6 +244,8 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size) {
             (*plan_size)++;
             plan = (int *) realloc(plan, (*plan_size) * sizeof(int));
             plan[(*plan_size)-1] = currPtr->node_id;
+
+
 
             /* go to the parent */
             currPtr = currPtr->parent;

@@ -7,7 +7,7 @@
 #include <vector>
 #include "Parser.hpp"
 #include "QueryGraph.hpp"
-#include "execution_plan/include/header.hpp"
+#include "./include/header.hpp"
 
 using namespace std;
 
@@ -17,11 +17,10 @@ using namespace std;
    +---------------------+ */
 
 /* Its better not to use it TODO change it */
-table_t* Joiner::Select(FilterInfo &fil_info) {
+void Joiner::Select(FilterInfo &fil_info, table_t* table) {
 
     /* Create table */
     SelectInfo &sel_info = fil_info.filterColumn;
-    table_t *table = SelectInfoToTableT(sel_info);
     uint64_t filter = fil_info.constant;
 
     if (fil_info.comparison == FilterInfo::Comparison::Less) {
@@ -356,6 +355,31 @@ void Joiner::join(QueryInfo& i) {
 
     // print result to std::cout
     cout << "Implement join..." << endl;
+
+    /* Call a construct function */
+    table_t *table_r = SelectInfoToTableT(i.predicates[0].left);
+    table_t *table_s = SelectInfoToTableT(i.predicates[0].right);
+
+    std::cerr << "Left Table " << table_r->relation_ids[0]  << "." << table_r->column_j->id;
+    std::cerr << " rows " << table_r->column_j->size << '\n';
+    std::cerr << "Right Table " << table_s->relation_ids[0]  << "." << table_s->column_j->id;
+    std::cerr << " rows " << table_s->column_j->size << '\n';
+
+    table_t *result = join(table_r, table_s);
+
+    /* if there exists a filter fo it */
+    if (!i.filters.empty()) {
+        FilterInfo &filter = i.filters[0];
+
+        /* Take the filter and apply it to the table to the */
+        filt
+
+    }
+
+    std::cerr << "Intermediate Table " << result->relation_ids[0] << "&" << result->relation_ids[1];
+    std::cerr << " rows " << result->relations_row_ids->operator[](0).size() << '\n';
+    std::cerr << "-----------------------------------------------------" << '\n';
+
 }
 
 
@@ -399,6 +423,9 @@ int main(int argc, char* argv[]) {
 
         JTree *jTreePtr = treegen(&i);
 
+        int *plan = NULL, plan_size = 0;
+        plan = jTreeMakePlan(jTreePtr, &plan_size, joiner);
+        cout << "Implement join..." << endl;
     }
 
     return 0;

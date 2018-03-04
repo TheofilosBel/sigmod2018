@@ -12,8 +12,8 @@
 #include <assert.h>   // for debugging
 
 /* given API */
-#include "../../include/Parser.hpp"
-#include "../../include/Joiner.hpp"
+#include "./Parser.hpp"
+#include "./Joiner.hpp"
 
 typedef struct JTree {
     int node_id;
