@@ -34,56 +34,57 @@ table_t* Joiner::Select(FilterInfo &fil_info) {
 }
 
 void Joiner::SelectEqual(table_t *table, int filter) {
-
     /* Initialize helping variables */
-    uint64_t *const values = table->column_j->values;
-    int table_index = table->column_j->table_index;
-    const uint64_t rel_num = table->relations_row_ids->size();
+    uint64_t *const values  = table->column_j->values;
+    int table_index         = table->column_j->table_index;
+    const uint64_t rel_num  = table->relations_row_ids->size();
+
     std::vector<std::vector<int>> &old_row_ids = *table->relations_row_ids;
-    const uint64_t size = old_row_ids[table_index].size();
-    std::vector<std::vector<int>> *new_row_ids = new std::vector<std::vector<int>>(rel_num);
+    std::vector<std::vector<int>> *new_row_ids = new std::vector<std::vector<int>>;
 
-    /* Loop to cut down the values */
+    const uint64_t size     = old_row_ids[table_index].size();
+
+    /* Update the row ids of the table */
     for (size_t index = 0; index < size; index++) {
-
         if (values[old_row_ids[table_index][index]] == filter) {
-            std::vector<int> row(rel_num);
+            new_row_ids->push_back(std::vector<int>());
             for (size_t rel_index = 0; rel_index < rel_num; rel_index++) {
-                row[rel_index] = old_row_ids[rel_index][index];
+                new_row_ids->operator[](rel_index).push_back(old_row_ids[rel_index][index]);
             }
-            new_row_ids->push_back(row);
         }
     }
 
     /* Swap the old vector with the new one */
-    delete[] table->relations_row_ids;
+    delete table->relations_row_ids;
     table->relations_row_ids = new_row_ids;
+    table->intermediate_res = true;
 }
 
 void Joiner::SelectGreater(table_t *table, int filter){
     /* Initialize helping variables */
-    uint64_t *const values = table->column_j->values;
-    int table_index = table->column_j->table_index;
-    const uint64_t rel_num = table->relations_row_ids->size();
+    uint64_t *const values  = table->column_j->values;
+    int table_index         = table->column_j->table_index;
+    const uint64_t rel_num  = table->relations_row_ids->size();
+
     std::vector<std::vector<int>> &old_row_ids = *table->relations_row_ids;
-    const uint64_t size = old_row_ids[table_index].size();
-    std::vector<std::vector<int>> *new_row_ids = new std::vector<std::vector<int>>(rel_num);
+    std::vector<std::vector<int>> *new_row_ids = new std::vector<std::vector<int>>;
 
-    /* Loop to cut down the values */
+    const uint64_t size     = old_row_ids[table_index].size();
+
+    /* Update the row ids of the table */
     for (size_t index = 0; index < size; index++) {
-
         if (values[old_row_ids[table_index][index]] > filter) {
-            std::vector<int> row(rel_num);
+            new_row_ids->push_back(std::vector<int>());
             for (size_t rel_index = 0; rel_index < rel_num; rel_index++) {
-                row[rel_index] = old_row_ids[rel_index][index];
+                new_row_ids->operator[](rel_index).push_back(old_row_ids[rel_index][index]);
             }
-            new_row_ids->push_back(row);
         }
     }
 
     /* Swap the old vector with the new one */
-    delete[] table->relations_row_ids;
+    delete table->relations_row_ids;
     table->relations_row_ids = new_row_ids;
+    table->intermediate_res = true;
 }
 
 void Joiner::SelectLess(table_t *table, int filter){
@@ -97,21 +98,20 @@ void Joiner::SelectLess(table_t *table, int filter){
 
     const uint64_t size     = old_row_ids[table_index].size();
 
-    /* Loop to cut down the values */
+    /* Update the row ids of the table */
     for (size_t index = 0; index < size; index++) {
         if (values[old_row_ids[table_index][index]] < filter) {
-
             new_row_ids->push_back(std::vector<int>());
             for (size_t rel_index = 0; rel_index < rel_num; rel_index++) {
                 new_row_ids->operator[](rel_index).push_back(old_row_ids[rel_index][index]);
             }
-
         }
     }
 
     /* Swap the old vector with the new one */
     delete table->relations_row_ids;
     table->relations_row_ids = new_row_ids;
+    table->intermediate_res = true;
 }
 
 void Joiner::AddColumnToIntermediatResult(SelectInfo &sel_info, table_t *table) {
@@ -175,18 +175,14 @@ table_t* Joiner::SelectInfoToTableT(SelectInfo &sel_info) {
     return table_t_ptr;
 }
 
-void  Joiner::join(table_t *table_r, table_t *table_s) {
-
-    /* Remember that here we need the columns to be present */
+table_t* Joiner::join(table_t *table_r, table_t *table_s) {
 
     /* Construct the tables in case of intermediate results */
     (table_r->intermediate_res)? (construct(table_r)) : ((void)0);
     (table_s->intermediate_res)? (construct(table_s)) : ((void)0);
 
-    /* Construct the columns if needed */
     /* Join the columns */
-    //low_join();
-
+    return NULL;//low_join(table_r, table_s);
 }
 
 #ifdef def
@@ -318,12 +314,14 @@ void Joiner::join(QueryInfo& i) {
     cout << "Implement join..." << endl;
 
     /* Call a construct function */
-    //table_t *table = SelectInfoToTableT(i.predicates[0].left);
+    table_t *table_r = SelectInfoToTableT(i.predicates[0].left);
+    table_t *table_s = SelectInfoToTableT(i.predicates[0].right);
 
     //std::cerr << "Table rows" << table->column_j->size << '\n';
-    //SelectLess(table, 1000);
-    //construct(table);
+    SelectLess(table_r, 1000);
+    SelectLess(table_s, 1000);
     //std::cerr << "Table rows" << table->column_j->size << '\n';
+    join(table_r, table_s);
 
 }
 

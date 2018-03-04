@@ -43,7 +43,7 @@ class Joiner {
 
     // Joins a given set of relations
     void join(QueryInfo& i);
-    void join(table_t *table_r, table_t *table_s);
+    table_t* join(table_t *table_r, table_t *table_s);
 
     /* The join function
      *
