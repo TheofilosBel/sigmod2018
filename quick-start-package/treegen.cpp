@@ -7,7 +7,6 @@
 
 JTree *treegen(QueryInfo *info)
 {
-
 	using namespace std;
 
 	map<int,JTree*> worklist;
@@ -21,9 +20,9 @@ JTree *treegen(QueryInfo *info)
 		node = new JTree;
 		node->node_id = i;
 		node->predPtr = NULL;
-		node->predPtr = NULL;
+		node->filterPtr = NULL;
 
-
+		node->intermediate_res = NULL;
 
 		node->right = NULL;
 		node->left = NULL;
@@ -41,24 +40,19 @@ JTree *treegen(QueryInfo *info)
 		node->filterPtr = &(info->filters[i]);
 		node->predPtr = NULL;
 
+		node->intermediate_res = NULL;
+
 		node->right = NULL;
 		node->left = NULL;
 		node->parent = NULL;
 
-
 		node->left = worklist[info->filters[i].filterColumn.binding];
 
 		for (set<int>::iterator it=nodeSets[node->left]->begin(); it != nodeSets[node->left]->end(); ++it) {
-
 			worklist[*it] = node;
 		}
 		nodeSets[node] = nodeSets[node->left];
-
-
 		node->left->parent = node;
-
-
-
 	}
 
 	/*apply the constraints */
@@ -69,59 +63,43 @@ JTree *treegen(QueryInfo *info)
 		node->predPtr = &(info->predicates[i]);
 		node->filterPtr = NULL;
 
+		node->intermediate_res = NULL;
+
 		node->right = NULL;
 		node->left = NULL;
 		node->parent = NULL;
 
-
-
-
-
 		node->left = worklist[info->predicates[i].left.binding];
 		node->right = worklist[info->predicates[i].right.binding];
 
-
 		for (set<int>::iterator it=nodeSets[node->left]->begin(); it != nodeSets[node->left]->end(); ++it) {
-
 			worklist[*it] = node;
 		}
 		nodeSets[node] = nodeSets[node->left];
 
 		node->left->parent = node;
 
-
-
-
 		if (node->right == node->left)
 			node->right = NULL;
 		else {
-
-
 			for (set<int>::iterator it=nodeSets[node->right]->begin(); it != nodeSets[node->right]->end(); ++it) {
-
 				worklist[*it] = node;
 				nodeSets[node]->insert(*it);
-
 			}
 			delete nodeSets[node->right];
 
-
 			node->right->parent = node;
 		}
-
 	}
 
 	/*join the remainiing tables , those for which parent = null*/
 
 	set<JTree*> tables;
 	for (map<int, JTree*>::iterator it=worklist.begin(); it!=worklist.end(); ++it) {
-
 		if (it->second->parent == NULL) {
 			tables.insert(it->second);
 		}
 	}
-
-
 
 	vector<JTree*> v(tables.begin(), tables.end());
 
@@ -134,15 +112,12 @@ JTree *treegen(QueryInfo *info)
 		node->filterPtr = NULL;
 		node->predPtr = NULL;
 
+		node->intermediate_res = NULL;
+
 		node->left = top;
 		node->right = v[i+1];
 		delete nodeSets[v[i+1]];
 		top = node;
-
-
 	}
 	return top;
-
-
-
 }

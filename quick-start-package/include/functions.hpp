@@ -24,7 +24,7 @@ void jTreePrintTree(JTree* jTreePtr);
 
 /* Make an execution plan out of a query-tree */
 /* For now, our execution plan can be represented by a "vector" of query-tree node ID's */
-int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner &joiner);
+int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner);
 
 /* Print plan -- for debugging */
 void jTreePrintPlan(int* plan, int plan_size);

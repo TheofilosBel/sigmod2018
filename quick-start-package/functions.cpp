@@ -246,7 +246,6 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
             plan[(*plan_size)-1] = currPtr->node_id;
 
 
-
             /* go to the parent */
             currPtr = currPtr->parent;
             /* deside liberty of transitions */

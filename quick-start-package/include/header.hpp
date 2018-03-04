@@ -12,14 +12,16 @@
 #include <assert.h>   // for debugging
 
 /* given API */
-#include "./Parser.hpp"
-#include "./Joiner.hpp"
+#include "Parser.hpp"
+#include "Joiner.hpp"
 
 typedef struct JTree {
     int node_id;
 
     struct FilterInfo* filterPtr;
     struct PredicateInfo* predPtr;
+
+    table_t *intermediate_res;
 
     JTree *left;
     JTree *right;

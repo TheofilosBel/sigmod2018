@@ -30,8 +30,6 @@ void Joiner::Select(FilterInfo &fil_info, table_t* table) {
     } else if (fil_info.comparison == FilterInfo::Comparison::Equal) {
         SelectEqual(table, filter);
     }
-
-    return table;
 }
 
 void Joiner::SelectEqual(table_t *table, int filter) {
@@ -372,7 +370,8 @@ void Joiner::join(QueryInfo& i) {
         FilterInfo &filter = i.filters[0];
 
         /* Take the filter and apply it to the table to the */
-        filt
+        Select(filter, result);
+        construct(result);
 
     }
 
