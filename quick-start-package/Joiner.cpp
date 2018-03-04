@@ -332,7 +332,7 @@ uint64_t Joiner::check_sum(SelectInfo &sel_info, table_t *table) {
     /* to create the final cehcksum column */
     AddColumnToIntermediatResult(sel_info, table);
     construct(table);
-    
+
     const uint64_t* col = table->column_j->values;
     const uint64_t size = table->column_j->size;
     uint64_t sum = 0;
@@ -372,6 +372,7 @@ void Joiner::join(QueryInfo& i) {
     /* Call a construct function */
     table_t *table_r = SelectInfoToTableT(i.predicates[0].left);
     table_t *table_s = SelectInfoToTableT(i.predicates[0].right);
+    SelectInfo &select =i.selections[0];
 
     std::cerr << "Left Table " << table_r->relation_ids[0]  << "." << table_r->column_j->id;
     std::cerr << " rows " << table_r->column_j->size << '\n';
@@ -386,16 +387,15 @@ void Joiner::join(QueryInfo& i) {
 
         /* Take the filter and apply it to the table to the */
         AddColumnToIntermediatResult(filter.filterColumn, result);
-        Select(filter, result);        
+        Select(filter, result);
     }
 
     std::cerr << "Intermediate Table " << result->relation_ids[0] << "&" << result->relation_ids[1];
     std::cerr << " rows " << result->relations_row_ids->operator[](0).size() << '\n';
-
+    std::cerr << "Check sum of "<< select.binding << "." << select.colId << " ";
+    std::cerr <<  check_sum(select, result) << '\n';
     std::cerr << "-----------------------------------------------------" << '\n';
-
 }
-
 
 /* +---------------------+
    |The Column functions |
