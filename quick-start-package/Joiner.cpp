@@ -352,25 +352,9 @@ int Joiner::getRelationsCount() {
 // Hashes a value and returns a check-sum
 // The check should be NULL if there is no qualifying tuple
 void Joiner::join(QueryInfo& i) {
-    //TODO implement
+
     // print result to std::cout
     cout << "Implement join..." << endl;
-
-    /* Call a construct function */
-    table_t *table_r = SelectInfoToTableT(i.predicates[0].left);
-    table_t *table_s = SelectInfoToTableT(i.predicates[0].right);
-
-    std::cerr << "Left Table " << table_r->relation_ids[0]  << "." << table_r->column_j->id;
-    std::cerr << " rows " << table_r->column_j->size << '\n';
-    std::cerr << "Right Table " << table_s->relation_ids[0]  << "." << table_s->column_j->id;
-    std::cerr << " rows " << table_s->column_j->size << '\n';
-
-    table_t *result = join(table_r, table_s);
-
-    std::cerr << "Intermediate Table " << result->relation_ids[0] << "&" << result->relation_ids[1];
-    std::cerr << " rows " << result->relations_row_ids->operator[](0).size() << '\n';
-    std::cerr << "-----------------------------------------------------" << '\n';
-
 }
 
 
