@@ -252,6 +252,10 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
                     update_row_ids[j + h_rows.size()].push_back(i_rows[j][i]);
             }
         }
+
+        updated_table_t->relation_ids.reserve(table_r->relation_ids.size()+table_s->relation_ids.size());
+        updated_table_t->relation_ids.insert(updated_table_t->relation_ids.end() ,table_r->relation_ids.begin(), table_r->relation_ids.end());
+        updated_table_t->relation_ids.insert(updated_table_t->relation_ids.end() ,table_s->relation_ids.begin(), table_s->relation_ids.end());
     }
     /* table_r->column_j->size > table_s->column_j->size */
     else {
@@ -285,10 +289,6 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
             for(auto &vals = range_vals.first; vals != range_vals.second; vals++) {
                 /* store all the result then push it int the new row ids */
                 /* its faster than to push back 1 every time */
-                std::cerr << "------------" << '\n';
-                if (vals->second.row_id == 378){
-                    std::cerr << "$$$$$$FOUND in here" << '\n';
-                }
 
                 for (uint64_t j = 0 ; j < h_rows.size(); j++)
                     update_row_ids[j].push_back(h_rows[j][vals->second.index]);
@@ -298,11 +298,11 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
                     update_row_ids[j + h_rows.size()].push_back(i_rows[j][i]);
             }
         }
+        updated_table_t->relation_ids.reserve(table_s->relation_ids.size()+table_r->relation_ids.size());
+        updated_table_t->relation_ids.insert(updated_table_t->relation_ids.end() ,table_s->relation_ids.begin(), table_s->relation_ids.end());
+        updated_table_t->relation_ids.insert(updated_table_t->relation_ids.end() ,table_r->relation_ids.begin(), table_r->relation_ids.end());
     }
     /* concatenate the relaitons ids for the merge */
-    updated_table_t->relation_ids.reserve(table_r->relation_ids.size()+table_s->relation_ids.size());
-    updated_table_t->relation_ids.insert(updated_table_t->relation_ids.end() ,table_r->relation_ids.begin(), table_r->relation_ids.end());
-    updated_table_t->relation_ids.insert(updated_table_t->relation_ids.end() ,table_s->relation_ids.begin(), table_s->relation_ids.end());
     updated_table_t->intermediate_res = true;
     updated_table_t->column_j = new column_t;
 
