@@ -176,13 +176,11 @@ table_t* Joiner::SelectInfoToTableT(SelectInfo &sel_info) {
 }
 
 table_t* Joiner::join(table_t *table_r, table_t *table_s) {
-
     /* Construct the tables in case of intermediate results */
     (table_r->intermediate_res)? (construct(table_r)) : ((void)0);
     (table_s->intermediate_res)? (construct(table_s)) : ((void)0);
-
     /* Join the columns */
-    //low_join(table_r, table_s);
+    low_join(table_r, table_s);
     return NULL;
 }
 
@@ -223,6 +221,8 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
             hs.index = i;
             hash_c.insert({hash_col->values[i], hs});
         }
+        std::cerr<<"fasfsdfsda\n";
+        std::flush(cerr);
         /* create the updated relations_row_ids, merge the sizes*/
         updated_table_t->relations_row_ids = new std::vector<std::vector<int>>;
         updated_table_t->relations_row_ids->resize(h_rows.size()+i_rows.size());
@@ -232,7 +232,7 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
             /* remember we may have multi vals in 1 key,if it isnt a primary key */
             /* vals->first = key ,vals->second = value */
             auto range_vals = hash_c.equal_range(iter_col->values[i]);
-            for(auto vals = range_vals.first; vals != range_vals.second; vals++) {
+            for(auto &vals = range_vals.first; vals != range_vals.second; vals++) {
                 /* store all the result then push it int the new row ids */
                 /* its faster than to push back 1 every time */
                 std::vector<int> temp_row_ids;
@@ -264,6 +264,8 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
             hs.index = i;
             hash_c.insert({hash_col->values[i], hs});
         }
+        std::cerr<<"PASSED TO CREATE HASH TABLE YUPI1\n";
+        std::flush(cerr);
         /* create the updated relations_row_ids, merge the sizes*/
         updated_table_t->relations_row_ids = new std::vector<std::vector<int>>;
         updated_table_t->relations_row_ids->resize(h_rows.size()+i_rows.size());
@@ -273,17 +275,27 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
             /* remember we may have multi vals in 1 key,if it isnt a primary key */
             /* vals->first = key ,vals->second = value */
             auto range_vals = hash_c.equal_range(iter_col->values[i]);
-            for(auto vals = range_vals.first; vals != range_vals.second; vals++) {
+            for(auto &vals = range_vals.first; vals != range_vals.second; vals++) {
+                std::cerr<<"=============>started to iterate from keys YUPI1\n";
+                std::flush(cerr);
+                
                 /* store all the result then push it int the new row ids */
                 /* its faster than to push back 1 every time */
                 std::vector<int> temp_row_ids;
                 /* get the first values from the r's rows ids */
-                for (uint64_t j = 0 ; j < h_rows.size(); j++)
+                for (uint64_t j = 0 ; j < h_rows.size(); j++) {
+                    std::cerr<<"START OF the first insertions of h_rows\n";
+                    std::flush(cerr);
                     temp_row_ids.push_back(h_rows[j][vals->second.index]);
+                    std::cerr<<"END OF the first insertions of h_rows\n";
+                }
                 /* then go to the s's row ids to get the values */
                 for (uint64_t j = 0 ; j < i_rows.size(); j++)
                     temp_row_ids.push_back(i_rows[j][i]);
                 updated_table_t->relations_row_ids->push_back(temp_row_ids);
+                
+                std::cerr<<"ended to iterate from keys YUPI1<===============\n";
+                std::flush(cerr);
             }
         }
     }
