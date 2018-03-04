@@ -34,19 +34,19 @@ void Joiner::Select(FilterInfo &fil_info, table_t* table) {
 
 void Joiner::SelectEqual(table_t *table, int filter) {
     /* Initialize helping variables */
+    /* Initialize helping variables */
     uint64_t *const values  = table->column_j->values;
     int table_index         = table->column_j->table_index;
     const uint64_t rel_num  = table->relations_row_ids->size();
 
     std::vector<std::vector<int>> &old_row_ids = *table->relations_row_ids;
-    std::vector<std::vector<int>> *new_row_ids = new std::vector<std::vector<int>>;
+    std::vector<std::vector<int>> *new_row_ids = new std::vector<std::vector<int>>(rel_num, std::vector<int>());
 
     const uint64_t size     = old_row_ids[table_index].size();
 
     /* Update the row ids of the table */
     for (size_t index = 0; index < size; index++) {
         if (values[old_row_ids[table_index][index]] == filter) {
-            new_row_ids->push_back(std::vector<int>());
             for (size_t rel_index = 0; rel_index < rel_num; rel_index++) {
                 new_row_ids->operator[](rel_index).push_back(old_row_ids[rel_index][index]);
             }
@@ -66,14 +66,13 @@ void Joiner::SelectGreater(table_t *table, int filter){
     const uint64_t rel_num  = table->relations_row_ids->size();
 
     std::vector<std::vector<int>> &old_row_ids = *table->relations_row_ids;
-    std::vector<std::vector<int>> *new_row_ids = new std::vector<std::vector<int>>;
+    std::vector<std::vector<int>> *new_row_ids = new std::vector<std::vector<int>>(rel_num, std::vector<int>());
 
     const uint64_t size     = old_row_ids[table_index].size();
 
     /* Update the row ids of the table */
     for (size_t index = 0; index < size; index++) {
         if (values[old_row_ids[table_index][index]] > filter) {
-            new_row_ids->push_back(std::vector<int>());
             for (size_t rel_index = 0; rel_index < rel_num; rel_index++) {
                 new_row_ids->operator[](rel_index).push_back(old_row_ids[rel_index][index]);
             }
@@ -93,14 +92,13 @@ void Joiner::SelectLess(table_t *table, int filter){
     const uint64_t rel_num  = table->relations_row_ids->size();
 
     std::vector<std::vector<int>> &old_row_ids = *table->relations_row_ids;
-    std::vector<std::vector<int>> *new_row_ids = new std::vector<std::vector<int>>;
+    std::vector<std::vector<int>> *new_row_ids = new std::vector<std::vector<int>>(rel_num, std::vector<int>());
 
     const uint64_t size     = old_row_ids[table_index].size();
 
     /* Update the row ids of the table */
     for (size_t index = 0; index < size; index++) {
         if (values[old_row_ids[table_index][index]] < filter) {
-            new_row_ids->push_back(std::vector<int>());
             for (size_t rel_index = 0; rel_index < rel_num; rel_index++) {
                 new_row_ids->operator[](rel_index).push_back(old_row_ids[rel_index][index]);
             }
@@ -119,13 +117,13 @@ void Joiner::AddColumnToIntermediatResult(SelectInfo &sel_info, table_t *table) 
     if (!table->intermediate_res) return;
 
     /* Create a new column_t for table */
-    if (table->column_j == NULL)
-        table->column_j = new column_t;
     column_t &column = *table->column_j;
     std::vector<int> &relation_ids = table->relation_ids;
 
     /* Get the relation from joiner */
     Relation &rel = getRelation(sel_info.relId);
+    std::cerr << "In add " << sel_info.relId << '\n';
+    flush(cerr);
     column.size   = rel.size;
     column.values = rel.columns.at(sel_info.colId);
     column.id     = sel_info.colId;
@@ -136,8 +134,12 @@ void Joiner::AddColumnToIntermediatResult(SelectInfo &sel_info, table_t *table) 
     for (size_t index = 0; index < relation_ids.size(); index++) {
         if (relation_ids[index] == relation_id){
             column.table_index = index;
+            break;
         }
     }
+
+    //std::cerr << "The index is " << column.table_index << '\n';
+    //flush(cerr);
 
     /* Error msg for debuging */
     if (column.table_index == -1) {
@@ -295,6 +297,8 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
     updated_table_t->relation_ids.reserve(table_r->relation_ids.size()+table_s->relation_ids.size());
     updated_table_t->relation_ids.insert(updated_table_t->relation_ids.end() ,table_r->relation_ids.begin(), table_r->relation_ids.end());
     updated_table_t->relation_ids.insert(updated_table_t->relation_ids.end() ,table_s->relation_ids.begin(), table_s->relation_ids.end());
+    updated_table_t->intermediate_res = true;
+    updated_table_t->column_j = new column_t;
 
     /* do the cleaning */
     /* delete table_r->relations_row_ids;
@@ -312,8 +316,11 @@ void Joiner::construct(table_t *table) {
     column_t &column = *table->column_j;
     const uint64_t *column_values = column.values;
     const int       table_index   = column.table_index;
-    const uint64_t  column_size   = table->relations_row_ids[table_index].size();
+    const uint64_t  column_size   = table->relations_row_ids->operator[](table_index).size();
     std::vector<std::vector<int>> &row_ids = *table->relations_row_ids;
+
+
+    std::cerr << "Column size " << column_size << '\n';
 
     /* Create a new value's array  */
     uint64_t *const new_values  = new uint64_t[column_size];
@@ -370,9 +377,22 @@ void Joiner::join(QueryInfo& i) {
         FilterInfo &filter = i.filters[0];
 
         /* Take the filter and apply it to the table to the */
-        Select(filter, result);
-        construct(result);
+        AddColumnToIntermediatResult(filter.filterColumn, result);
+        std::cerr << "Padded Add " << '\n';
+        flush(cerr);
 
+        construct(result);
+        std::cerr << "Padded construct " << '\n';
+        flush(cerr);
+
+        std::cerr << "Column size after " << result->column_j->size << '\n';
+
+        Select(filter, result);
+        std::cerr << "Padded Select " << '\n';
+        flush(cerr);
+        //construct(result);
+        //std::cerr << "Padded construct " << '\n';
+        //flush(cerr);
     }
 
     std::cerr << "Intermediate Table " << result->relation_ids[0] << "&" << result->relation_ids[1];
@@ -420,10 +440,12 @@ int main(int argc, char* argv[]) {
         // Parse the query
         i.parseQuery(line);
 
-        JTree *jTreePtr = treegen(&i);
+        //JTree *jTreePtr = treegen(&i);
+        //int *plan = NULL, plan_size = 0;
+        //plan = jTreeMakePlan(jTreePtr, &plan_size, joiner);
 
-        int *plan = NULL, plan_size = 0;
-        plan = jTreeMakePlan(jTreePtr, &plan_size, joiner);
+        // join
+        joiner.join(i);
         cout << "Implement join..." << endl;
     }
 
