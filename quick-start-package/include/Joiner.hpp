@@ -28,11 +28,20 @@ class Joiner {
     // Get relation
     Relation& getRelation(unsigned id);
 
+    // Predicate to Table
     table_t* PredicateToTableT(PredicateInfo &pred_info);
+    void AddColumnToIntermediatResult(SelectInfo &sel_info, table_t &table);
+
+
+    // The select functions
+    table_t& Select(SelectInfo &sel_info);
+    table_t& SelectEqual(table_t &table, int filter);
+    table_t& SelectGreater(table_t &table, int filter);
+    table_t& SelectLess(table_t &table, int filter);
 
     // Joins a given set of relations
     void join(QueryInfo& i);
-    void join(PredicateInfo &pred_info);
+    void join(table_t &table_r, table_t &table_s);
 
     /* The join function
      *

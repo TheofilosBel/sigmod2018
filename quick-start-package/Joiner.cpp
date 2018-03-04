@@ -14,6 +14,89 @@ using namespace std;
    |The joiner functions |
    +---------------------+ */
 
+table_t& Joiner::Select(SelectInfo &sel_info) {
+
+    /* Create table */
+    table_t &table;
+    uint64_t filter = sel_info.constant;
+
+    if (sel_info.comparison == FilterInfo::Comparison::Less) {
+        SelectLess(table, filter);
+    } else if (sel_info.comparison == FilterInfo::Comparison::Greater) {
+        SelectGreater(table, filter);
+    } else if (sel_info.comparison == FilterInfo::Comparison::Equal) {
+        SelectEqual(table, filter);
+    }
+
+}
+
+table_t& Joiner::SelectEqual(table_t &table, int filter) {
+
+    /* Initialize helping variables */
+    uint64_t *const values = table.column_j->values;
+    int table_index = table.column_j->table_index;
+
+    const uint64_t rel_num = table.relations_row_ids.size();
+    std::vector<std::vector<int>> &old_row_ids = table.relations_row_ids;
+    const uint64_t size = table.relations_row_ids[table.column_j->table_index].size();
+    std::vector<std::vector<int>> new_row_ids = new std::vector<std::vector<int>>(rel_num);
+
+    /* Loop to cut down the values */
+    for (size_t index = 0; index < size; index++) {
+
+        if (values[old_row_ids[table_index][index]] == filter) {
+            std::vector<int> row(rel_num);
+            for (size_t i = 0; i < rel_num; i++) {
+                row[i] = old_row_ids[i][index];
+            }
+            new_row_ids.push_back(row);
+        }
+    }
+
+    /* Swap the old vectors with the new ones */
+
+
+}
+
+table_t& Joiner::SelectGreater(table_t &table, int filter){
+
+}
+
+table_t& Joiner::SelectLess(table_t &table, int filter){
+
+}
+
+void Joiner::AddColumnToIntermediatResult(SelectInfo &sel_info, table_t &table) {
+
+    /* Only for intermediate */
+    if (!table.intermediate_res) return;
+
+    /* Create a new column_t for table */
+    if (table.column_j == NULL)
+        table.column_j = new column_t;
+    column_t &column = *table.column_j;
+    std::vector<int> &relation_ids = table.relation_ids;
+
+    /* Get the relation from joiner */
+    Relation &rel = getRelation(sel_info.relId);
+    column.size   = rel.size;
+    column.values = rel.columns.at(sel_info.colId);
+    column.table_index = -1;
+    RelationId relation_id = sel_info.colId;
+
+    /* Get the right index from the relation id table */
+    for (size_t index = 0; index < relation_ids.size(); index++) {
+        if (relation_ids[index] = relation_id){
+            column.table_index = index;
+        }
+    }
+
+    /* Error msg for debuging */
+    if (column.table_index == -1) {
+        std::cerr << "At AddColumnToIntermediatResult, Id not matchin with intermediate result vectors" << '\n';
+    }
+}
+
 table_t* Joiner::PredicateToTableT(PredicateInfo &pred_info) {
 
     /* Crate - Initialize array that holds 2 table_t */
@@ -64,11 +147,14 @@ table_t* Joiner::PredicateToTableT(PredicateInfo &pred_info) {
     return table_t_ptr;
 }
 
-void  Joiner::join(PredicateInfo &pred_info) {
+void  Joiner::join(table_t &table_r, table_t &table_s) {
 
-    /* Initialize helping variables */
+    /* Remember that here we need the columns to be present */
 
-    /* Construct the columns if needed */
+    /* Construct the tables in case of intermediate results */
+    (table_r.intermediate_res)? (construct(table_r)) : ((void)0);
+    (table_s.intermediate_res)? (construct(table_s)) : ((void)0);
+
 
     /* Join the columns */
     //low_join();

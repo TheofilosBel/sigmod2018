@@ -16,7 +16,7 @@ struct table_t {
     std::vector<std::vector<int>>  relations_row_ids;
     std::vector<int>               relation_ids;
 
-    /* Intermediate falg */
+    /* Intermediate result falg */
     bool intermediate_res;
 
     /* column_t pointer of column to join */
