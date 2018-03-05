@@ -399,111 +399,53 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
     return plan;
 }
 
-#ifdef k
+
 table_t* jTreeMakePlan(JTree* jTreePtr, Joiner& joiner, int *depth) {
-    // Visit left child
-    if ((jTreePtr->left != NULL) && (jTreePtr->left->visited == 0)) {
-        std::cerr << *depth << std::endl;
-        flush(std::cerr);
-        (*depth)++;
-        jTreeMakePlan(jTreePtr->left, joiner, depth);
+
+    /**/
+    JTree *left  = jTreePtr->left;
+    JTree *right = jTreePtr->right;
+    table_t *table_l;
+    table_t *table_r;
+
+    if (left == NULL && right == NULL) {
+        return joiner.CreateTableTFromId(jTreePtr->node_id);
     }
 
-    // Visit right child
-    if ((jTreePtr->right != NULL) && (jTreePtr->right->visited == 0)) {
-        std::cerr << *depth << std::endl;
-        flush(std::cerr);
-        (*depth++);
-        jTreeMakePlan(jTreePtr->right, joiner, depth);
+    table_l = jTreeMakePlan(left, joiner, depth);
+
+    /* Its join for sure */
+    if (right != NULL) {
+
+        table_r = jTreeMakePlan(right, joiner, depth);
+
+        if (jTreePtr->predPtr == NULL)
+            return joiner.cartesian_join(table_l, table_r);
+        else {
+            
+            joiner.AddColumnToTableT(jTreePtr->predPtr->left, table_l);
+            joiner.AddColumnToTableT(jTreePtr->predPtr->right, table_r);
+
+            return joiner.join(table_l, table_r);
+        }
     }
-
-    // Mark as visited
-    jTreePtr->visited = 1;
-
-    table_t *left_table, *right_table;
-
-    // If we have not reached the root of the tree
-    if ((*depth) > 0) {
-
-        // In case of no children
-        if (jTreePtr->left == NULL && jTreePtr->right == NULL) {
-            // a) If we have a Join : Craete the two tables_t's from SelectInfo's
-            if (jTreePtr->predPtr) {
-                left_table  = joiner.SelectInfoToTableT(jTreePtr->predPtr->left);
-                right_table = joiner.SelectInfoToTableT(jTreePtr->predPtr->right);
-            }
-            // b) If we have a filter : Create one table from SelectInfo
-            else if (jTreePtr->filterPtr) {
-                jTreePtr->intermediate_res = joiner.SelectInfoToTableT(jTreePtr->filterPtr->filterColumn);
-            }
-        }
-
-        // If left child exists
-        if (jTreePtr->left != NULL) {
-            // a) If it's intermediate result : Add the column what we will need
-            if (jTreePtr->left->intermediate_res) {
-                joiner.AddColumnToIntermediatResult(jTreePtr->predPtr->left, left_table);
-            }
-            // b) If its not intermediate : Translate the SelectInfo to a table_t
-            else {
-                if (jTreePtr->predPtr){
-                    left_table = joiner.SelectInfoToTableT(jTreePtr->predPtr->left);
-                } else if(jTreePtr->filterPtr)  {
-                    jTreePtr->intermediate_res = joiner.SelectInfoToTableT(jTreePtr->filterPtr->filterColumn);
-                }
-            }
-        }
-
-        // If right child exists
-        if (jTreePtr->right != NULL) {
-            // a) If it's intermediate result : Add the column what we will need
-            if (jTreePtr->right->intermediate_res) {
-                joiner.AddColumnToIntermediatResult(jTreePtr->predPtr->right, right_table);
-            }
-            // b) If its not intermediate : Translate the SelectInfo to a table_t
-            else {
-                if (jTreePtr->predPtr){
-                    right_table = joiner.SelectInfoToTableT(jTreePtr->predPtr->right);
-                } else if(jTreePtr->filterPtr){
-                    jTreePtr->intermediate_res = joiner.SelectInfoToTableT(jTreePtr->filterPtr->filterColumn);
-                }
-            }
-        }
-
-        // Call join or select based on the Pointer
-        if (jTreePtr->predPtr) {
-            jTreePtr->intermediate_res = joiner.join(left_table, right_table);
-        }
-        // b) If we have a filter : Create one table from SelectInfo
-        else if (jTreePtr->filterPtr) {
-            joiner.Select(*(jTreePtr->filterPtr), jTreePtr->intermediate_res);
-        }
-
-        (*depth)--;
-        return jTreePtr->intermediate_res;
-    }
-
-    // At the root node perform a cartesian product if it has two children
+    /* Fiter or predicate to the same table (simple constrain )*/
     else {
-        std::cerr << "ROOOOOOOOOOT" << std::endl;
-        flush(std::cerr);
-/*
+
+        if (jTreePtr->filterPtr == NULL) {
+            return table_l;
         }
         else {
-            // Return the result of the only child
-            if (jTreePtr->left != NULL) {
-                return jTreePtr->left->intermediate_res;
-            }
-            else if (jTreePtr->right != NULL) {
-                return jTreePtr->right->intermediate_res;
-            }
-            else {
-                printf("AAAAAAAAAAAAAAAAA\n");
-            }
-*/
+            FilterInfo &filter = *(jTreePtr->filterPtr);
+            joiner.AddColumnToTableT(jTreePtr->filterPtr->filterColumn, table_l);
+            joiner.Select(filter, table_l);
+            return table_l;
+        }
     }
+
+    /**/
+      
 }
-#endif
 
 /* Print plan -- for debugging */
 void jTreePrintPlan(int* plan, int plan_size) {

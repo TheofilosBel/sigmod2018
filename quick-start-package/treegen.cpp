@@ -12,7 +12,7 @@ JTree *tree_update(JTree *tree, QueryInfo *info)
 	if (tree == NULL)
 		return NULL;
 
-	if (tree->node_id > 0)
+	if (tree->node_id >= 0)
 		tree->node_id = info->relationIds[tree->node_id];
 
 	tree_update(tree->left, info);
@@ -149,15 +149,15 @@ void print_rec(JTree *ptr, int depth)
     if (ptr->node_id == -1) {
 
             for (int i=0; i < depth; i++)
-                printf("\t");
+                fprintf(stderr,"\t");
             if (ptr->filterPtr != NULL) {
-                printf("%d.%d %c %ld\n", ptr->filterPtr->filterColumn.relId,
+                fprintf(stderr,"%d.%d %c %ld\n", ptr->filterPtr->filterColumn.relId,
                     ptr->filterPtr->filterColumn.colId, 
                     ptr->filterPtr->comparison, ptr->filterPtr->constant);
             print_rec(ptr->left, depth+1);
             }
             else if (ptr->predPtr != NULL) {
-                printf("%d.%d = %d.%d\n", ptr->predPtr->left.relId, 
+                fprintf(stderr,"%d.%d = %d.%d\n", ptr->predPtr->left.relId, 
                     ptr->predPtr->left.colId, ptr->predPtr->right.relId, 
                     ptr->predPtr->right.colId);
 
@@ -165,15 +165,15 @@ void print_rec(JTree *ptr, int depth)
                 print_rec(ptr->right, depth+1);
             }
             else {
-                printf(" >< \n");
+                fprintf(stderr," >< \n");
                 print_rec(ptr->left, depth+1);
                 print_rec(ptr->right, depth+1);
             }
         }
         else {
             for (int i=0; i < depth; i++)
-                printf("\t");
+                fprintf(stderr,"\t");
 
-            printf("-- %d\n", ptr->node_id);
+            fprintf(stderr,"-- %d\n", ptr->node_id);
         }
 }

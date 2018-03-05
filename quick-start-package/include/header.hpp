@@ -30,6 +30,7 @@ typedef struct JTree {
 
 } JTree;
 
+void print_rec(JTree *ptr, int depth);
 
 /* complementary functions */
 #include "functions.hpp"

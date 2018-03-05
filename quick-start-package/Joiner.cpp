@@ -145,7 +145,7 @@ void Joiner::AddColumnToTableT(SelectInfo &sel_info, table_t *table) {
 
     /* Error msg for debuging */
     if (column.table_index == -1) {
-        std::cerr << "At AddColumnToIntermediatResult, Id not matchin with intermediate result vectors" << '\n';
+        std::cerr << "At AddColumnToTableT, Id not matchin with intermediate result vectors" << '\n';
     }    
 }
 
@@ -246,32 +246,52 @@ table_t* Joiner::join(table_t *table_r, table_t *table_s) {
     return low_join(table_r, table_s);
 }
 
-table_t* Joiner::cartesian_join(table_t *table_r, table_t *table_s) {
+table_t* Joiner::cartesian_join(table_t *table_l, table_t *table_s) {
 
-    /* Add to table_r all the elements of table_s*/
-    std::vector<std::vector<int>> &r_row_ids = *(table_r->relations_row_ids);
-    std::vector<std::vector<int>> &s_row_ids = *(table_s->relations_row_ids);
+    /* Add to table_l all the elements of table_s*/
+    std::vector<std::vector<int>> &left_row_ids = *(table_l->relations_row_ids);
+    std::vector<std::vector<int>> &right_row_ids = *(table_s->relations_row_ids);
 
-    std::vector<int> &r_rel_ids = table_r->relation_ids;
-    std::vector<int> &s_rel_ids = table_s->relation_ids;
+    std::vector<int> &left_rel_map = table_l->relation_ids;
+    std::vector<int> &right_rel_map = table_s->relation_ids;
 
-    /* For all the vectors of r row ids */
-    int size = r_row_ids.size();
-    for (int i = 0; i < size; ++i) {
+    int right_size = right_row_ids[0].size();
+    int right_rel_size = right_rel_map.size();
+    int left_size = left_row_ids[0].size();
+    int left_rel_size = left_rel_map.size();
 
-        /* Push all the vectors of s_row_ids */
-        for (std::vector<int> v: s_row_ids) {
-            r_row_ids.push_back(v);
+    /* Add m lines for each line to the left row ids map */
+    for (int relation = 0; relation < left_rel_size; ++relation) {
+        for (int m = 1; m < right_size; ++m) {  // Not for m = 0 it already exists  
+            for (int n = 0; n < left_size; ++n) {  //[m*left_size + n]
+                left_row_ids[relation].push_back(left_row_ids[relation][n]);
+            }
+        }        
+    }
+
+    /* Now add right_rel_size to the left vector */
+    for (int i = 0; i < right_rel_size; ++i) {
+        left_row_ids.push_back(std::vector<int>());
+    }
+
+    /* For each relation of the  right vector add the m elements to each bach of m elements of m*/
+    for (int relation = left_rel_size; relation < left_rel_size + right_rel_size; ++relation) {
+        for (int m = 0; m < right_size; ++m) { 
+            for (int n = 0; n < left_size; ++n) {  //[m*left_size + n]
+                left_row_ids[relation].push_back(right_row_ids[relation][m]);
+            }
         }
     }
+    
+    
 
-    /* Push the table ids */
-    size = s_rel_ids.size();
+    /* Push the table map */
+    int size = right_rel_map.size();
     for (int i = 0; i < size; ++i) {
-        r_rel_ids.push_back(s_rel_ids[i]);
+        left_rel_map.push_back(right_rel_map[i]);
     }
 
-    return table_r;
+    return table_l;
 }
 
 /*
@@ -552,7 +572,7 @@ void Joiner::join(QueryInfo& i) {
     //std::cerr << "---------------------------" << '\n';
 
     string result_str;
-    int checksum = 0;
+    uint64_t checksum = 0;
     for (size_t i = 0; i < selections.size(); i++) {
 
         checksum = check_sum(selections[i], result);
@@ -610,12 +630,33 @@ int main(int argc, char* argv[]) {
         i.parseQuery(line);
 
 
-        //JTree *jTreePtr = treegen(&i);
-        //int *plan = NULL, plan_size = 0;
-        //plan = jTreeMakePlan(jTreePtr, &plan_size, joiner);
+        JTree *jTreePtr = treegen(&i);
+        int *plan = NULL, plan_size = 0;
+        //print_rec(jTreePtr, 0);
+        table_t *result = jTreeMakePlan(jTreePtr, joiner, plan);
 
         // join
-        joiner.join(i);
+        //joiner.join(i);
+
+        string result_str;
+        uint64_t checksum = 0;
+        std::vector<SelectInfo> &selections = i.selections;
+        for (size_t i = 0; i < selections.size(); i++) {
+
+            checksum = joiner.check_sum(selections[i], result);
+            if (checksum == 0) {
+                result_str += "NULL";
+            } else {
+                result_str += std::to_string(checksum);
+            }
+
+            if (i != selections.size() - 1) {
+                result_str +=  " ";
+            }
+        }
+
+        /* Print the result */
+        std::cout << result_str << endl;
         //std::cout << "Implelemt JOIN " << '\n';
     }
 
