@@ -1,3 +1,4 @@
+#include <iostream>
 #include "./include/functions.hpp"
 
 /*          Sample query tree:
@@ -211,7 +212,7 @@ void jTreePrintTree(JTree* jTreePtr) {
         }
     }
 }
-
+#ifdef k
 /* Make an execution plan out of a query-tree */
 int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
     /* construct plan by iterating through the query-tree in a DFS fassion */
@@ -252,6 +253,9 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
             JTree *left_child  = currPtr->left;
             JTree *right_child = currPtr->right;
 
+            if (currPtr->predPtr== NULL)
+                SelectInfo &sel_info
+
             /* If left child exists */
             if(left_child) {
                 /* a) If it's intermediate result : Add the column what we will need */
@@ -282,7 +286,7 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
                 /* a) If we have a Join : Craete the two tables_t's from SelectInfo's */
                 if (currPtr->predPtr) {
                     left_table = joiner.SelectInfoToTableT(currPtr->predPtr->left);
-                    right_table = joiner.SelectInfoToTableT(currPtr->predPtr->right);
+                    left_table = joiner.SelectInfoToTableT(currPtr->predPtr->left);
                 }
                 /* b) If we have a filter : Create one table from SelectInfo */
                 else if (currPtr->filterPtr) {
@@ -301,7 +305,6 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
             /* Somethig whent wrong here */
             else std::cerr << "Error in MakePlan: No Predicate or Filter Info" << '\n';
 #endif
-
 #ifdef george_s_code
             /* In case of left child been intermediate results */
             if (currPtr->left && currPtr->left->intermediate_res) {
@@ -357,6 +360,8 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
                 }
             }
 #endif
+
+
             /* go to the parent */
             currPtr = currPtr->parent;
             /* deside liberty of transitions */
@@ -372,6 +377,111 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
     }
 
     return plan;
+}
+#endif
+
+table_t* jTreeMakePlan(JTree* jTreePtr, Joiner& joiner, int *depth) {
+    // Visit left child
+    if ((jTreePtr->left != NULL) && (jTreePtr->left->visited == 0)) {
+        std::cerr << *depth << std::endl;
+        flush(std::cerr);
+        (*depth)++;
+        jTreeMakePlan(jTreePtr->left, joiner, depth);
+    }
+
+    // Visit right child
+    if ((jTreePtr->right != NULL) && (jTreePtr->right->visited == 0)) {
+        std::cerr << *depth << std::endl;
+        flush(std::cerr);
+        (*depth++);
+        jTreeMakePlan(jTreePtr->right, joiner, depth);
+    }
+
+    // Mark as visited
+    jTreePtr->visited = 1;
+
+    table_t *left_table, *right_table;
+
+    // If we have not reached the root of the tree
+    if ((*depth) > 0) {
+
+        // In case of no children
+        if (jTreePtr->left == NULL && jTreePtr->right == NULL) {
+            // a) If we have a Join : Craete the two tables_t's from SelectInfo's
+            if (jTreePtr->predPtr) {
+                left_table  = joiner.SelectInfoToTableT(jTreePtr->predPtr->left);
+                right_table = joiner.SelectInfoToTableT(jTreePtr->predPtr->right);
+            }
+            // b) If we have a filter : Create one table from SelectInfo
+            else if (jTreePtr->filterPtr) {
+                jTreePtr->intermediate_res = joiner.SelectInfoToTableT(jTreePtr->filterPtr->filterColumn);
+            }
+        }
+
+        // If left child exists
+        if (jTreePtr->left != NULL) {
+            // a) If it's intermediate result : Add the column what we will need
+            if (jTreePtr->left->intermediate_res) {
+                joiner.AddColumnToIntermediatResult(jTreePtr->predPtr->left, left_table);
+            }
+            // b) If its not intermediate : Translate the SelectInfo to a table_t
+            else {
+                if (jTreePtr->predPtr){
+                    left_table = joiner.SelectInfoToTableT(jTreePtr->predPtr->left);
+                } else if(jTreePtr->filterPtr)  {
+                    jTreePtr->intermediate_res = joiner.SelectInfoToTableT(jTreePtr->filterPtr->filterColumn);
+                }
+            }
+        }
+
+        // If right child exists
+        if (jTreePtr->right != NULL) {
+            // a) If it's intermediate result : Add the column what we will need
+            if (jTreePtr->right->intermediate_res) {
+                joiner.AddColumnToIntermediatResult(jTreePtr->predPtr->right, right_table);
+            }
+            // b) If its not intermediate : Translate the SelectInfo to a table_t
+            else {
+                if (jTreePtr->predPtr){
+                    right_table = joiner.SelectInfoToTableT(jTreePtr->predPtr->right);
+                } else if(jTreePtr->filterPtr){
+                    jTreePtr->intermediate_res = joiner.SelectInfoToTableT(jTreePtr->filterPtr->filterColumn);
+                }
+            }
+        }
+
+        // Call join or select based on the Pointer
+        if (jTreePtr->predPtr) {
+            jTreePtr->intermediate_res = joiner.join(left_table, right_table);
+        }
+        // b) If we have a filter : Create one table from SelectInfo
+        else if (jTreePtr->filterPtr) {
+            joiner.Select(*(jTreePtr->filterPtr), jTreePtr->intermediate_res);
+        }
+
+        (*depth)--;
+        return jTreePtr->intermediate_res;
+    }
+
+    // At the root node perform a cartesian product if it has two children
+    else {
+        std::cerr << "ROOOOOOOOOOT" << std::endl;
+        flush(std::cerr);
+/*
+        }
+        else {
+            // Return the result of the only child
+            if (jTreePtr->left != NULL) {
+                return jTreePtr->left->intermediate_res;
+            }
+            else if (jTreePtr->right != NULL) {
+                return jTreePtr->right->intermediate_res;
+            }
+            else {
+                printf("AAAAAAAAAAAAAAAAA\n");
+            }
+*/
+    }
 }
 
 /* Print plan -- for debugging */

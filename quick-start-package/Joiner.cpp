@@ -470,8 +470,7 @@ void Joiner::join(QueryInfo& i) {
     }
 
     /* Loop all the filter s */
-
-
+    
 
     std::cerr << "---------------------------" << '\n';
     cout << "Implement join..." << endl;
