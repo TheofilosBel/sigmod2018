@@ -212,7 +212,8 @@ void jTreePrintTree(JTree* jTreePtr) {
         }
     }
 }
-#ifdef k
+
+#define teo_s_code
 /* Make an execution plan out of a query-tree */
 int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
     /* construct plan by iterating through the query-tree in a DFS fassion */
@@ -225,6 +226,7 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
     while(currPtr) {
         /* if you can go to the left children */
         if (!went_left && currPtr->left) {
+            printf("\t1) going LEFT\n");
             currPtr = currPtr->left;
             from_left = true;
             /* you may now go left or right again */
@@ -233,6 +235,7 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
         }
         /* if you can go to the right children */
         else if (!went_right && currPtr->right) {
+            printf("\t2) going RIGHT\n");
             currPtr = currPtr->right;
             from_left = false;
             /* you may now go left or right again */
@@ -241,6 +244,7 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
         }
         /* if you can't go to the left or to the right children */
         else {
+            printf("\t3) PLANNING\n");
             /* add node ID to our plan */
             (*plan_size)++;
             plan = (int *) realloc(plan, (*plan_size) * sizeof(int));
@@ -253,17 +257,19 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
             JTree *left_child  = currPtr->left;
             JTree *right_child = currPtr->right;
 
-            if (currPtr->predPtr== NULL)
-                SelectInfo &sel_info
+            // if (currPtr->predPtr== NULL)
+            //     SelectInfo &sel_info;
 
             /* If left child exists */
             if(left_child) {
                 /* a) If it's intermediate result : Add the column what we will need */
                 if (left_child->intermediate_res) {
+                    printf("\t\tFrom LEFT child AddColumnToIntermediatResult\n");
                     joiner.AddColumnToIntermediatResult(currPtr->predPtr->left, left_table);
                 }
                 /* b) If its not intermediate : Translate the SelectInfo to a table_t */
                 else {
+                    printf("\t\tFrom LEFT child SelectInfoToTableT\n");
                     left_table = joiner.SelectInfoToTableT(currPtr->predPtr->left);
                 }
             }
@@ -272,38 +278,52 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
             if(right_child) {
                 /* a) If it's intermediate result : Add the column what we will need */
                 if (right_child->intermediate_res) {
+                    printf("\t\tFrom RIGHT child AddColumnToIntermediatResult\n");
                     joiner.AddColumnToIntermediatResult(currPtr->predPtr->right, right_table);
                 }
                 /* b) If its not intermediate : Translate the SelectInfo to a table_t */
                 else {
+                    printf("\t\tFrom RIGHT child SelectInfoToTableT\n");
                     right_table = joiner.SelectInfoToTableT(currPtr->predPtr->right);
                 }
             }
 
             /* In case of no children */
             if (currPtr->left == NULL && currPtr->right == NULL) {
-
+                printf("\t\tNO CHILDREN ----->");
                 /* a) If we have a Join : Craete the two tables_t's from SelectInfo's */
                 if (currPtr->predPtr) {
+                    printf("PREDICATE --->");
+                    printf("SelectInfoToTableT for LEFT\n");
                     left_table = joiner.SelectInfoToTableT(currPtr->predPtr->left);
+                    printf("SelectInfoToTableT for RIGHT\n");
                     left_table = joiner.SelectInfoToTableT(currPtr->predPtr->left);
                 }
                 /* b) If we have a filter : Create one table from SelectInfo */
                 else if (currPtr->filterPtr) {
+                    printf("FILTER --->");
+                    printf("SelectInfoToTableT for FILTER COLUMN\n");
                     currPtr->intermediate_res = joiner.SelectInfoToTableT(currPtr->filterPtr->filterColumn);
                 }
             }
 
             /* Call join or select based on the Pointer */
             if (currPtr->predPtr) {
+                printf("\t\tPREDICATE --->");
+                printf("join LEFT and RIGHT\n");
                 currPtr->intermediate_res = joiner.join(left_table, right_table);
             }
             /* b) If we have a filter : Create one table from SelectInfo */
             else if (currPtr->filterPtr) {
+                printf("\t\tFILTER --->");
+                printf("Select from intermediate results\n");
                 joiner.Select(*(currPtr->filterPtr), currPtr->intermediate_res);
             }
             /* Somethig whent wrong here */
-            else std::cerr << "Error in MakePlan: No Predicate or Filter Info" << '\n';
+            else {
+              // std::cerr << "Error in MakePlan: No Predicate or Filter Info" << '\n';
+              currPtr->intermediate_res = joiner.cartesian_join(left_table, right_table);
+            }
 #endif
 #ifdef george_s_code
             /* In case of left child been intermediate results */
@@ -378,8 +398,8 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
 
     return plan;
 }
-#endif
 
+#ifdef k
 table_t* jTreeMakePlan(JTree* jTreePtr, Joiner& joiner, int *depth) {
     // Visit left child
     if ((jTreePtr->left != NULL) && (jTreePtr->left->visited == 0)) {
@@ -483,6 +503,7 @@ table_t* jTreeMakePlan(JTree* jTreePtr, Joiner& joiner, int *depth) {
 */
     }
 }
+#endif
 
 /* Print plan -- for debugging */
 void jTreePrintPlan(int* plan, int plan_size) {
