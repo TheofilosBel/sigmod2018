@@ -146,7 +146,7 @@ void Joiner::AddColumnToTableT(SelectInfo &sel_info, table_t *table) {
     /* Error msg for debuging */
     if (column.table_index == -1) {
         std::cerr << "At AddColumnToTableT, Id not matchin with intermediate result vectors" << '\n';
-    }    
+    }
 }
 
 void Joiner::AddColumnToIntermediatResult(SelectInfo &sel_info, table_t *table) {
@@ -260,13 +260,26 @@ table_t* Joiner::cartesian_join(table_t *table_l, table_t *table_s) {
     int left_size = left_row_ids[0].size();
     int left_rel_size = left_rel_map.size();
 
+    /* Update the relation ids map */
+    int size = right_rel_map.size();
+    for (int i = 0; i < size; ++i) {
+        left_rel_map.push_back(right_rel_map[i]);
+    }
+
+    if (left_size == 0 || right_size == 0) {
+        return table_l;
+    }
+
+    /* Reserve the left row id table */
+    std::cerr << "Cartesia for " << left_size << " " <<  right_size << '\n';
+
     /* Add m lines for each line to the left row ids map */
     for (int relation = 0; relation < left_rel_size; ++relation) {
-        for (int m = 1; m < right_size; ++m) {  // Not for m = 0 it already exists  
+        for (int m = 1; m < right_size; ++m) {  // Not for m = 0 it already exists
             for (int n = 0; n < left_size; ++n) {  //[m*left_size + n]
                 left_row_ids[relation].push_back(left_row_ids[relation][n]);
             }
-        }        
+        }
     }
 
     /* Now add right_rel_size to the left vector */
@@ -274,21 +287,15 @@ table_t* Joiner::cartesian_join(table_t *table_l, table_t *table_s) {
         left_row_ids.push_back(std::vector<int>());
     }
 
+    std::cerr << "HERE" << '\n';
+
     /* For each relation of the  right vector add the m elements to each bach of m elements of m*/
-    for (int relation = left_rel_size; relation < left_rel_size + right_rel_size; ++relation) {
-        for (int m = 0; m < right_size; ++m) { 
+    for (int relation = 0; relation < right_rel_size; ++relation) {
+        for (int m = 0; m < right_size; ++m) {
             for (int n = 0; n < left_size; ++n) {  //[m*left_size + n]
-                left_row_ids[relation].push_back(right_row_ids[relation][m]);
+                left_row_ids[left_rel_size - 1 + relation].push_back(right_row_ids[relation][m]);
             }
         }
-    }
-    
-    
-
-    /* Push the table map */
-    int size = right_rel_map.size();
-    for (int i = 0; i < size; ++i) {
-        left_rel_map.push_back(right_rel_map[i]);
     }
 
     return table_l;
@@ -628,7 +635,11 @@ int main(int argc, char* argv[]) {
 
         // Parse the query
         i.parseQuery(line);
-
+        PredicateInfo &predicate = i.predicates[0];
+        //std::cerr << "Predicates: " <<  '\n';
+        //std::cerr << "Left: "  << predicate.left.relId << "." << predicate.left.colId << '\n';
+        //std::cerr << "Right: " << predicate.right.relId << "." << predicate.right.colId << '\n';
+        //std::cerr << "-------" << '\n';
 
         JTree *jTreePtr = treegen(&i);
         int *plan = NULL, plan_size = 0;
