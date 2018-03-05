@@ -184,7 +184,7 @@ table_t* Joiner::join(table_t *table_r, table_t *table_s) {
     return low_join(table_r, table_s);
 }
 
-table_t* cartesian_join(table_t *table_r, table_t *table_s) {
+table_t* Joiner::cartesian_join(table_t *table_r, table_t *table_s) {
 
     /* Add to table_r all the elements of table_s*/
     std::vector<std::vector<int>> &r_row_ids = *(table_r->relations_row_ids);
@@ -194,8 +194,9 @@ table_t* cartesian_join(table_t *table_r, table_t *table_s) {
     std::vector<int> &s_rel_ids = table_s->relation_ids;
 
     /* For all the vectors of r row ids */
-    for (int i = 0; i < r_row_ids.size(); ++i) {
-        
+    int size = r_row_ids.size();
+    for (int i = 0; i < size; ++i) {
+
         /* Push all the vectors of s_row_ids */
         for (std::vector<int> v: s_row_ids) {
             r_row_ids.push_back(v);
@@ -203,7 +204,8 @@ table_t* cartesian_join(table_t *table_r, table_t *table_s) {
     }
 
     /* Push the table ids */
-    for (int i = 0; i < s_rel_ids.size(); ++i) {
+    size = s_rel_ids.size();
+    for (int i = 0; i < size; ++i) {
         r_rel_ids.push_back(s_rel_ids[i]);
     }
 
@@ -462,15 +464,13 @@ void Joiner::join(QueryInfo& i) {
         flush(cerr);
 
         /* Join the tables and push back the new result */
-        result = join(table_r, table_s);
+        result = cartesian_join(table_r, table_s);//join(table_r, table_s);
         std::cerr << "Resulting table rows: " << result->relations_row_ids->operator[](0).size() << '\n';
         intermediate_results.push_back(result);
     }
 
     /* Loop all the filter s */
-    for (FilterInfo &) {
-        /* code */
-    }
+
 
 
     std::cerr << "---------------------------" << '\n';

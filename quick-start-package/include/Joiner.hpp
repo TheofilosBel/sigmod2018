@@ -20,7 +20,7 @@ class Joiner {
     public:
     /* do the checksum */
     uint64_t check_sum(SelectInfo &sel_info, table_t *table);
-    
+
     /* Initialize the row_id Array */
     void RowIdArrayInit(QueryInfo &query_info);
 
