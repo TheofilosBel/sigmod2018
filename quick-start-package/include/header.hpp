@@ -17,6 +17,7 @@
 
 typedef struct JTree {
     int node_id;
+    int visited;
 
     struct FilterInfo* filterPtr;
     struct PredicateInfo* predPtr;

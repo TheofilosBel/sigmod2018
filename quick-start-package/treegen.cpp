@@ -19,6 +19,7 @@ JTree *treegen(QueryInfo *info)
 	for (unsigned int i=0; i < info->relationIds.size(); i++) {
 		node = new JTree;
 		node->node_id = i;
+		node->visited = 0;
 		node->predPtr = NULL;
 		node->filterPtr = NULL;
 
@@ -37,6 +38,7 @@ JTree *treegen(QueryInfo *info)
 
 		node = new JTree;
 		node->node_id = -1;
+		node->visited = 0;
 		node->filterPtr = &(info->filters[i]);
 		node->predPtr = NULL;
 
@@ -60,6 +62,7 @@ JTree *treegen(QueryInfo *info)
 
 		node = new JTree;
 		node->node_id = -1;
+		node->visited = 0;
 		node->predPtr = &(info->predicates[i]);
 		node->filterPtr = NULL;
 
@@ -109,6 +112,7 @@ JTree *treegen(QueryInfo *info)
 
 		node = new JTree;
 		node->node_id = -1;
+		node->visited = 0;
 		node->filterPtr = NULL;
 		node->predPtr = NULL;
 
@@ -120,4 +124,40 @@ JTree *treegen(QueryInfo *info)
 		top = node;
 	}
 	return top;
+}
+
+void print_rec(JTree *ptr, int depth)
+{
+    if (ptr == NULL)
+        return;
+    if (ptr->node_id == -1) {
+
+            for (int i=0; i < depth; i++)
+                printf("\t");
+            if (ptr->filterPtr != NULL) {
+                printf("%d.%d %c %ld\n", ptr->filterPtr->filterColumn.relId,
+                    ptr->filterPtr->filterColumn.colId, 
+                    ptr->filterPtr->comparison, ptr->filterPtr->constant);
+            print_rec(ptr->left, depth+1);
+            }
+            else if (ptr->predPtr != NULL) {
+                printf("%d.%d = %d.%d\n", ptr->predPtr->left.relId, 
+                    ptr->predPtr->left.colId, ptr->predPtr->right.relId, 
+                    ptr->predPtr->right.colId);
+
+                print_rec(ptr->left, depth+1);
+                print_rec(ptr->right, depth+1);
+            }
+            else {
+                printf(" >< \n");
+                print_rec(ptr->left, depth+1);
+                print_rec(ptr->right, depth+1);
+            }
+        }
+        else {
+            for (int i=0; i < depth; i++)
+                printf("\t");
+
+            printf("-- %d\n", ptr->node_id);
+        }
 }

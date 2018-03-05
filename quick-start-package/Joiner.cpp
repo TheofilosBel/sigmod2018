@@ -4,6 +4,7 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
+#include "string"
 #include <vector>
 #include "Parser.hpp"
 #include "QueryGraph.hpp"
@@ -394,8 +395,9 @@ int Joiner::getRelationsCount() {
 // The check should be NULL if there is no qualifying tuple
 void Joiner::join(QueryInfo& i) {
 
-    std::vector<FilterInfo>    &filtes = i.filters;
+    std::vector<FilterInfo>    &filters    = i.filters;
     std::vector<PredicateInfo> &predicates = i.predicates;
+    std::vector<SelectInfo>    &selections = i.selections;
     std::vector<table_t*> intermediate_results;
     table_t *table_r;
     table_t *table_s;
@@ -417,7 +419,7 @@ void Joiner::join(QueryInfo& i) {
         for (int j = 0; j < intermediate_results.size(); j++) {
 
             table = intermediate_results[j];
-            std::cerr << "Intermediate :" << j <<  " relation ids ( " << table->relation_ids.size() << ") : " << '\n';
+            //std::cerr << "Intermediate :" << j <<  " relation ids ( " << table->relation_ids.size() << ") : " << '\n';
 
             for (size_t jj = 0; jj < table->relation_ids.size(); jj++) {
                 id = table->relation_ids[jj];
@@ -464,51 +466,46 @@ void Joiner::join(QueryInfo& i) {
         flush(cerr);
 
         /* Join the tables and push back the new result */
-        result = cartesian_join(table_r, table_s);//join(table_r, table_s);
-        std::cerr << "Resulting table rows: " << result->relations_row_ids->operator[](0).size() << '\n';
+        result = join(table_r, table_s);//join(table_r, table_s);
+        std::cerr << "Intermediate table rows: " << result->relations_row_ids->operator[](0).size() << '\n';
         intermediate_results.push_back(result);
     }
 
+    /* Cartesia join all the intermediate_results */
+    result = intermediate_results[0];
+    int count = intermediate_results.size();
+    for (size_t index = 1; index < count; index++) {
+        result = cartesian_join(result, intermediate_results[index]);
+    }
+
     /* Loop all the filter s */
-    
-
-    std::cerr << "---------------------------" << '\n';
-    cout << "Implement join..." << endl;
-
-    /**/
-
-#ifdef def
-    // print result to std::cout
-
-
-    /* Call a construct function */
-    table_t *table_r = SelectInfoToTableT(i.predicates[0].left);
-    table_t *table_s = SelectInfoToTableT(i.predicates[0].right);
-    SelectInfo &select =i.selections[0];
-
-    std::cerr << "Left Table " << table_r->relation_ids[0]  << "." << table_r->column_j->id;
-    std::cerr << " rows " << table_r->column_j->size << '\n';
-    std::cerr << "Right Table " << table_s->relation_ids[0]  << "." << table_s->column_j->id;
-    std::cerr << " rows " << table_s->column_j->size << '\n';
-
-    table_t *result = join(table_r, table_s);
-
-    /* if there exists a filter fo it */
-    if (!i.filters.empty()) {
-        FilterInfo &filter = i.filters[0];
-
-        /* Take the filter and apply it to the table to the */
+    for (FilterInfo &filter: filters) {
+        std::cerr << "Filter at "<< filter.filterColumn.relId << "." << filter.filterColumn.colId << " ";
+        std::cerr <<  ("%c",filter.comparison) << " " << filter.constant << '\n';
         AddColumnToIntermediatResult(filter.filterColumn, result);
         Select(filter, result);
     }
+    std::cerr << "Resulting table rows: " << result->relations_row_ids->operator[](0).size() << '\n';
+    std::cerr << "---------------------------" << '\n';
 
-    std::cerr << "Intermediate Table " << result->relation_ids[0] << "&" << result->relation_ids[1];
-    std::cerr << " rows " << result->relations_row_ids->operator[](0).size() << '\n';
-    std::cerr << "Check sum of "<< select.binding << "." << select.colId << " ";
-    std::cerr <<  check_sum(select, result) << '\n';
-    std::cerr << "-----------------------------------------------------" << '\n';
-#endif
+    string result_str;
+    int checksum = 0;
+    for (size_t i = 0; i < selections.size(); i++) {
 
+        checksum = check_sum(selections[i], result);
+        if (checksum == 0) {
+            result_str += "NULL";
+        } else {
+            result_str += std::to_string(checksum);
+        }
+
+        if (i != selections.size() - 1) {
+            result_str +=  " ";
+        }
+    }
+
+    /* Print the result */
+    //cout << result_str << endl;
 }
 
 /* +---------------------+
@@ -556,7 +553,7 @@ int main(int argc, char* argv[]) {
 
         // join
         joiner.join(i);
-        cout << "Implement join..." << endl;
+        std::cout << "Implelemt JOIN " << '\n';
     }
 
     return 0;
