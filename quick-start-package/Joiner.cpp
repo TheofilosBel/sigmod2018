@@ -190,6 +190,9 @@ table_t* cartesian_join(table_t *table_r, table_t *table_s) {
     std::vector<std::vector<int>> &r_row_ids = *(table_r->relations_row_ids);
     std::vector<std::vector<int>> &s_row_ids = *(table_s->relations_row_ids);
 
+    std::vector<int> &r_rel_ids = table_r->relation_ids;
+    std::vector<int> &s_rel_ids = table_s->relation_ids;
+
     /* For all the vectors of r row ids */
     for (int i = 0; i < r_row_ids.size(); ++i) {
         
@@ -197,6 +200,11 @@ table_t* cartesian_join(table_t *table_r, table_t *table_s) {
         for (std::vector<int> v: s_row_ids) {
             r_row_ids.push_back(v);
         }
+    }
+
+    /* Push the table ids */
+    for (int i = 0; i < s_rel_ids.size(); ++i) {
+        r_rel_ids.push_back(s_rel_ids[i]);
     }
 
     return table_r;
