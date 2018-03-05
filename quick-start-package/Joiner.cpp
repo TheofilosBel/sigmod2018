@@ -121,6 +121,34 @@ void Joiner::SelectLess(table_t *table, int filter){
     table->intermediate_res = true;
 }
 
+void Joiner::AddColumnToTableT(SelectInfo &sel_info, table_t *table) {
+
+    /* Create a new column_t for table */
+    column_t &column = *table->column_j;
+    std::vector<int> &relation_ids = table->relation_ids;
+
+    /* Get the relation from joiner */
+    Relation &rel = getRelation(sel_info.relId);
+    column.size   = rel.size;
+    column.values = rel.columns.at(sel_info.colId);
+    column.id     = sel_info.colId;
+    column.table_index = -1;
+    RelationId relation_id = sel_info.relId;
+
+    /* Get the right index from the relation id table */
+    for (size_t index = 0; index < relation_ids.size(); index++) {
+        if (relation_ids[index] == relation_id){
+            column.table_index = index;
+            break;
+        }
+    }
+
+    /* Error msg for debuging */
+    if (column.table_index == -1) {
+        std::cerr << "At AddColumnToIntermediatResult, Id not matchin with intermediate result vectors" << '\n';
+    }    
+}
+
 void Joiner::AddColumnToIntermediatResult(SelectInfo &sel_info, table_t *table) {
 
     /* Only for intermediate */
@@ -150,6 +178,31 @@ void Joiner::AddColumnToIntermediatResult(SelectInfo &sel_info, table_t *table) 
     if (column.table_index == -1) {
         std::cerr << "At AddColumnToIntermediatResult, Id not matchin with intermediate result vectors" << '\n';
     }
+}
+
+table_t* Joiner::CreateTableTFromId(unsigned rel_id) {
+
+    /* Crate - Initialize a table_t */
+    table_t *const table_t_ptr = new table_t;
+    table_t_ptr->column_j = new column_t;
+    table_t_ptr->intermediate_res = false;
+    table_t_ptr->relations_row_ids = new std::vector<std::vector<int>>;
+
+    std::vector<std::vector<int>> &rel_row_ids = *table_t_ptr->relations_row_ids;
+
+    /* Get the relation */
+    Relation &rel  = getRelation(rel_id);
+
+    /* Create the relations_row_ids and relation_ids vectors */
+    uint64_t rel_size  = rel.size;
+    rel_row_ids.resize(1);
+    for (size_t i = 0;  i < rel_size; i++) {
+        rel_row_ids[0].push_back(i);
+    }
+
+    table_t_ptr->relation_ids.push_back(rel_id);
+
+    return table_t_ptr;
 }
 
 table_t* Joiner::SelectInfoToTableT(SelectInfo &sel_info) {
@@ -449,7 +502,9 @@ void Joiner::join(QueryInfo& i) {
             AddColumnToIntermediatResult(predicate.left, intermediate_results[index_left]);
             table_r = intermediate_results[index_left];
         } else {
-            table_r = SelectInfoToTableT(predicate.left);
+            //table_r = SelectInfoToTableT(predicate.left);
+            table_r = CreateTableTFromId(predicate.left.relId);
+            AddColumnToTableT(predicate.left, table_r);
         }
 
         /* For the right column */

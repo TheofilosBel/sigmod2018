@@ -34,7 +34,9 @@ class Joiner {
     int getRelationsCount();
 
     table_t* SelectInfoToTableT(SelectInfo &sel_info);
+    table_t* CreateTableTFromId(unsigned rel_id);
     void AddColumnToIntermediatResult(SelectInfo &sel_info, table_t *table);
+    void AddColumnToTableT(SelectInfo &sel_info, table_t *table);
 
     // The select functions
     void Select(FilterInfo &sel_info, table_t *table);
@@ -46,6 +48,7 @@ class Joiner {
     void join(QueryInfo& i);
     table_t* join(table_t *table_r, table_t *table_s);
     table_t* cartesian_join(table_t *table_r, table_t *table_s);
+
 
     /* The join function
      *
