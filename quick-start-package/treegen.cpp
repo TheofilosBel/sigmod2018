@@ -5,6 +5,22 @@
 
 #include <cstdio>
 
+
+JTree *tree_update(JTree *tree, QueryInfo *info)
+{
+
+	if (tree == NULL)
+		return NULL;
+
+	if (tree->node_id > 0)
+		tree->node_id = info->relationIds[tree->node_id];
+
+	tree_update(tree->left, info);
+	tree_update(tree->right, info);
+
+	return tree;
+}
+
 JTree *treegen(QueryInfo *info)
 {
 	using namespace std;
@@ -123,7 +139,7 @@ JTree *treegen(QueryInfo *info)
 		delete nodeSets[v[i+1]];
 		top = node;
 	}
-	return top;
+	return tree_update(top, info);
 }
 
 void print_rec(JTree *ptr, int depth)
