@@ -366,8 +366,95 @@ int Joiner::getRelationsCount() {
 // The check should be NULL if there is no qualifying tuple
 void Joiner::join(QueryInfo& i) {
 
-    // print result to std::cout
+    std::vector<FilterInfo>    &filtes = i.filters;
+    std::vector<PredicateInfo> &predicates = i.predicates;
+    std::vector<table_t*> intermediate_results;
+    table_t *table_r;
+    table_t *table_s;
+    table_t *table;
+    table_t *result;
+    int id;
+
+    /* For all the predicate infos */
+    for (PredicateInfo &predicate: predicates) {
+
+        std::cerr << "Predicates: " <<  '\n';
+        std::cerr << "Left: "  << predicate.left.relId << "." << predicate.left.colId << '\n';
+        std::cerr << "Right: " << predicate.right.relId << "." << predicate.right.colId << '\n';
+        flush(cerr);
+
+        int index_left  = -1;
+        int index_right = -1;
+
+        for (int j = 0; j < intermediate_results.size(); j++) {
+
+            table = intermediate_results[j];
+            std::cerr << "Intermediate :" << j <<  " relation ids ( " << table->relation_ids.size() << ") : " << '\n';
+
+            for (size_t jj = 0; jj < table->relation_ids.size(); jj++) {
+                id = table->relation_ids[jj];
+                std::cerr << '\t' << id << '\n';
+                if (id == predicate.left.relId) {
+                    index_left  = j;
+                } else if (id == predicate.right.relId) {
+                    index_right = j;
+                }
+            }
+        }
+
+        std::cerr << "Intermediate result left index :" << index_left  << '\n';
+        std::cerr << "Intermediate result right index :" << index_right << '\n';
+        flush(cerr);
+
+        /* For the left column */
+        if (index_left != -1) {
+            AddColumnToIntermediatResult(predicate.left, intermediate_results[index_left]);
+            table_r = intermediate_results[index_left];
+        } else {
+            table_r = SelectInfoToTableT(predicate.left);
+        }
+
+        /* For the right column */
+        if (index_right != -1) {
+            AddColumnToIntermediatResult(predicate.right, intermediate_results[index_left]);
+            table_s = intermediate_results[index_left];
+        } else {
+            table_s = SelectInfoToTableT(predicate.right);
+        }
+
+        /* Erase the intermediate results from vector */
+        if (index_left != -1 && index_left != index_right) {
+            intermediate_results.erase(intermediate_results.begin() + index_left);
+        } else if (index_right != -1 && index_left != index_right) {
+            intermediate_results.erase(intermediate_results.begin() + index_right);
+        } else if (index_left != -1 && index_left == index_right) {
+            intermediate_results.erase(intermediate_results.begin() + index_left);
+        }
+
+
+        fprintf(stderr, "The table_r pointer %p , The table_s pointer %p\n", table_r, table_s);
+        flush(cerr);
+
+        /* Join the tables and push back the new result */
+        result = join(table_r, table_s);
+        std::cerr << "Resulting table rows: " << result->relations_row_ids->operator[](0).size() << '\n';
+        intermediate_results.push_back(result);
+    }
+
+    /* Loop all the filter s */
+    for (FilterInfo &) {
+        /* code */
+    }
+
+
+    std::cerr << "---------------------------" << '\n';
     cout << "Implement join..." << endl;
+
+    /**/
+
+#ifdef def
+    // print result to std::cout
+
 
     /* Call a construct function */
     table_t *table_r = SelectInfoToTableT(i.predicates[0].left);
@@ -395,6 +482,8 @@ void Joiner::join(QueryInfo& i) {
     std::cerr << "Check sum of "<< select.binding << "." << select.colId << " ";
     std::cerr <<  check_sum(select, result) << '\n';
     std::cerr << "-----------------------------------------------------" << '\n';
+#endif
+
 }
 
 /* +---------------------+

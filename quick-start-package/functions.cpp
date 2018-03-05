@@ -247,7 +247,7 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
 
             /* Start calling the Join or Select functions on the 2 tables */
             table_t *left_table, *right_table;
-            
+
 #ifdef teo_s_code
             JTree *left_child  = currPtr->left;
             JTree *right_child = currPtr->right;
@@ -282,7 +282,7 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
                 /* a) If we have a Join : Craete the two tables_t's from SelectInfo's */
                 if (currPtr->predPtr) {
                     left_table = joiner.SelectInfoToTableT(currPtr->predPtr->left);
-                    left_table = joiner.SelectInfoToTableT(currPtr->predPtr->left);
+                    right_table = joiner.SelectInfoToTableT(currPtr->predPtr->right);
                 }
                 /* b) If we have a filter : Create one table from SelectInfo */
                 else if (currPtr->filterPtr) {
@@ -301,6 +301,7 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
             /* Somethig whent wrong here */
             else std::cerr << "Error in MakePlan: No Predicate or Filter Info" << '\n';
 #endif
+
 #ifdef george_s_code
             /* In case of left child been intermediate results */
             if (currPtr->left && currPtr->left->intermediate_res) {
@@ -356,8 +357,6 @@ int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
                 }
             }
 #endif
-
-
             /* go to the parent */
             currPtr = currPtr->parent;
             /* deside liberty of transitions */
