@@ -36,7 +36,6 @@ void Joiner::Select(FilterInfo &fil_info, table_t* table) {
 
 void Joiner::SelectEqual(table_t *table, int filter) {
     /* Initialize helping variables */
-    /* Initialize helping variables */
     uint64_t *const values  = table->column_j->values;
     int table_index         = table->column_j->table_index;
     const uint64_t rel_num  = table->relations_row_ids->size();
@@ -47,8 +46,11 @@ void Joiner::SelectEqual(table_t *table, int filter) {
     const uint64_t size     = old_row_ids[table_index].size();
 
     /* Update the row ids of the table */
+    //std::cerr << "Table index is " << table_index << '\n';
+    //std::cerr << "Relation id in index " << table->relation_ids[table_index] << '\n';
+
     for (size_t index = 0; index < size; index++) {
-        if (values[old_row_ids[table_index][index]] == filter) {
+        if (values[index] == filter) {
             for (size_t rel_index = 0; rel_index < rel_num; rel_index++) {
                 new_row_ids->operator[](rel_index).push_back(old_row_ids[rel_index][index]);
             }
@@ -73,8 +75,11 @@ void Joiner::SelectGreater(table_t *table, int filter){
     const uint64_t size     = old_row_ids[table_index].size();
 
     /* Update the row ids of the table */
+    //std::cerr << "Table index is " << table_index << '\n';
+    //std::cerr << "Relation id in index " << table->relation_ids[table_index] << '\n';
+
     for (size_t index = 0; index < size; index++) {
-        if (values[old_row_ids[table_index][index]] > filter) {
+        if (values[index] > filter) {
             for (size_t rel_index = 0; rel_index < rel_num; rel_index++) {
                 new_row_ids->operator[](rel_index).push_back(old_row_ids[rel_index][index]);
             }
@@ -99,8 +104,11 @@ void Joiner::SelectLess(table_t *table, int filter){
     const uint64_t size     = old_row_ids[table_index].size();
 
     /* Update the row ids of the table */
+    //std::cerr << "Table index is " << table_index << '\n';
+    //std::cerr << "Relation id in index " << table->relation_ids[table_index] << '\n';
+
     for (size_t index = 0; index < size; index++) {
-        if (values[old_row_ids[table_index][index]] < filter) {
+        if (values[index] < filter) {
             for (size_t rel_index = 0; rel_index < rel_num; rel_index++) {
                 new_row_ids->operator[](rel_index).push_back(old_row_ids[rel_index][index]);
             }
@@ -408,9 +416,9 @@ void Joiner::join(QueryInfo& i) {
     /* For all the predicate infos */
     for (PredicateInfo &predicate: predicates) {
 
-        std::cerr << "Predicates: " <<  '\n';
-        std::cerr << "Left: "  << predicate.left.relId << "." << predicate.left.colId << '\n';
-        std::cerr << "Right: " << predicate.right.relId << "." << predicate.right.colId << '\n';
+        //std::cerr << "Predicates: " <<  '\n';
+        //std::cerr << "Left: "  << predicate.left.relId << "." << predicate.left.colId << '\n';
+        //std::cerr << "Right: " << predicate.right.relId << "." << predicate.right.colId << '\n';
         flush(cerr);
 
         int index_left  = -1;
@@ -432,8 +440,8 @@ void Joiner::join(QueryInfo& i) {
             }
         }
 
-        std::cerr << "Intermediate result left index :" << index_left  << '\n';
-        std::cerr << "Intermediate result right index :" << index_right << '\n';
+        //std::cerr << "Intermediate result left index :" << index_left  << '\n';
+        //std::cerr << "Intermediate result right index :" << index_right << '\n';
         flush(cerr);
 
         /* For the left column */
@@ -461,14 +469,14 @@ void Joiner::join(QueryInfo& i) {
             intermediate_results.erase(intermediate_results.begin() + index_left);
         }
 
-
-        fprintf(stderr, "The table_r pointer %p , The table_s pointer %p\n", table_r, table_s);
-        flush(cerr);
-
         /* Join the tables and push back the new result */
         result = join(table_r, table_s);//join(table_r, table_s);
-        std::cerr << "Intermediate table rows: " << result->relations_row_ids->operator[](0).size() << '\n';
+        //std::cerr << "Intermediate table rows: " << result->relations_row_ids->operator[](0).size() << '\n';
         intermediate_results.push_back(result);
+
+        /* Run a checksum on first selection */
+        //std::cerr << "Intermediate checksum on" << selections[0].relId << "." << selections[0].colId;
+        //std::cerr << ("%d", check_sum(selections[0], result)) << '\n';
     }
 
     /* Cartesia join all the intermediate_results */
@@ -480,13 +488,13 @@ void Joiner::join(QueryInfo& i) {
 
     /* Loop all the filter s */
     for (FilterInfo &filter: filters) {
-        std::cerr << "Filter at "<< filter.filterColumn.relId << "." << filter.filterColumn.colId << " ";
-        std::cerr <<  ("%c",filter.comparison) << " " << filter.constant << '\n';
+        //std::cerr << "Filter at "<< filter.filterColumn.relId << "." << filter.filterColumn.colId << " ";
+        //std::cerr <<  ("%c",filter.comparison) << " " << filter.constant << '\n';
         AddColumnToIntermediatResult(filter.filterColumn, result);
         Select(filter, result);
     }
-    std::cerr << "Resulting table rows: " << result->relations_row_ids->operator[](0).size() << '\n';
-    std::cerr << "---------------------------" << '\n';
+    //std::cerr << "Resulting table rows: " << result->relations_row_ids->operator[](0).size() << '\n';
+    //std::cerr << "---------------------------" << '\n';
 
     string result_str;
     int checksum = 0;
@@ -505,7 +513,7 @@ void Joiner::join(QueryInfo& i) {
     }
 
     /* Print the result */
-    //cout << result_str << endl;
+    cout << result_str << endl;
 }
 
 /* +---------------------+
@@ -553,7 +561,7 @@ int main(int argc, char* argv[]) {
 
         // join
         joiner.join(i);
-        std::cout << "Implelemt JOIN " << '\n';
+        //std::cout << "Implelemt JOIN " << '\n';
     }
 
     return 0;
