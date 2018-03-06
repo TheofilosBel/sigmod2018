@@ -4,6 +4,7 @@
 typedef struct table_t table_t;
 typedef struct column_t column_t;
 typedef struct hash_entry hash_entry;
+typedef struct cartesian_product cartesian_product_t;
 
 struct hash_entry {
     uint64_t row_id;
@@ -17,6 +18,15 @@ struct column_t {
     unsigned  id;
 };
 
+struct cartesian_product {
+    int size_of_product;
+    int size_of_left_relations;
+    int size_of_right_relations;
+    std::vector<int> left_relations;
+    std::vector<int> right_relations;
+};
+
+
 struct table_t {
 
     /* Row Ids and relation Ids */
@@ -24,6 +34,9 @@ struct table_t {
 
     /* use it for the filtrering */
     std::vector<int>               relation_ids;
+
+    /* representation of cartesian product */
+    cartesian_product_t            *cartesian_product;
 
     /* Intermediate result falg */
     bool intermediate_res;

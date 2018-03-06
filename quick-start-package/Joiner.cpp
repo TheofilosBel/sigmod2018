@@ -187,6 +187,7 @@ table_t* Joiner::CreateTableTFromId(unsigned rel_id) {
     table_t_ptr->column_j = new column_t;
     table_t_ptr->intermediate_res = false;
     table_t_ptr->relations_row_ids = new std::vector<std::vector<int>>;
+    table_t_ptr->cartesian_product = NULL;
 
     std::vector<std::vector<int>> &rel_row_ids = *table_t_ptr->relations_row_ids;
 
@@ -266,12 +267,38 @@ table_t* Joiner::cartesian_join(table_t *table_l, table_t *table_s) {
         left_rel_map.push_back(right_rel_map[i]);
     }
 
+    /* Now add right_rel_size to the left vector */
+    for (int i = 0; i < right_rel_size; ++i) {
+        left_row_ids.push_back(std::vector<int>());
+    }
+
+    /* Simply add the new rows ids to the rows ids table */
+    for (int relation = 0; relation < right_rel_size; ++relation) {
+        for (int m = 0; m < right_size; ++m) {
+            left_row_ids[left_rel_size - 1 + relation].push_back(right_row_ids[relation][m]);
+        }
+    }
+
+    std::cerr << "Cartesian for " << left_rel_map[0] << "X" << right_rel_map[0]
+
+    /* TODO cartesian product of 2 cartesians */
+    /* Fill the cartesian prodcut stuct */
+    cartesian_product_t *c_product = new cartesian_product_t;
+    c_product->size_of_product = left_size * right_size;
+    c_product->size_of_left_relations = left_size;
+    c_product->size_of_right_relations = right_size;
+    c_product->left_relations = std::vector<int>(left_rel_map);
+    c_product->right_relations = std::vector<int>(right_rel_map);
+    table_l->cartesian_product = c_product;
+
+
+#ifdef cp
     if (left_size == 0 || right_size == 0) {
         return table_l;
     }
 
     /* Reserve the left row id table */
-    std::cerr << "Cartesia for " << left_size << " " <<  right_size << '\n';
+    std::cerr << "Cartesian for " << left_size << " " <<  right_size << '\n';
 
     /* Add m lines for each line to the left row ids map */
     for (int relation = 0; relation < left_rel_size; ++relation) {
@@ -297,6 +324,8 @@ table_t* Joiner::cartesian_join(table_t *table_l, table_t *table_s) {
             }
         }
     }
+
+#endif
 
     return table_l;
 }
@@ -446,6 +475,7 @@ void Joiner::construct(table_t *table) {
 
 //CHECK SUM FUNCTION
 uint64_t Joiner::check_sum(SelectInfo &sel_info, table_t *table) {
+
     /* to create the final cehcksum column */
     AddColumnToIntermediatResult(sel_info, table);
     construct(table);
