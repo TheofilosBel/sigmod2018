@@ -214,6 +214,7 @@ table_t* Joiner::SelectInfoToTableT(SelectInfo &sel_info) {
     table_t_ptr->intermediate_res = false;
     table_t_ptr->column_j = new column_t;
     table_t_ptr->relations_row_ids = new std::vector<std::vector<int>>;
+    table_t_ptr->cartesian_product = NULL;
 
     column_t &column = *table_t_ptr->column_j;
     std::vector<std::vector<int>> &rel_row_ids = *table_t_ptr->relations_row_ids;
@@ -279,7 +280,8 @@ table_t* Joiner::cartesian_join(table_t *table_l, table_t *table_s) {
         }
     }
 
-    std::cerr << "Cartesian for " << left_rel_map[0] << "X" << right_rel_map[0]
+    std::cerr << "Cartesian for " << left_rel_map[0] << "X" << right_rel_map[0] << '\n';
+    std::cerr << "Sizes " << left_size << " " <<  right_size << '\n';
 
     /* TODO cartesian product of 2 cartesians */
     /* Fill the cartesian prodcut stuct */
@@ -342,6 +344,7 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
 
     /* the new table_t to continue the joins */
     table_t *updated_table_t = new table_t;
+    updated_table_t->cartesian_product = NULL;
 
     /* hash_size->size of the hashtable,iter_size->size to iterate over to find same vals */
     uint64_t hash_size,iter_size;
@@ -487,7 +490,26 @@ uint64_t Joiner::check_sum(SelectInfo &sel_info, table_t *table) {
     for (uint64_t i = 0 ; i < size; i++)
         sum += col[i];
 
-    return sum;
+    uint64_t m = 1;
+    
+    if (table->cartesian_product != NULL) {
+        for (int id: table->cartesian_product->left_relations) {
+            if (id == sel_info.relId){
+                m = table->cartesian_product->size_of_left_relations;    
+                break;
+            }
+        }
+
+        if (m != 1)
+            for (int id: table->cartesian_product->right_relations) {
+                if (id == sel_info.relId){
+                    m = table->cartesian_product->size_of_right_relations;    
+                    break;
+                }
+            }
+    }
+
+    return sum*m;
 }
 
 // Loads a relation from disk
