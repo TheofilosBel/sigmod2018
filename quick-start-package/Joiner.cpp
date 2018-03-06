@@ -152,7 +152,7 @@ void Joiner::AddColumnToTableT(SelectInfo &sel_info, table_t *table) {
 void Joiner::AddColumnToIntermediatResult(SelectInfo &sel_info, table_t *table) {
 
     /* Only for intermediate */
-    if (!table->intermediate_res) return;
+    //if (!table->intermediate_res) return;
 
     /* Create a new column_t for table */
     column_t &column = *table->column_j;
@@ -293,9 +293,9 @@ table_t* Joiner::cartesian_join(table_t *table_l, table_t *table_s) {
     c_product->right_relations = std::vector<int>(right_rel_map);
     table_l->cartesian_product = c_product;
 
-
 #ifdef cp
     if (left_size == 0 || right_size == 0) {
+        left_row_ids.resize(right_rel_map.size() + left_rel_map.size(), std::vector<int>(0));
         return table_l;
     }
 
@@ -331,6 +331,74 @@ table_t* Joiner::cartesian_join(table_t *table_l, table_t *table_s) {
 
     return table_l;
 }
+
+/* The self Join Function */
+table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
+
+    /* Create - Initialize a new table */
+    table_t *new_table           = new table_t;
+    new_table->relation_ids      = std::vector<int>(table->relation_ids);
+    new_table->relations_row_ids = new std::vector<std::vector<int>>;
+    new_table->cartesian_product = NULL;
+    new_table->column_j          = new column_t;
+
+    /* Get the 2 relation rows ids vectors in referances */
+    matrix &row_ids_matrix       = *(table->relations_row_ids);
+    matrix &new_row_ids_matrix   = *(new_table->relations_row_ids);
+
+    /* Get the 2 relations */
+    Relation & relation_l        = getRelation(predicate_ptr->left.relId);
+    Relation & relation_r        = getRelation(predicate_ptr->right.relId);
+
+    /* Get their columns */
+    uint64_t *column_values_l    = relation_l.columns[predicate_ptr->left.colId];
+    uint64_t *column_values_r    = relation_r.columns[predicate_ptr->right.colId];
+
+    /* Get their column's sizes */
+    int column_size_l            = relation_l.size;
+    int column_size_r            = relation_r.size;
+
+    /* Fint the indexes of the raltions in the table's */
+    int index_l                  = -1;
+    int index_r                  = -1;
+    int relations_num            = table->relation_ids.size();
+    std::cerr << "Relations";
+    for (ssize_t index = 0; index < relations_num ; index++) {
+
+        if (predicate_ptr->left.relId == table->relation_ids[index]) {
+            index_l = index;
+        }
+        if (predicate_ptr->right.relId == table->relation_ids[index]){
+            index_r = index;
+        }
+
+        /* Initialize the new matrix */
+        new_row_ids_matrix.push_back(std::vector<int>());
+        std::cerr << " " << new_table->relation_ids[index] ;
+    }
+    std::cerr << '\n' << index_l << " " << index_r << endl;
+
+#ifndef com
+    if (index_l == -1 || index_r == -1) std::cerr << "Error in SelfJoin: No mapping found for predicates" << '\n';
+#endif
+
+    /* Loop all the row_ids and keep the one's matching the predicate */
+    int rows_number = table->relations_row_ids->operator[](0).size();
+    for (ssize_t i = 0; i < rows_number; i++) {
+
+        /* Apply the predicate: In case of success add to new table */
+        if (column_values_l[row_ids_matrix[index_l][i]] == column_values_r[row_ids_matrix[index_r][i]]) {
+
+            /* Add this row_id to all the relations */
+            for (ssize_t relation = 0; relation < relations_num; relation++) {
+                new_row_ids_matrix[relation].push_back(row_ids_matrix[relation][i]);
+            }
+        }
+    }
+
+    return new_table;
+}
+
 
 /*
  * 1)Classic hash_join implementation with unorderd_map(stl)
@@ -480,30 +548,30 @@ void Joiner::construct(table_t *table) {
 uint64_t Joiner::check_sum(SelectInfo &sel_info, table_t *table) {
 
     /* to create the final cehcksum column */
-    AddColumnToIntermediatResult(sel_info, table);
+    AddColumnToTableT(sel_info, table);
     construct(table);
 
     const uint64_t* col = table->column_j->values;
     const uint64_t size = table->column_j->size;
+    std::cerr << "Size in check sum " << table->relations_row_ids->operator[](0).size() << '\n';
     uint64_t sum = 0;
 
     for (uint64_t i = 0 ; i < size; i++)
         sum += col[i];
 
     uint64_t m = 1;
-    
     if (table->cartesian_product != NULL) {
+        std::cerr << "Its a cartesian result table" << '\n';
         for (int id: table->cartesian_product->left_relations) {
             if (id == sel_info.relId){
-                m = table->cartesian_product->size_of_left_relations;    
+                m = table->cartesian_product->size_of_right_relations;
                 break;
             }
         }
-
         if (m != 1)
             for (int id: table->cartesian_product->right_relations) {
                 if (id == sel_info.relId){
-                    m = table->cartesian_product->size_of_right_relations;    
+                    m = table->cartesian_product->size_of_left_relations;
                     break;
                 }
             }
@@ -682,16 +750,14 @@ int main(int argc, char* argv[]) {
 
     // The test harness will send the first query after 1 second.
     QueryInfo i;
+    int q_counter = 0;
     while (getline(cin, line)) {
         if (line == "F") continue; // End of a batch
 
         // Parse the query
+        std::cerr << "Q " << q_counter  << ":" << line << '\n';
         i.parseQuery(line);
-        PredicateInfo &predicate = i.predicates[0];
-        //std::cerr << "Predicates: " <<  '\n';
-        //std::cerr << "Left: "  << predicate.left.relId << "." << predicate.left.colId << '\n';
-        //std::cerr << "Right: " << predicate.right.relId << "." << predicate.right.colId << '\n';
-        //std::cerr << "-------" << '\n';
+        q_counter++;
 
         JTree *jTreePtr = treegen(&i);
         int *plan = NULL, plan_size = 0;

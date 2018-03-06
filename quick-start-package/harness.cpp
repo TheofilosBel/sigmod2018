@@ -280,11 +280,11 @@ int main(int argc, char *argv[]) {
         cerr << "Result mismatch for query " << query_no << ", expected: " << result_batches[batch][i]
                   << ", actual: " << val << endl;
         ++failure_cnt;
-      }
+    }/*
       if (matched)
       {
           cout << val << endl ;//<<  endl << result_batches[batch][i];
-      }
+      }*/
       ++query_no;
     }
   }

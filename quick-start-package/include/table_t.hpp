@@ -1,6 +1,6 @@
 #pragma once
 
-
+typedef std::vector<std::vector<int>> matrix;
 typedef struct table_t table_t;
 typedef struct column_t column_t;
 typedef struct hash_entry hash_entry;
@@ -32,7 +32,7 @@ struct table_t {
     /* Row Ids and relation Ids */
     std::vector<std::vector<int>>  *relations_row_ids;
 
-    /* use it for the filtrering */
+    /* use it for the filtrering TODO hash map ?*/
     std::vector<int>               relation_ids;
 
     /* representation of cartesian product */

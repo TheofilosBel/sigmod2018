@@ -48,6 +48,7 @@ class Joiner {
     void join(QueryInfo& i);
     table_t* join(table_t *table_r, table_t *table_s);
     table_t* cartesian_join(table_t *table_r, table_t *table_s);
+    table_t* SelfJoin(table_t *table, PredicateInfo *pred_info);
 
 
     /* The join function
