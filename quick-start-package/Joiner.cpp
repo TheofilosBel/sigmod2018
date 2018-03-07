@@ -236,6 +236,7 @@ table_t* Joiner::SelectInfoToTableT(SelectInfo &sel_info) {
     }
 
     table_t_ptr->relation_ids.push_back(sel_info.relId);
+    table_t_ptr->relation_ids.push_back();
 
     return table_t_ptr;
 }

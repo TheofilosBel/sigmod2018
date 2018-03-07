@@ -35,6 +35,9 @@ struct table_t {
     /* use it for the filtrering TODO hash map ?*/
     std::vector<int>               relation_ids;
 
+    /* use the binfing to map the relations */
+    std::vector<int>               relations_binding;
+
     /* representation of cartesian product */
     cartesian_product_t            *cartesian_product;
 
