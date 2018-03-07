@@ -34,7 +34,7 @@ class Joiner {
     int getRelationsCount();
 
     table_t* SelectInfoToTableT(SelectInfo &sel_info);
-    table_t* CreateTableTFromId(unsigned rel_id);
+    table_t* CreateTableTFromId(unsigned rel_id, unsigned rel_binding);
     void AddColumnToIntermediatResult(SelectInfo &sel_info, table_t *table);
     void AddColumnToTableT(SelectInfo &sel_info, table_t *table);
 

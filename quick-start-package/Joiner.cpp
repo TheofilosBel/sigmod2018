@@ -125,7 +125,7 @@ void Joiner::AddColumnToTableT(SelectInfo &sel_info, table_t *table) {
 
     /* Create a new column_t for table */
     column_t &column = *table->column_j;
-    std::vector<int> &relation_ids = table->relation_ids;
+    std::vector<unsigned> &relation_mapping = table->relations_bindings;
 
     /* Get the relation from joiner */
     Relation &rel = getRelation(sel_info.relId);
@@ -133,11 +133,11 @@ void Joiner::AddColumnToTableT(SelectInfo &sel_info, table_t *table) {
     column.values = rel.columns.at(sel_info.colId);
     column.id     = sel_info.colId;
     column.table_index = -1;
-    RelationId relation_id = sel_info.relId;
+    unsigned relation_binding = sel_info.binding;
 
     /* Get the right index from the relation id table */
-    for (size_t index = 0; index < relation_ids.size(); index++) {
-        if (relation_ids[index] == relation_id){
+    for (size_t index = 0; index < relation_mapping.size(); index++) {
+        if (relation_mapping[index] == relation_binding){
             column.table_index = index;
             break;
         }
@@ -149,38 +149,7 @@ void Joiner::AddColumnToTableT(SelectInfo &sel_info, table_t *table) {
     }
 }
 
-void Joiner::AddColumnToIntermediatResult(SelectInfo &sel_info, table_t *table) {
-
-    /* Only for intermediate */
-    //if (!table->intermediate_res) return;
-
-    /* Create a new column_t for table */
-    column_t &column = *table->column_j;
-    std::vector<int> &relation_ids = table->relation_ids;
-
-    /* Get the relation from joiner */
-    Relation &rel = getRelation(sel_info.relId);
-    column.size   = rel.size;
-    column.values = rel.columns.at(sel_info.colId);
-    column.id     = sel_info.colId;
-    column.table_index = -1;
-    RelationId relation_id = sel_info.relId;
-
-    /* Get the right index from the relation id table */
-    for (size_t index = 0; index < relation_ids.size(); index++) {
-        if (relation_ids[index] == relation_id){
-            column.table_index = index;
-            break;
-        }
-    }
-
-    /* Error msg for debuging */
-    if (column.table_index == -1) {
-        std::cerr << "At AddColumnToIntermediatResult, Id not matchin with intermediate result vectors" << '\n';
-    }
-}
-
-table_t* Joiner::CreateTableTFromId(unsigned rel_id) {
+table_t* Joiner::CreateTableTFromId(unsigned rel_id, unsigned rel_binding) {
 
     /* Crate - Initialize a table_t */
     table_t *const table_t_ptr = new table_t;
@@ -202,41 +171,7 @@ table_t* Joiner::CreateTableTFromId(unsigned rel_id) {
     }
 
     table_t_ptr->relation_ids.push_back(rel_id);
-
-    return table_t_ptr;
-}
-
-table_t* Joiner::SelectInfoToTableT(SelectInfo &sel_info) {
-
-    /* Crate - Initialize array that holds 2 table_t */
-    table_t *const table_t_ptr = new table_t;
-
-    table_t_ptr->intermediate_res = false;
-    table_t_ptr->column_j = new column_t;
-    table_t_ptr->relations_row_ids = new std::vector<std::vector<int>>;
-    table_t_ptr->cartesian_product = NULL;
-
-    column_t &column = *table_t_ptr->column_j;
-    std::vector<std::vector<int>> &rel_row_ids = *table_t_ptr->relations_row_ids;
-
-    /* Get the relation */
-    Relation &rel  = getRelation(sel_info.relId);
-
-    /* Initialize the column_t */
-    column.values = rel.columns.at(sel_info.colId);
-    column.size   = rel.size;
-    column.id     = sel_info.colId;
-    column.table_index  = 0;
-
-    /* Create the relations_row_ids and relation_ids vectors */
-    uint64_t rel_size  = column.size;
-    rel_row_ids.resize(1);
-    for (size_t i = 0;  i < rel_size; i++) {
-        rel_row_ids[0].push_back(i);
-    }
-
-    table_t_ptr->relation_ids.push_back(sel_info.relId);
-    table_t_ptr->relation_ids.push_back();
+    table_t_ptr->relations_bindings.push_back(rel_binding);
 
     return table_t_ptr;
 }
@@ -249,96 +184,13 @@ table_t* Joiner::join(table_t *table_r, table_t *table_s) {
     return low_join(table_r, table_s);
 }
 
-table_t* Joiner::cartesian_join(table_t *table_l, table_t *table_s) {
-
-    /* Add to table_l all the elements of table_s*/
-    std::vector<std::vector<int>> &left_row_ids = *(table_l->relations_row_ids);
-    std::vector<std::vector<int>> &right_row_ids = *(table_s->relations_row_ids);
-
-    std::vector<int> &left_rel_map = table_l->relation_ids;
-    std::vector<int> &right_rel_map = table_s->relation_ids;
-
-    int right_size = right_row_ids[0].size();
-    int right_rel_size = right_rel_map.size();
-    int left_size = left_row_ids[0].size();
-    int left_rel_size = left_rel_map.size();
-
-    /* Update the relation ids map */
-    int size = right_rel_map.size();
-    for (int i = 0; i < size; ++i) {
-        left_rel_map.push_back(right_rel_map[i]);
-    }
-
-    /* Now add right_rel_size to the left vector */
-    for (int i = 0; i < right_rel_size; ++i) {
-        left_row_ids.push_back(std::vector<int>());
-    }
-
-    /* Simply add the new rows ids to the rows ids table */
-    for (int relation = 0; relation < right_rel_size; ++relation) {
-        for (int m = 0; m < right_size; ++m) {
-            left_row_ids[left_rel_size - 1 + relation].push_back(right_row_ids[relation][m]);
-        }
-    }
-
-    std::cerr << "Cartesian for " << left_rel_map[0] << "X" << right_rel_map[0] << '\n';
-    std::cerr << "Sizes " << left_size << " " <<  right_size << '\n';
-
-    /* TODO cartesian product of 2 cartesians */
-    /* Fill the cartesian prodcut stuct */
-    cartesian_product_t *c_product = new cartesian_product_t;
-    c_product->size_of_product = left_size * right_size;
-    c_product->size_of_left_relations = left_size;
-    c_product->size_of_right_relations = right_size;
-    c_product->left_relations = std::vector<int>(left_rel_map);
-    c_product->right_relations = std::vector<int>(right_rel_map);
-    table_l->cartesian_product = c_product;
-
-#ifdef cp
-    if (left_size == 0 || right_size == 0) {
-        left_row_ids.resize(right_rel_map.size() + left_rel_map.size(), std::vector<int>(0));
-        return table_l;
-    }
-
-    /* Reserve the left row id table */
-    std::cerr << "Cartesian for " << left_size << " " <<  right_size << '\n';
-
-    /* Add m lines for each line to the left row ids map */
-    for (int relation = 0; relation < left_rel_size; ++relation) {
-        for (int m = 1; m < right_size; ++m) {  // Not for m = 0 it already exists
-            for (int n = 0; n < left_size; ++n) {  //[m*left_size + n]
-                left_row_ids[relation].push_back(left_row_ids[relation][n]);
-            }
-        }
-    }
-
-    /* Now add right_rel_size to the left vector */
-    for (int i = 0; i < right_rel_size; ++i) {
-        left_row_ids.push_back(std::vector<int>());
-    }
-
-    std::cerr << "HERE" << '\n';
-
-    /* For each relation of the  right vector add the m elements to each bach of m elements of m*/
-    for (int relation = 0; relation < right_rel_size; ++relation) {
-        for (int m = 0; m < right_size; ++m) {
-            for (int n = 0; n < left_size; ++n) {  //[m*left_size + n]
-                left_row_ids[left_rel_size - 1 + relation].push_back(right_row_ids[relation][m]);
-            }
-        }
-    }
-
-#endif
-
-    return table_l;
-}
-
 /* The self Join Function */
 table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
 
     /* Create - Initialize a new table */
     table_t *new_table           = new table_t;
     new_table->relation_ids      = std::vector<int>(table->relation_ids);
+    new_table->relations_bindings= std::vector<unsigned>(table->relations_bindings);
     new_table->relations_row_ids = new std::vector<std::vector<int>>;
     new_table->cartesian_product = NULL;
     new_table->column_j          = new column_t;
@@ -362,22 +214,20 @@ table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
     /* Fint the indexes of the raltions in the table's */
     int index_l                  = -1;
     int index_r                  = -1;
-    int relations_num            = table->relation_ids.size();
-    std::cerr << "Relations";
+    int relations_num            = table->relations_bindings.size();
+
     for (ssize_t index = 0; index < relations_num ; index++) {
 
-        if (predicate_ptr->left.relId == table->relation_ids[index]) {
+        if (predicate_ptr->left.binding == table->relations_bindings[index]) {
             index_l = index;
         }
-        if (predicate_ptr->right.relId == table->relation_ids[index]){
+        if (predicate_ptr->right.binding == table->relations_bindings[index]){
             index_r = index;
         }
 
         /* Initialize the new matrix */
         new_row_ids_matrix.push_back(std::vector<int>());
-        std::cerr << " " << new_table->relation_ids[index] ;
     }
-    std::cerr << '\n' << index_l << " " << index_r << endl;
 
 #ifndef com
     if (index_l == -1 || index_r == -1) std::cerr << "Error in SelfJoin: No mapping found for predicates" << '\n';
@@ -465,6 +315,10 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
         updated_table_t->relation_ids.reserve(table_r->relation_ids.size()+table_s->relation_ids.size());
         updated_table_t->relation_ids.insert(updated_table_t->relation_ids.end() ,table_r->relation_ids.begin(), table_r->relation_ids.end());
         updated_table_t->relation_ids.insert(updated_table_t->relation_ids.end() ,table_s->relation_ids.begin(), table_s->relation_ids.end());
+
+        updated_table_t->relations_bindings.reserve(table_r->relations_bindings.size()+table_s->relations_bindings.size());
+        updated_table_t->relations_bindings.insert(updated_table_t->relations_bindings.end() ,table_r->relations_bindings.begin(), table_r->relations_bindings.end());
+        updated_table_t->relations_bindings.insert(updated_table_t->relations_bindings.end() ,table_s->relations_bindings.begin(), table_s->relations_bindings.end());
     }
     /* table_r->column_j->size > table_s->column_j->size */
     else {
@@ -510,6 +364,10 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
         updated_table_t->relation_ids.reserve(table_s->relation_ids.size()+table_r->relation_ids.size());
         updated_table_t->relation_ids.insert(updated_table_t->relation_ids.end() ,table_s->relation_ids.begin(), table_s->relation_ids.end());
         updated_table_t->relation_ids.insert(updated_table_t->relation_ids.end() ,table_r->relation_ids.begin(), table_r->relation_ids.end());
+
+        updated_table_t->relations_bindings.reserve(table_s->relations_bindings.size()+table_r->relations_bindings.size());
+        updated_table_t->relations_bindings.insert(updated_table_t->relations_bindings.end() ,table_s->relations_bindings.begin(), table_s->relations_bindings.end());
+        updated_table_t->relations_bindings.insert(updated_table_t->relations_bindings.end() ,table_r->relations_bindings.begin(), table_r->relations_bindings.end());
     }
     /* concatenate the relaitons ids for the merge */
     updated_table_t->intermediate_res = true;
@@ -554,31 +412,12 @@ uint64_t Joiner::check_sum(SelectInfo &sel_info, table_t *table) {
 
     const uint64_t* col = table->column_j->values;
     const uint64_t size = table->column_j->size;
-    std::cerr << "Size in check sum " << table->relations_row_ids->operator[](0).size() << '\n';
     uint64_t sum = 0;
 
     for (uint64_t i = 0 ; i < size; i++)
         sum += col[i];
 
-    uint64_t m = 1;
-    if (table->cartesian_product != NULL) {
-        std::cerr << "Its a cartesian result table" << '\n';
-        for (int id: table->cartesian_product->left_relations) {
-            if (id == sel_info.relId){
-                m = table->cartesian_product->size_of_right_relations;
-                break;
-            }
-        }
-        if (m != 1)
-            for (int id: table->cartesian_product->right_relations) {
-                if (id == sel_info.relId){
-                    m = table->cartesian_product->size_of_left_relations;
-                    break;
-                }
-            }
-    }
-
-    return sum*m;
+    return sum;
 }
 
 // Loads a relation from disk
@@ -602,122 +441,7 @@ int Joiner::getRelationsCount() {
 
 // Hashes a value and returns a check-sum
 // The check should be NULL if there is no qualifying tuple
-void Joiner::join(QueryInfo& i) {
-
-    std::vector<FilterInfo>    &filters    = i.filters;
-    std::vector<PredicateInfo> &predicates = i.predicates;
-    std::vector<SelectInfo>    &selections = i.selections;
-    std::vector<table_t*> intermediate_results;
-    table_t *table_r;
-    table_t *table_s;
-    table_t *table;
-    table_t *result;
-    int id;
-
-    /* For all the predicate infos */
-    for (PredicateInfo &predicate: predicates) {
-
-        //std::cerr << "Predicates: " <<  '\n';
-        //std::cerr << "Left: "  << predicate.left.relId << "." << predicate.left.colId << '\n';
-        //std::cerr << "Right: " << predicate.right.relId << "." << predicate.right.colId << '\n';
-        flush(cerr);
-
-        int index_left  = -1;
-        int index_right = -1;
-
-        for (int j = 0; j < intermediate_results.size(); j++) {
-
-            table = intermediate_results[j];
-            //std::cerr << "Intermediate :" << j <<  " relation ids ( " << table->relation_ids.size() << ") : " << '\n';
-
-            for (size_t jj = 0; jj < table->relation_ids.size(); jj++) {
-                id = table->relation_ids[jj];
-                std::cerr << '\t' << id << '\n';
-                if (id == predicate.left.relId) {
-                    index_left  = j;
-                } else if (id == predicate.right.relId) {
-                    index_right = j;
-                }
-            }
-        }
-
-        //std::cerr << "Intermediate result left index :" << index_left  << '\n';
-        //std::cerr << "Intermediate result right index :" << index_right << '\n';
-        flush(cerr);
-
-        /* For the left column */
-        if (index_left != -1) {
-            AddColumnToIntermediatResult(predicate.left, intermediate_results[index_left]);
-            table_r = intermediate_results[index_left];
-        } else {
-            //table_r = SelectInfoToTableT(predicate.left);
-            table_r = CreateTableTFromId(predicate.left.relId);
-            AddColumnToTableT(predicate.left, table_r);
-        }
-
-        /* For the right column */
-        if (index_right != -1) {
-            AddColumnToIntermediatResult(predicate.right, intermediate_results[index_left]);
-            table_s = intermediate_results[index_left];
-        } else {
-            table_s = SelectInfoToTableT(predicate.right);
-        }
-
-        /* Erase the intermediate results from vector */
-        if (index_left != -1 && index_left != index_right) {
-            intermediate_results.erase(intermediate_results.begin() + index_left);
-        } else if (index_right != -1 && index_left != index_right) {
-            intermediate_results.erase(intermediate_results.begin() + index_right);
-        } else if (index_left != -1 && index_left == index_right) {
-            intermediate_results.erase(intermediate_results.begin() + index_left);
-        }
-
-        /* Join the tables and push back the new result */
-        result = join(table_r, table_s);//join(table_r, table_s);
-        //std::cerr << "Intermediate table rows: " << result->relations_row_ids->operator[](0).size() << '\n';
-        intermediate_results.push_back(result);
-
-        /* Run a checksum on first selection */
-        //std::cerr << "Intermediate checksum on" << selections[0].relId << "." << selections[0].colId;
-        //std::cerr << ("%d", check_sum(selections[0], result)) << '\n';
-    }
-
-    /* Cartesia join all the intermediate_results */
-    result = intermediate_results[0];
-    int count = intermediate_results.size();
-    for (size_t index = 1; index < count; index++) {
-        result = cartesian_join(result, intermediate_results[index]);
-    }
-
-    /* Loop all the filter s */
-    for (FilterInfo &filter: filters) {
-        //std::cerr << "Filter at "<< filter.filterColumn.relId << "." << filter.filterColumn.colId << " ";
-        //std::cerr <<  ("%c",filter.comparison) << " " << filter.constant << '\n';
-        AddColumnToIntermediatResult(filter.filterColumn, result);
-        Select(filter, result);
-    }
-    //std::cerr << "Resulting table rows: " << result->relations_row_ids->operator[](0).size() << '\n';
-    //std::cerr << "---------------------------" << '\n';
-
-    string result_str;
-    uint64_t checksum = 0;
-    for (size_t i = 0; i < selections.size(); i++) {
-
-        checksum = check_sum(selections[i], result);
-        if (checksum == 0) {
-            result_str += "NULL";
-        } else {
-            result_str += std::to_string(checksum);
-        }
-
-        if (i != selections.size() - 1) {
-            result_str +=  " ";
-        }
-    }
-
-    /* Print the result */
-    cout << result_str << endl;
-}
+void Joiner::join(QueryInfo& i) {}
 
 /* +---------------------+
    |The Column functions |
@@ -756,7 +480,7 @@ int main(int argc, char* argv[]) {
         if (line == "F") continue; // End of a batch
 
         // Parse the query
-        std::cerr << "Q " << q_counter  << ":" << line << '\n';
+        //std::cerr << "Q " << q_counter  << ":" << line << '\n';
         i.parseQuery(line);
         q_counter++;
 

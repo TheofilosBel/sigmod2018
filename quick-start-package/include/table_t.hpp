@@ -36,7 +36,7 @@ struct table_t {
     std::vector<int>               relation_ids;
 
     /* use the binfing to map the relations */
-    std::vector<int>               relations_binding;
+    std::vector<unsigned>          relations_bindings;
 
     /* representation of cartesian product */
     cartesian_product_t            *cartesian_product;

@@ -213,193 +213,6 @@ void jTreePrintTree(JTree* jTreePtr) {
     }
 }
 
-#define teo_s_code
-/* Make an execution plan out of a query-tree */
-int* jTreeMakePlan(JTree* jTreePtr, int* plan_size, Joiner& joiner) {
-    /* construct plan by iterating through the query-tree in a DFS fassion */
-    *plan_size = 0;
-    int* plan = NULL;
-
-    JTree *currPtr = jTreePtr;
-    bool from_left = true, went_left = false, went_right = false;
-
-    while(currPtr) {
-        /* if you can go to the left children */
-        if (!went_left && currPtr->left) {
-            printf("\t1) going LEFT\n");
-            currPtr = currPtr->left;
-            from_left = true;
-            /* you may now go left or right again */
-            went_left = false;
-            went_right = false;
-        }
-        /* if you can go to the right children */
-        else if (!went_right && currPtr->right) {
-            printf("\t2) going RIGHT\n");
-            currPtr = currPtr->right;
-            from_left = false;
-            /* you may now go left or right again */
-            went_left = false;
-            went_right = false;
-        }
-        /* if you can't go to the left or to the right children */
-        else {
-            printf("\t3) PLANNING\n");
-            /* add node ID to our plan */
-            (*plan_size)++;
-            plan = (int *) realloc(plan, (*plan_size) * sizeof(int));
-            plan[(*plan_size)-1] = currPtr->node_id;
-
-            /* Start calling the Join or Select functions on the 2 tables */
-            table_t *left_table, *right_table;
-
-#ifdef teo_s_code
-            JTree *left_child  = currPtr->left;
-            JTree *right_child = currPtr->right;
-
-            // if (currPtr->predPtr== NULL)
-            //     SelectInfo &sel_info;
-
-            /* If left child exists */
-            if(left_child) {
-                /* a) If it's intermediate result : Add the column what we will need */
-                if (left_child->intermediate_res) {
-                    printf("\t\tFrom LEFT child AddColumnToIntermediatResult\n");
-                    joiner.AddColumnToIntermediatResult(currPtr->predPtr->left, left_table);
-                }
-                /* b) If its not intermediate : Translate the SelectInfo to a table_t */
-                else {
-                    printf("\t\tFrom LEFT child SelectInfoToTableT\n");
-                    left_table = joiner.SelectInfoToTableT(currPtr->predPtr->left);
-                }
-            }
-
-            /* If right child exists */
-            if(right_child) {
-                /* a) If it's intermediate result : Add the column what we will need */
-                if (right_child->intermediate_res) {
-                    printf("\t\tFrom RIGHT child AddColumnToIntermediatResult\n");
-                    joiner.AddColumnToIntermediatResult(currPtr->predPtr->right, right_table);
-                }
-                /* b) If its not intermediate : Translate the SelectInfo to a table_t */
-                else {
-                    printf("\t\tFrom RIGHT child SelectInfoToTableT\n");
-                    right_table = joiner.SelectInfoToTableT(currPtr->predPtr->right);
-                }
-            }
-
-            /* In case of no children */
-            if (currPtr->left == NULL && currPtr->right == NULL) {
-                printf("\t\tNO CHILDREN ----->");
-                /* a) If we have a Join : Craete the two tables_t's from SelectInfo's */
-                if (currPtr->predPtr) {
-                    printf("PREDICATE --->");
-                    printf("SelectInfoToTableT for LEFT\n");
-                    left_table = joiner.SelectInfoToTableT(currPtr->predPtr->left);
-                    printf("SelectInfoToTableT for RIGHT\n");
-                    left_table = joiner.SelectInfoToTableT(currPtr->predPtr->left);
-                }
-                /* b) If we have a filter : Create one table from SelectInfo */
-                else if (currPtr->filterPtr) {
-                    printf("FILTER --->");
-                    printf("SelectInfoToTableT for FILTER COLUMN\n");
-                    currPtr->intermediate_res = joiner.SelectInfoToTableT(currPtr->filterPtr->filterColumn);
-                }
-            }
-
-            /* Call join or select based on the Pointer */
-            if (currPtr->predPtr) {
-                printf("\t\tPREDICATE --->");
-                printf("join LEFT and RIGHT\n");
-                currPtr->intermediate_res = joiner.join(left_table, right_table);
-            }
-            /* b) If we have a filter : Create one table from SelectInfo */
-            else if (currPtr->filterPtr) {
-                printf("\t\tFILTER --->");
-                printf("Select from intermediate results\n");
-                joiner.Select(*(currPtr->filterPtr), currPtr->intermediate_res);
-            }
-            /* Somethig whent wrong here */
-            else {
-              // std::cerr << "Error in MakePlan: No Predicate or Filter Info" << '\n';
-              currPtr->intermediate_res = joiner.cartesian_join(left_table, right_table);
-            }
-#endif
-#ifdef george_s_code
-            /* In case of left child been intermediate results */
-            if (currPtr->left && currPtr->left->intermediate_res) {
-                left_table = currPtr->left->intermediate_res;
-
-                /* In case of Join */
-                if (currPtr->predPtr)
-                    joiner.AddColumnToIntermediatResult(currPtr->predPtr->left, left_table);
-
-                /* Check the eight child */
-                if (currPtr->right && currPtr->right->intermediate_res) {
-                    right_table = currPtr->right->intermediate_res;
-
-                    if (currPtr->predPtr) {
-                        joiner.AddColumnToIntermediatResult(currPtr->predPtr->right, right_table);
-                        currPtr->intermediate_res = joiner.join(left_table, right_table);
-                    }
-                    else {
-                        // NO ELSE I THINK
-                    }
-                }
-                else if (currPtr->right) {
-                    right_table = joiner.SelectInfoToTableT(currPtr->predPtr->right);
-                    currPtr->intermediate_res = joiner.join(left_table, right_table);
-                }
-                else {
-                    joiner.Select(*(currPtr->filterPtr), currPtr->intermediate_res);
-                }
-            }
-            /* In case of right child with intermediate result */
-            else if (currPtr->right && currPtr->right->intermediate_res) {
-                right_table = currPtr->right->intermediate_res;
-                if (currPtr->predPtr) {
-                    left_table = joiner.SelectInfoToTableT(currPtr->predPtr->left);
-                    joiner.AddColumnToIntermediatResult(currPtr->predPtr->right, right_table);
-                    currPtr->intermediate_res = joiner.join(left_table, right_table);
-                }
-                else {
-                    joiner.Select(*(currPtr->filterPtr), currPtr->intermediate_res);
-                }
-            }
-            /* In case of no children: */
-            else {
-                /* a) If we have a predicate : Create the 2 tables_t's from the PredInfo*/
-                if (currPtr->predPtr) {
-                    left_table = joiner.SelectInfoToTableT(currPtr->predPtr->left);
-                    right_table = joiner.SelectInfoToTableT(currPtr->predPtr->right);
-                    currPtr->intermediate_res = joiner.join(left_table, right_table);
-                }
-                /* b) If we have a join : Create the 2 tables_t's from the PredInfo*/
-                else {
-                    joiner.Select(*(currPtr->filterPtr), currPtr->intermediate_res);
-                }
-            }
-#endif
-
-
-            /* go to the parent */
-            currPtr = currPtr->parent;
-            /* deside liberty of transitions */
-            if (from_left) {
-                went_left = true;
-                went_right = false;
-            }
-            else {
-                went_left = true;
-                went_right = true;
-            }
-        }
-    }
-
-    return plan;
-}
-
-
 table_t* jTreeMakePlan(JTree* jTreePtr, Joiner& joiner, int *depth) {
 
     /**/
@@ -411,7 +224,7 @@ table_t* jTreeMakePlan(JTree* jTreePtr, Joiner& joiner, int *depth) {
     table_t *res;
 
     if (left == NULL && right == NULL) {
-        return joiner.CreateTableTFromId(jTreePtr->node_id);
+        return joiner.CreateTableTFromId(jTreePtr->node_id, jTreePtr->binding_id);
     }
 
     table_l = jTreeMakePlan(left, joiner, depth);
@@ -423,20 +236,22 @@ table_t* jTreeMakePlan(JTree* jTreePtr, Joiner& joiner, int *depth) {
 
         /* Filter on right ? */
 
-        if (jTreePtr->predPtr == NULL)
-            return joiner.cartesian_join(table_l, table_r);
+        if (jTreePtr->predPtr == NULL){  /* TODO maintain */
+            std::cerr << "GAMW TO SOI SOUUUUUUU" << '\n';
+            return table_l;//joiner.cartesian_join(table_l, table_r);
+        }
         else {
 
             joiner.AddColumnToTableT(jTreePtr->predPtr->left, table_l);
             joiner.AddColumnToTableT(jTreePtr->predPtr->right, table_r);
 
 
-            std::cerr << "++++JOIN Predicates: " <<  '\n';
-            std::cerr << "Left: "  << jTreePtr->predPtr->left.relId << "." << jTreePtr->predPtr->left.colId << '\n';
-            std::cerr << "Right: " << jTreePtr->predPtr->right.relId << "." << jTreePtr->predPtr->right.colId << '\n';
+            //std::cerr << "++++JOIN Predicates: " <<  '\n';
+            //std::cerr << "Left: "  << jTreePtr->predPtr->left.relId << "." << jTreePtr->predPtr->left.colId << '\n';
+            //std::cerr << "Right: " << jTreePtr->predPtr->right.relId << "." << jTreePtr->predPtr->right.colId << '\n';
             res = joiner.join(table_l, table_r);
-            std::cerr << "Intermediate rows: " << res->relations_row_ids->operator[](0).size()  << '\n';
-            std::cerr << "-------" << '\n';
+            //std::cerr << "Intermediate rows: " << res->relations_row_ids->operator[](0).size()  << '\n';
+            //std::cerr << "-------" << '\n';
             return res;
         }
     }
@@ -445,23 +260,23 @@ table_t* jTreeMakePlan(JTree* jTreePtr, Joiner& joiner, int *depth) {
 
         if (jTreePtr->filterPtr == NULL) {
 
-            std::cerr << "====Self JOIN Predicates: " <<  '\n';
-            std::cerr << "Left: "  << jTreePtr->predPtr->left.relId << "." << jTreePtr->predPtr->left.colId << '\n';
-            std::cerr << "Right: " << jTreePtr->predPtr->right.relId << "." << jTreePtr->predPtr->right.colId << '\n';
+            //std::cerr << "====Self JOIN Predicates: " <<  '\n';
+            //std::cerr << "Left: "  << jTreePtr->predPtr->left.relId << "." << jTreePtr->predPtr->left.colId << '\n';
+            //std::cerr << "Right: " << jTreePtr->predPtr->right.relId << "." << jTreePtr->predPtr->right.colId << '\n';
             res = joiner.SelfJoin(table_l, jTreePtr->predPtr);
-            std::cerr << "Intermediate rows: " << res->relations_row_ids->operator[](0).size()  << '\n';
-            std::cerr << "-------" << '\n';
+            //std::cerr << "Intermediate rows: " << res->relations_row_ids->operator[](0).size()  << '\n';
+            //std::cerr << "-------" << '\n';
             return res;
         }
         else {
             FilterInfo &filter = *(jTreePtr->filterPtr);
             joiner.AddColumnToTableT(jTreePtr->filterPtr->filterColumn, table_l);
             joiner.Select(filter, table_l);
-            std::cerr << "----Filter Predicates: " <<  '\n';
-            std::cerr << "Relation.column: "  << filter.filterColumn.relId << "." << filter.filterColumn.colId << '\n';
-            std::cerr << "Constant: " << filter.constant << '\n';
-            std::cerr << "Intermediate rows: " << table_l->relations_row_ids->operator[](0).size()  << '\n';
-            std::cerr << "-------" << '\n';
+            //std::cerr << "----Filter Predicates: " <<  '\n';
+            //std::cerr << "Relation.column: "  << filter.filterColumn.relId << "." << filter.filterColumn.colId << '\n';
+            //std::cerr << "Constant: " << filter.constant << '\n';
+            //std::cerr << "Intermediate rows: " << table_l->relations_row_ids->operator[](0).size()  << '\n';
+            //std::cerr << "-------" << '\n';
             return table_l;
         }
     }
