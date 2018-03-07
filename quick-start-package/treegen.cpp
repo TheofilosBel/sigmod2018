@@ -12,8 +12,10 @@ JTree *tree_update(JTree *tree, QueryInfo *info)
 	if (tree == NULL)
 		return NULL;
 
-	if (tree->node_id >= 0)
+	if (tree->node_id >= 0) {
+		tree->binding_id = tree->node_id;
 		tree->node_id = info->relationIds[tree->node_id];
+	}
 
 	tree_update(tree->left, info);
 	tree_update(tree->right, info);
