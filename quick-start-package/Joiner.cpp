@@ -12,7 +12,7 @@
 #ifdef _OPENMP
 #include <omp.h>
 #endif
-#define time
+//#define time
 
 using namespace std;
 
@@ -30,8 +30,6 @@ double timeProbePhase = 0;
 /* +---------------------+
    |The joiner functions |
    +---------------------+ */
-#define time
-
 
 /* Its better not to use it TODO change it */
 void Joiner::Select(FilterInfo &fil_info, table_t* table) {
