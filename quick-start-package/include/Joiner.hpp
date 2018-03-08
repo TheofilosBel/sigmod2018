@@ -13,6 +13,7 @@ extern double timeLowJoin;
 extern double timeCreateTable;
 extern double timeAddColumn;
 extern double timeTreegen;
+extern double timeCheckSum;
 
 /*
  * Prints a column

@@ -18,6 +18,7 @@ double timeLowJoin = 0;
 double timeCreateTable = 0;
 double timeAddColumn = 0;
 double timeTreegen = 0;
+double timeCheckSum = 0;
 
 /* +---------------------+
    |The joiner functions |
@@ -539,6 +540,8 @@ int main(int argc, char* argv[]) {
         // join
         //joiner.join(i);
 
+        gettimeofday(&start, NULL);
+
         string result_str;
         uint64_t checksum = 0;
         std::vector<SelectInfo> &selections = i.selections;
@@ -556,6 +559,9 @@ int main(int argc, char* argv[]) {
             }
         }
 
+        gettimeofday(&end, NULL);
+        timeCheckSum += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+
         /* Print the result */
         std::cout << result_str << endl;
         //std::cout << "Implelemt JOIN " << '\n';
@@ -567,6 +573,7 @@ int main(int argc, char* argv[]) {
     std::cerr << "timeAddColumn: " << (long)(timeAddColumn * 1000) << endl;
     std::cerr << "timeCreateTable: " << (long)(timeCreateTable * 1000) << endl;
     std::cerr << "timeTreegen: " << (long)(timeTreegen * 1000) << endl;
+    std::cerr << "timeCheckSum: " << (long)(timeCheckSum * 1000) << endl;
     flush(std::cerr);
 
     return 0;
