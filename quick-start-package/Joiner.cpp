@@ -180,12 +180,12 @@ table_t* Joiner::join(table_t *table_r, table_t *table_s) {
 table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
 
     /* Create - Initialize a new table */
-    table_t *new_table           = new table_t;
-    new_table->relation_ids      = std::vector<int>(table->relation_ids);
-    new_table->relations_bindings= std::vector<unsigned>(table->relations_bindings);
-    new_table->relations_row_ids = new std::vector<std::vector<int>>;
-    new_table->cartesian_product = NULL;
-    new_table->column_j          = new column_t;
+    table_t *new_table            = new table_t;
+    new_table->relation_ids       = std::vector<int>(table->relation_ids);
+    new_table->relations_bindings = std::vector<unsigned>(table->relations_bindings);
+    new_table->relations_row_ids  = new std::vector<std::vector<int>>;
+    new_table->cartesian_product  = NULL;
+    new_table->column_j           = new column_t;
 
     /* Get the 2 relation rows ids vectors in referances */
     matrix &row_ids_matrix       = *(table->relations_row_ids);
