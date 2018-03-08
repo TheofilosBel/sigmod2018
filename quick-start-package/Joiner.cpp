@@ -12,7 +12,7 @@
 #ifdef _OPENMP
 #include <omp.h>
 #endif
-//#define time
+#define time
 
 using namespace std;
 
@@ -26,6 +26,7 @@ double timeTreegen = 0;
 double timeCheckSum = 0;
 double timeBuildPhase = 0;
 double timeProbePhase = 0;
+double timeConstruct = 0;
 
 /* +---------------------+
    |The joiner functions |
@@ -494,6 +495,11 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
 
 void Joiner::construct(table_t *table) {
 
+#ifdef time
+        struct timeval start;
+        gettimeofday(&start, NULL);
+#endif
+
     /* Innitilize helping variables */
     column_t &column = *table->column_j;
     const uint64_t *column_values = column.values;
@@ -512,6 +518,12 @@ void Joiner::construct(table_t *table) {
     /* Update the column of the table */
     column.values = new_values;
     column.size   = column_size;
+
+#ifdef time
+    struct timeval end;
+    gettimeofday(&end, NULL);
+    timeConstruct += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+#endif
 }
 
 //CHECK SUM FUNCTION
@@ -581,15 +593,14 @@ int main(int argc, char* argv[]) {
 
     // Preparation phase (not timed)
     // Build histograms, indices,...
+
     /* For starters make the hash maps for the 0 and 1 relatiosn */
-
-
 
     // Create a persistent query graph
     QueryGraph queryGraph(joiner.getRelationsCount());
 
 #   ifdef _OPENMP
-#   pragma omp parallel num_threads(4)
+#   pragma omp parallel num_threads(8)
 #   endif
 
     // The test harness will send the first query after 1 second.
@@ -664,6 +675,7 @@ int main(int argc, char* argv[]) {
     std::cerr << "timeCreateTable: " << (long)(timeCreateTable * 1000) << endl;
     std::cerr << "timeTreegen: " << (long)(timeTreegen * 1000) << endl;
     std::cerr << "timeCheckSum: " << (long)(timeCheckSum * 1000) << endl;
+    std::cerr << "timeConstruct: " << (long)(timeConstruct * 1000) << endl;
     flush(std::cerr);
 #endif
 
