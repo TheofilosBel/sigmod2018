@@ -1,10 +1,19 @@
 #pragma once
 #include <vector>
 #include <cstdint>
+#include <sys/time.h>
 #include "Relation.hpp"
 #include "Parser.hpp"
 #include "table_t.hpp"
 
+/* Timing variables */
+extern double timeSelfJoin;
+extern double timeSelectFilter;
+extern double timeLowJoin;
+extern double timeCreateTable;
+extern double timeAddColumn;
+extern double timeTreegen;
+extern double timeCheckSum;
 
 /*
  * Prints a column

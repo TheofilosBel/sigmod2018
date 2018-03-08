@@ -4,7 +4,6 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
-#include "string"
 #include <vector>
 #include "Parser.hpp"
 #include "QueryGraph.hpp"
@@ -12,6 +11,14 @@
 
 using namespace std;
 
+/* Timing variables */
+double timeSelfJoin = 0;
+double timeSelectFilter = 0;
+double timeLowJoin = 0;
+double timeCreateTable = 0;
+double timeAddColumn = 0;
+double timeTreegen = 0;
+double timeCheckSum = 0;
 
 /* +---------------------+
    |The joiner functions |
@@ -19,6 +26,8 @@ using namespace std;
 
 /* Its better not to use it TODO change it */
 void Joiner::Select(FilterInfo &fil_info, table_t* table) {
+    struct timeval start;
+    gettimeofday(&start, NULL);
 
     /* Construct table  - Initialize variable */
     (table->intermediate_res)? (construct(table)) : ((void)0);
@@ -32,6 +41,10 @@ void Joiner::Select(FilterInfo &fil_info, table_t* table) {
     } else if (fil_info.comparison == FilterInfo::Comparison::Equal) {
         SelectEqual(table, filter);
     }
+
+    struct timeval end;
+    gettimeofday(&end, NULL);
+    timeSelectFilter += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
 }
 
 void Joiner::SelectEqual(table_t *table, int filter) {
@@ -114,6 +127,8 @@ void Joiner::SelectLess(table_t *table, int filter){
 }
 
 void Joiner::AddColumnToTableT(SelectInfo &sel_info, table_t *table) {
+    struct timeval start;
+    gettimeofday(&start, NULL);
 
     /* Create a new column_t for table */
     column_t &column = *table->column_j;
@@ -139,9 +154,15 @@ void Joiner::AddColumnToTableT(SelectInfo &sel_info, table_t *table) {
     if (column.table_index == -1) {
         std::cerr << "At AddColumnToTableT, Id not matchin with intermediate result vectors" << '\n';
     }
+
+    struct timeval end;
+    gettimeofday(&end, NULL);
+    timeAddColumn += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
 }
 
 table_t* Joiner::CreateTableTFromId(unsigned rel_id, unsigned rel_binding) {
+    struct timeval start;
+    gettimeofday(&start, NULL);
 
     /* Crate - Initialize a table_t */
     table_t *const table_t_ptr = new table_t;
@@ -158,12 +179,17 @@ table_t* Joiner::CreateTableTFromId(unsigned rel_id, unsigned rel_binding) {
     /* Create the relations_row_ids and relation_ids vectors */
     uint64_t rel_size  = rel.size;
     rel_row_ids.resize(1);
-    for (size_t i = 0;  i < rel_size; i++) {
-        rel_row_ids[0].push_back(i);
+    rel_row_ids[0].resize(rel_size);
+    for (size_t i = 0; i < rel_size; i++) {
+        rel_row_ids[0][i] = i;
     }
 
     table_t_ptr->relation_ids.push_back(rel_id);
     table_t_ptr->relations_bindings.push_back(rel_binding);
+
+    struct timeval end;
+    gettimeofday(&end, NULL);
+    timeCreateTable += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
 
     return table_t_ptr;
 }
@@ -178,6 +204,8 @@ table_t* Joiner::join(table_t *table_r, table_t *table_s) {
 
 /* The self Join Function */
 table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
+    struct timeval start;
+    gettimeofday(&start, NULL);
 
     /* Create - Initialize a new table */
     table_t *new_table            = new table_t;
@@ -239,6 +267,10 @@ table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
         }
     }
 
+    struct timeval end;
+    gettimeofday(&end, NULL);
+    timeSelfJoin += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+
     return new_table;
 }
 
@@ -250,6 +282,9 @@ table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
  * 4)Made the code repeatable to put some & in the arrays of row ids
 */
 table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
+    struct timeval start;
+    gettimeofday(&start, NULL);
+
     /* create hash_table for the hash_join phase */
     std::unordered_multimap<uint64_t, hash_entry> hash_c;
 
@@ -370,6 +405,11 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
     delete table_r;
     delete table_s->relations_row_ids;
     delete table_s; */
+
+    struct timeval end;
+    gettimeofday(&end, NULL);
+    timeLowJoin += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+
     return updated_table_t;
 }
 
@@ -476,13 +516,23 @@ int main(int argc, char* argv[]) {
         i.parseQuery(line);
         q_counter++;
 
+        struct timeval start;
+        gettimeofday(&start, NULL);
+        
         JTree *jTreePtr = treegen(&i);
+
+        struct timeval end;
+        gettimeofday(&end, NULL);
+        timeTreegen += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+        
         int *plan = NULL, plan_size = 0;
         //print_rec(jTreePtr, 0);
         table_t *result = jTreeMakePlan(jTreePtr, joiner, plan);
 
         // join
         //joiner.join(i);
+
+        gettimeofday(&start, NULL);
 
         string result_str;
         uint64_t checksum = 0;
@@ -501,10 +551,22 @@ int main(int argc, char* argv[]) {
             }
         }
 
+        gettimeofday(&end, NULL);
+        timeCheckSum += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+
         /* Print the result */
         std::cout << result_str << endl;
         //std::cout << "Implelemt JOIN " << '\n';
     }
+
+    std::cerr << "timeSelectFilter: " << (long)(timeSelectFilter * 1000) << endl;
+    std::cerr << "timeSelfJoin: " << (long)(timeSelfJoin * 1000) << endl;
+    std::cerr << "timeLowJoin: " << (long)(timeLowJoin * 1000) << endl;
+    std::cerr << "timeAddColumn: " << (long)(timeAddColumn * 1000) << endl;
+    std::cerr << "timeCreateTable: " << (long)(timeCreateTable * 1000) << endl;
+    std::cerr << "timeTreegen: " << (long)(timeTreegen * 1000) << endl;
+    std::cerr << "timeCheckSum: " << (long)(timeCheckSum * 1000) << endl;
+    flush(std::cerr);
 
     return 0;
 }
