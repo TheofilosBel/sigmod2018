@@ -18,15 +18,6 @@ struct column_t {
     unsigned  id;
 };
 
-struct cartesian_product {
-    int size_of_product;
-    int size_of_left_relations;
-    int size_of_right_relations;
-    std::vector<int> left_relations;
-    std::vector<int> right_relations;
-};
-
-
 struct table_t {
 
     /* Row Ids and relation Ids */
@@ -37,9 +28,6 @@ struct table_t {
 
     /* use the binfing to map the relations */
     std::vector<unsigned>          relations_bindings;
-
-    /* representation of cartesian product */
-    cartesian_product_t            *cartesian_product;
 
     /* Intermediate result falg */
     bool intermediate_res;

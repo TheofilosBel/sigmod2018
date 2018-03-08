@@ -235,25 +235,18 @@ table_t* jTreeMakePlan(JTree* jTreePtr, Joiner& joiner, int *depth) {
         table_r = jTreeMakePlan(right, joiner, depth);
 
         /* Filter on right ? */
-
-        if (jTreePtr->predPtr == NULL){  /* TODO maintain */
-            std::cerr << "GAMW TO SOI SOUUUUUUU" << '\n';
-            return table_l;//joiner.cartesian_join(table_l, table_r);
-        }
-        else {
-
-            joiner.AddColumnToTableT(jTreePtr->predPtr->left, table_l);
-            joiner.AddColumnToTableT(jTreePtr->predPtr->right, table_r);
+        joiner.AddColumnToTableT(jTreePtr->predPtr->left, table_l);
+        joiner.AddColumnToTableT(jTreePtr->predPtr->right, table_r);
 
 
-            //std::cerr << "++++JOIN Predicates: " <<  '\n';
-            //std::cerr << "Left: "  << jTreePtr->predPtr->left.relId << "." << jTreePtr->predPtr->left.colId << '\n';
-            //std::cerr << "Right: " << jTreePtr->predPtr->right.relId << "." << jTreePtr->predPtr->right.colId << '\n';
-            res = joiner.join(table_l, table_r);
-            //std::cerr << "Intermediate rows: " << res->relations_row_ids->operator[](0).size()  << '\n';
-            //std::cerr << "-------" << '\n';
-            return res;
-        }
+        //std::cerr << "++++JOIN Predicates: " <<  '\n';
+        //std::cerr << "Left: "  << jTreePtr->predPtr->left.relId << "." << jTreePtr->predPtr->left.colId << '\n';
+        //std::cerr << "Right: " << jTreePtr->predPtr->right.relId << "." << jTreePtr->predPtr->right.colId << '\n';
+        res = joiner.join(table_l, table_r);
+        //std::cerr << "Intermediate rows: " << res->relations_row_ids->operator[](0).size()  << '\n';
+        //std::cerr << "-------" << '\n';
+        return res;
+
     }
     /* Fiter or predicate to the same table (simple constrain )*/
     else {
