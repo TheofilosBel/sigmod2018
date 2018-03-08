@@ -46,9 +46,6 @@ void Joiner::SelectEqual(table_t *table, int filter) {
     const uint64_t size     = old_row_ids[table_index].size();
 
     /* Update the row ids of the table */
-    //std::cerr << "Table index is " << table_index << '\n';
-    //std::cerr << "Relation id in index " << table->relation_ids[table_index] << '\n';
-
     for (size_t index = 0; index < size; index++) {
         if (values[index] == filter) {
             for (size_t rel_index = 0; rel_index < rel_num; rel_index++) {
@@ -75,8 +72,6 @@ void Joiner::SelectGreater(table_t *table, int filter){
     const uint64_t size     = old_row_ids[table_index].size();
 
     /* Update the row ids of the table */
-    //std::cerr << "Table index is " << table_index << '\n';
-    //std::cerr << "Relation id in index " << table->relation_ids[table_index] << '\n';
 
     for (size_t index = 0; index < size; index++) {
         if (values[index] > filter) {
@@ -104,9 +99,6 @@ void Joiner::SelectLess(table_t *table, int filter){
     const uint64_t size     = old_row_ids[table_index].size();
 
     /* Update the row ids of the table */
-    //std::cerr << "Table index is " << table_index << '\n';
-    //std::cerr << "Relation id in index " << table->relation_ids[table_index] << '\n';
-
     for (size_t index = 0; index < size; index++) {
         if (values[index] < filter) {
             for (size_t rel_index = 0; rel_index < rel_num; rel_index++) {

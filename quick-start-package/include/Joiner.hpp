@@ -33,9 +33,7 @@ class Joiner {
     // Get the total number of relations
     int getRelationsCount();
 
-    table_t* SelectInfoToTableT(SelectInfo &sel_info);
     table_t* CreateTableTFromId(unsigned rel_id, unsigned rel_binding);
-    void AddColumnToIntermediatResult(SelectInfo &sel_info, table_t *table);
     void AddColumnToTableT(SelectInfo &sel_info, table_t *table);
 
     // The select functions
@@ -47,7 +45,6 @@ class Joiner {
     // Joins a given set of relations
     void join(QueryInfo& i);
     table_t* join(table_t *table_r, table_t *table_s);
-    table_t* cartesian_join(table_t *table_r, table_t *table_s);
     table_t* SelfJoin(table_t *table, PredicateInfo *pred_info);
 
 
