@@ -9,6 +9,11 @@
 #include "QueryGraph.hpp"
 #include "./include/header.hpp"
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+#define time
+
 using namespace std;
 
 /* Timing variables */
@@ -522,6 +527,7 @@ uint64_t Joiner::check_sum(SelectInfo &sel_info, table_t *table) {
     const uint64_t size = table->column_j->size;
     uint64_t sum = 0;
 
+#   pragma omp for
     for (uint64_t i = 0 ; i < size; i++)
         sum += col[i];
 
@@ -583,6 +589,10 @@ int main(int argc, char* argv[]) {
 
     // Create a persistent query graph
     QueryGraph queryGraph(joiner.getRelationsCount());
+
+#   ifdef _OPENMP
+#   pragma omp parallel num_threads(4)
+#   endif
 
     // The test harness will send the first query after 1 second.
     QueryInfo i;
