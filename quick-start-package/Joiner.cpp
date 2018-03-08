@@ -9,9 +9,6 @@
 #include "QueryGraph.hpp"
 #include "./include/header.hpp"
 
-#ifdef _OPENMP
-#include <omp.h>
-#endif
 #define time
 
 using namespace std;
@@ -24,6 +21,7 @@ double timeCreateTable = 0;
 double timeAddColumn = 0;
 double timeTreegen = 0;
 double timeCheckSum = 0;
+double timeConstruct = 0;
 
 /* +---------------------+
    |The joiner functions |
@@ -453,6 +451,10 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
 }
 
 void Joiner::construct(table_t *table) {
+#ifdef time
+    struct timeval start;
+    gettimeofday(&start, NULL);
+#endif
 
     /* Innitilize helping variables */
     column_t &column = *table->column_j;
@@ -472,6 +474,12 @@ void Joiner::construct(table_t *table) {
     /* Update the column of the table */
     column.values = new_values;
     column.size   = column_size;
+
+#ifdef time
+    struct timeval end;
+    gettimeofday(&end, NULL);
+    timeConstruct += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+#endif
 }
 
 //CHECK SUM FUNCTION
@@ -485,7 +493,6 @@ uint64_t Joiner::check_sum(SelectInfo &sel_info, table_t *table) {
     const uint64_t size = table->column_j->size;
     uint64_t sum = 0;
 
-#   pragma omp for
     for (uint64_t i = 0 ; i < size; i++)
         sum += col[i];
 
@@ -544,10 +551,6 @@ int main(int argc, char* argv[]) {
 
     // Create a persistent query graph
     QueryGraph queryGraph(joiner.getRelationsCount());
-
-#   ifdef _OPENMP
-#   pragma omp parallel num_threads(4)
-#   endif
 
     // The test harness will send the first query after 1 second.
     QueryInfo i;
@@ -615,6 +618,7 @@ int main(int argc, char* argv[]) {
     std::cerr << "timeSelectFilter: " << (long)(timeSelectFilter * 1000) << endl;
     std::cerr << "timeSelfJoin: " << (long)(timeSelfJoin * 1000) << endl;
     std::cerr << "timeLowJoin: " << (long)(timeLowJoin * 1000) << endl;
+    std::cerr << "    timeConstruct: " << (long)(timeConstruct * 1000) << endl;
     std::cerr << "timeAddColumn: " << (long)(timeAddColumn * 1000) << endl;
     std::cerr << "timeCreateTable: " << (long)(timeCreateTable * 1000) << endl;
     std::cerr << "timeTreegen: " << (long)(timeTreegen * 1000) << endl;

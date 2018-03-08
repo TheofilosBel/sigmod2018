@@ -14,6 +14,7 @@ extern double timeCreateTable;
 extern double timeAddColumn;
 extern double timeTreegen;
 extern double timeCheckSum;
+extern double timeConstruct;
 
 /*
  * Prints a column
