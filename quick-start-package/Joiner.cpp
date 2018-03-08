@@ -19,10 +19,14 @@ double timeCreateTable = 0;
 double timeAddColumn = 0;
 double timeTreegen = 0;
 double timeCheckSum = 0;
+double timeBuildPhase = 0;
+double timeProbePhase = 0;
 
 /* +---------------------+
    |The joiner functions |
    +---------------------+ */
+#define time
+
 
 /* Its better not to use it TODO change it */
 void Joiner::Select(FilterInfo &fil_info, table_t* table) {
@@ -334,6 +338,11 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
         iter_col = table_s->column_j;
         std::vector<std::vector<int>> &i_rows = *table_s->relations_row_ids;
 
+#ifdef time
+        struct timeval start_build;
+        gettimeofday(&start_build, NULL);
+#endif
+
         /* now put the values of the column_r in the hash_table(construction phase) */
         for (uint64_t i = 0; i < hash_size; i++) {
             /* store hash[value of the column] = {rowid, index} */
@@ -343,6 +352,15 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
             hash_c.insert({hash_col->values[i], hs});
         }
 
+
+#ifdef time
+        struct timeval end_build;
+        gettimeofday(&end_build, NULL);
+        timeBuildPhase += (end_build.tv_sec - start_build.tv_sec) + (end_build.tv_usec - start_build.tv_usec) / 1000000.0;
+
+        struct timeval start_probe;
+        gettimeofday(&start_probe, NULL);
+#endif
         /* create the updated relations_row_ids, merge the sizes*/
         updated_table_t->relations_row_ids = new std::vector<std::vector<int>>(h_rows.size()+i_rows.size());
         //uint64_t size = ((uint64_t) (hash_size * hash_size)) / 100;
@@ -376,9 +394,19 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
         updated_table_t->relations_bindings.reserve(table_r->relations_bindings.size()+table_s->relations_bindings.size());
         updated_table_t->relations_bindings.insert(updated_table_t->relations_bindings.end() ,table_r->relations_bindings.begin(), table_r->relations_bindings.end());
         updated_table_t->relations_bindings.insert(updated_table_t->relations_bindings.end() ,table_s->relations_bindings.begin(), table_s->relations_bindings.end());
+#ifdef time
+        struct timeval end_probe;
+        gettimeofday(&end_probe, NULL);
+        timeProbePhase += (end_probe.tv_sec - start_probe.tv_sec) + (end_probe.tv_usec - start_probe.tv_usec) / 1000000.0;
+#endif
     }
     /* table_r->column_j->size > table_s->column_j->size */
     else {
+
+#ifdef time
+        struct timeval start_build;
+        gettimeofday(&start_build, NULL);
+#endif
         hash_size = table_s->column_j->size;
         hash_col = table_s->column_j;
         std::vector<std::vector<int>> &h_rows = *table_s->relations_row_ids;
@@ -395,7 +423,14 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
             hs.index = i;
             hash_c.insert({hash_col->values[i], hs});
         }
+#ifdef time
+        struct timeval end_build;
+        gettimeofday(&end_build, NULL);
+        timeBuildPhase += (end_build.tv_sec - start_build.tv_sec) + (end_build.tv_usec - start_build.tv_usec) / 1000000.0;
 
+        struct timeval start_probe;
+        gettimeofday(&start_probe, NULL);
+#endif
         /* create the updated relations_row_ids, merge the sizes*/
         updated_table_t->relations_row_ids = new std::vector<std::vector<int>>(h_rows.size()+i_rows.size());
         //uint64_t size = ((uint64_t) (hash_size * hash_size)) / 100;
@@ -429,6 +464,13 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
         updated_table_t->relations_bindings.reserve(table_s->relations_bindings.size()+table_r->relations_bindings.size());
         updated_table_t->relations_bindings.insert(updated_table_t->relations_bindings.end() ,table_s->relations_bindings.begin(), table_s->relations_bindings.end());
         updated_table_t->relations_bindings.insert(updated_table_t->relations_bindings.end() ,table_r->relations_bindings.begin(), table_r->relations_bindings.end());
+
+#ifdef time
+        struct timeval end_probe;
+        gettimeofday(&end_probe, NULL);
+        timeProbePhase += (end_probe.tv_sec - start_probe.tv_sec) + (end_probe.tv_usec - start_probe.tv_usec) / 1000000.0;
+#endif
+
     }
     /* concatenate the relaitons ids for the merge */
     updated_table_t->intermediate_res = true;
@@ -535,6 +577,9 @@ int main(int argc, char* argv[]) {
 
     // Preparation phase (not timed)
     // Build histograms, indices,...
+    /* For starters make the hash maps for the 0 and 1 relatiosn */
+
+
 
     // Create a persistent query graph
     QueryGraph queryGraph(joiner.getRelationsCount());
@@ -605,6 +650,8 @@ int main(int argc, char* argv[]) {
     std::cerr << "timeSelectFilter: " << (long)(timeSelectFilter * 1000) << endl;
     std::cerr << "timeSelfJoin: " << (long)(timeSelfJoin * 1000) << endl;
     std::cerr << "timeLowJoin: " << (long)(timeLowJoin * 1000) << endl;
+    std::cerr << "->timeBuildPhase: " << (long)(timeBuildPhase * 1000) << endl;
+    std::cerr << "->timeProbePhase: " << (long)(timeProbePhase * 1000) << endl;
     std::cerr << "timeAddColumn: " << (long)(timeAddColumn * 1000) << endl;
     std::cerr << "timeCreateTable: " << (long)(timeCreateTable * 1000) << endl;
     std::cerr << "timeTreegen: " << (long)(timeTreegen * 1000) << endl;
