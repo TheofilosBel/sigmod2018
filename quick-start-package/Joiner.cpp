@@ -24,10 +24,15 @@ double timeCheckSum = 0;
    |The joiner functions |
    +---------------------+ */
 
+#define time
+
 /* Its better not to use it TODO change it */
 void Joiner::Select(FilterInfo &fil_info, table_t* table) {
+
+#ifndef time
     struct timeval start;
     gettimeofday(&start, NULL);
+#endif
 
     /* Construct table  - Initialize variable */
     (table->intermediate_res)? (construct(table)) : ((void)0);
@@ -42,9 +47,12 @@ void Joiner::Select(FilterInfo &fil_info, table_t* table) {
         SelectEqual(table, filter);
     }
 
+#ifndef time
     struct timeval end;
     gettimeofday(&end, NULL);
     timeSelectFilter += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+#endif
+
 }
 
 void Joiner::SelectEqual(table_t *table, int filter) {
@@ -127,8 +135,11 @@ void Joiner::SelectLess(table_t *table, int filter){
 }
 
 void Joiner::AddColumnToTableT(SelectInfo &sel_info, table_t *table) {
+
+#ifndef time
     struct timeval start;
     gettimeofday(&start, NULL);
+#endif
 
     /* Create a new column_t for table */
     column_t &column = *table->column_j;
@@ -155,21 +166,26 @@ void Joiner::AddColumnToTableT(SelectInfo &sel_info, table_t *table) {
         std::cerr << "At AddColumnToTableT, Id not matchin with intermediate result vectors" << '\n';
     }
 
+#ifndef time
     struct timeval end;
     gettimeofday(&end, NULL);
     timeAddColumn += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+#endif
+
 }
 
 table_t* Joiner::CreateTableTFromId(unsigned rel_id, unsigned rel_binding) {
+
+#ifndef time
     struct timeval start;
     gettimeofday(&start, NULL);
+#endif
 
     /* Crate - Initialize a table_t */
     table_t *const table_t_ptr = new table_t;
     table_t_ptr->column_j = new column_t;
     table_t_ptr->intermediate_res = false;
     table_t_ptr->relations_row_ids = new std::vector<std::vector<int>>;
-    table_t_ptr->cartesian_product = NULL;
 
     std::vector<std::vector<int>> &rel_row_ids = *table_t_ptr->relations_row_ids;
 
@@ -187,9 +203,11 @@ table_t* Joiner::CreateTableTFromId(unsigned rel_id, unsigned rel_binding) {
     table_t_ptr->relation_ids.push_back(rel_id);
     table_t_ptr->relations_bindings.push_back(rel_binding);
 
+#ifndef time
     struct timeval end;
     gettimeofday(&end, NULL);
     timeCreateTable += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+#endif
 
     return table_t_ptr;
 }
@@ -204,15 +222,17 @@ table_t* Joiner::join(table_t *table_r, table_t *table_s) {
 
 /* The self Join Function */
 table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
+
+#ifndef time
     struct timeval start;
     gettimeofday(&start, NULL);
+#endif
 
     /* Create - Initialize a new table */
     table_t *new_table            = new table_t;
     new_table->relation_ids       = std::vector<int>(table->relation_ids);
     new_table->relations_bindings = std::vector<unsigned>(table->relations_bindings);
     new_table->relations_row_ids  = new std::vector<std::vector<int>>;
-    new_table->cartesian_product  = NULL;
     new_table->column_j           = new column_t;
 
     /* Get the 2 relation rows ids vectors in referances */
@@ -267,9 +287,11 @@ table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
         }
     }
 
+#ifndef time
     struct timeval end;
     gettimeofday(&end, NULL);
     timeSelfJoin += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+#endif
 
     return new_table;
 }
@@ -282,15 +304,18 @@ table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
  * 4)Made the code repeatable to put some & in the arrays of row ids
 */
 table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
+
+#ifndef time
     struct timeval start;
     gettimeofday(&start, NULL);
+#endif
 
     /* create hash_table for the hash_join phase */
     std::unordered_multimap<uint64_t, hash_entry> hash_c;
 
     /* the new table_t to continue the joins */
     table_t *updated_table_t = new table_t;
-    updated_table_t->cartesian_product = NULL;
+
 
     /* hash_size->size of the hashtable,iter_size->size to iterate over to find same vals */
     uint64_t hash_size,iter_size;
@@ -317,8 +342,12 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
             hash_c.insert({hash_col->values[i], hs});
         }
         /* create the updated relations_row_ids, merge the sizes*/
-        updated_table_t->relations_row_ids = new std::vector<std::vector<int>>;
-        updated_table_t->relations_row_ids->resize(h_rows.size()+i_rows.size(), std::vector<int>());
+        int update_t_index  = 0;
+
+        updated_table_t->relations_row_ids = new std::vector<std::vector<int>>(h_rows.size()+i_rows.size());
+        for (size_t relation = 0; relation < h_rows.size()+i_rows.size(); relation++) {
+                updated_table_t->relations_row_ids->operator[](relation).reserve(hash_size*hash_size);
+        }
         std::vector<std::vector<int>> &update_row_ids = *updated_table_t->relations_row_ids;
 
         /* now the phase of hashing */
@@ -331,11 +360,11 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
                 /* its faster than to push back 1 every time */
                 /* get the first values from the r's rows ids */
                 for (uint64_t j = 0 ; j < h_rows.size(); j++)
-                    update_row_ids[j].push_back(h_rows[j][vals->second.index]);
+                    update_row_ids[j].emplace_back(h_rows[j][vals->second.index]);
 
                 /* then go to the s's row ids to get the values */
                 for (uint64_t j = 0; j < i_rows.size(); j++)
-                    update_row_ids[j + h_rows.size()].push_back(i_rows[j][i]);
+                    update_row_ids[j + h_rows.size()].emplace_back(i_rows[j][i]);
             }
         }
 
@@ -367,8 +396,11 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
         }
 
         /* create the updated relations_row_ids, merge the sizes*/
-        updated_table_t->relations_row_ids = new std::vector<std::vector<int>>;
-        updated_table_t->relations_row_ids->resize(h_rows.size()+i_rows.size(), std::vector<int>());
+        updated_table_t->relations_row_ids = new std::vector<std::vector<int>>(h_rows.size()+i_rows.size());
+        for (size_t relation = 0; relation < h_rows.size()+i_rows.size(); relation++) {
+                updated_table_t->relations_row_ids->operator[](relation).reserve(hash_size*hash_size);
+        }
+        //updated_table_t->relations_row_ids->resize(h_rows.size()+i_rows.size(), std::vector<int>());
         std::vector<std::vector<int>> &update_row_ids = *updated_table_t->relations_row_ids;
 
         /* now the phase of hashing */
@@ -381,11 +413,11 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
                 /* its faster than to push back 1 every time */
 
                 for (uint64_t j = 0 ; j < h_rows.size(); j++)
-                    update_row_ids[j].push_back(h_rows[j][vals->second.index]);
+                    update_row_ids[j].emplace_back(h_rows[j][vals->second.index]);
 
                 /* then go to the s's row ids to get the values */
                 for (uint64_t j = 0; j < i_rows.size(); j++)
-                    update_row_ids[j + h_rows.size()].push_back(i_rows[j][i]);
+                    update_row_ids[j + h_rows.size()].emplace_back(i_rows[j][i]);
             }
         }
         updated_table_t->relation_ids.reserve(table_s->relation_ids.size()+table_r->relation_ids.size());
@@ -406,9 +438,11 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
     delete table_s->relations_row_ids;
     delete table_s; */
 
+#ifndef time
     struct timeval end;
     gettimeofday(&end, NULL);
     timeLowJoin += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+#endif
 
     return updated_table_t;
 }
@@ -516,15 +550,19 @@ int main(int argc, char* argv[]) {
         i.parseQuery(line);
         q_counter++;
 
+#ifndef time
         struct timeval start;
         gettimeofday(&start, NULL);
-        
+#endif
+
         JTree *jTreePtr = treegen(&i);
 
+#ifndef time
         struct timeval end;
         gettimeofday(&end, NULL);
         timeTreegen += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
-        
+#endif
+
         int *plan = NULL, plan_size = 0;
         //print_rec(jTreePtr, 0);
         table_t *result = jTreeMakePlan(jTreePtr, joiner, plan);
@@ -532,7 +570,9 @@ int main(int argc, char* argv[]) {
         // join
         //joiner.join(i);
 
+#ifndef time
         gettimeofday(&start, NULL);
+#endif
 
         string result_str;
         uint64_t checksum = 0;
@@ -551,14 +591,17 @@ int main(int argc, char* argv[]) {
             }
         }
 
+#ifndef time
         gettimeofday(&end, NULL);
         timeCheckSum += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+#endif
 
         /* Print the result */
         std::cout << result_str << endl;
         //std::cout << "Implelemt JOIN " << '\n';
     }
 
+#ifndef time
     std::cerr << "timeSelectFilter: " << (long)(timeSelectFilter * 1000) << endl;
     std::cerr << "timeSelfJoin: " << (long)(timeSelfJoin * 1000) << endl;
     std::cerr << "timeLowJoin: " << (long)(timeLowJoin * 1000) << endl;
@@ -567,6 +610,7 @@ int main(int argc, char* argv[]) {
     std::cerr << "timeTreegen: " << (long)(timeTreegen * 1000) << endl;
     std::cerr << "timeCheckSum: " << (long)(timeCheckSum * 1000) << endl;
     flush(std::cerr);
+#endif
 
     return 0;
 }
