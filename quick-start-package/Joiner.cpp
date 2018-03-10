@@ -6,10 +6,7 @@
 #include <utility>
 #include <vector>
 #include "Parser.hpp"
-#include "QueryGraph.hpp"
 #include "./include/header.hpp"
-
-#define time
 
 using namespace std;
 
@@ -590,11 +587,6 @@ int main(int argc, char* argv[]) {
     // Build histograms, indices,...
     /* For starters make the hash maps for the 0 and 1 relatiosn */
 
-
-
-    // Create a persistent query graph
-    QueryGraph queryGraph(joiner.getRelationsCount());
-
     // The test harness will send the first query after 1 second.
     QueryInfo i;
     int q_counter = 0;
@@ -602,7 +594,7 @@ int main(int argc, char* argv[]) {
         if (line == "F") continue; // End of a batch
 
         // Parse the query
-        //std::cerr << "Q " << q_counter  << ":" << line << '\n';
+        //std::cerr << q_counter  << ": " << line << '\n';
         i.parseQuery(line);
         q_counter++;
 
