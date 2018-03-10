@@ -9,7 +9,7 @@
 #include "QueryGraph.hpp"
 #include "./include/header.hpp"
 
-#define time
+// #define time
 
 using namespace std;
 
