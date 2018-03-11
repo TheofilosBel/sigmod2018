@@ -3,6 +3,9 @@
 #include <cstdint>
 #include <iostream>
 #include <unordered_map>
+#include <map>
+#include <set>
+#include "Joiner.hpp"
 
 // Keeps the important info/statistics for every column
 // needed to build the plan tree
@@ -18,6 +21,9 @@ struct PlanTreeNode {
     PlanTreeNode* left;
     PlanTreeNode* right;
     PlanTreeNode* parent;
+
+    // The constructor
+    PlanTreeNode();
 };
 
 // Plan Tree data structure
@@ -28,7 +34,7 @@ struct PlanTree {
     bool isLeftDeepOnly;
 
     // The constructor
-    PlanTree();
+    PlanTree(std::set<table_t*>& tableSet);
 
     // Merges two join trees into one
     // and return the resulted tree
@@ -46,9 +52,27 @@ struct PlanTree {
 
 // Query Plan data structure
 struct QueryPlan {
-    vector<vector<ColumnInfo>> columnInfo; // Keeps the info of every column
+    // Keeps the info of every column of every relation
+    // Every row represents a relation
+    // Every item of a row represents a column of the relation
+    std::vector<std::vector<ColumnInfo>> columnInfo;
+
     PlanTree* planTreePtr; // The plan tree to execute
 
     // The constructor
     QueryPlan(QueryInfo* queryInfoPtr);
+
+    // Fills the columnInfo matrix with the data of every column
+    void fillColumnInfo(Joiner &joiner);
 };
+
+/*
+// destruct a Join Tree node properly
+void destrJoinTreeNode(JoinTreeNode* joinTreeNodePtr);
+
+// print a Join Tree node -- for debugging
+void printJoinTreeNode(JoinTreeNode* joinTreeNodePtr);
+
+// estimate the cost of a given Join Tree node
+double joinTreeNodeCost(JoinTreeNode* joinTreeNodePtr);
+*/
