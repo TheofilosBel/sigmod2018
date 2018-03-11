@@ -14,6 +14,7 @@ extern double timeCreateTable;
 extern double timeAddColumn;
 extern double timeTreegen;
 extern double timeCheckSum;
+extern double timeConstruct;
 
 /*
  * Prints a column
@@ -55,6 +56,8 @@ class Joiner {
     void join(QueryInfo& i);
     table_t* join(table_t *table_r, table_t *table_s);
     table_t* SelfJoin(table_t *table, PredicateInfo *pred_info);
+
+    table_t* radix_join(table_t *table_r, table_t *table_s);
 
 
     /* The join function
