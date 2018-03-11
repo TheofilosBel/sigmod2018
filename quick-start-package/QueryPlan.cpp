@@ -5,30 +5,53 @@
 QueryPlan* constrQueryPlan(QueryInfo* queryInfoPtr) {
   QueryPlan* queryPlanPtr = malloc(1 * sizeof(QueryPlan));
 
-  /* somehow collect relationships stats */
+  /*
+    somehow collect relationships stats ???
+  */
 
-  /* create an array of table-types from the query relations */
+  /* a map that maps each relation-ID to a pointer to it's respective table-type */
+  std::map<RelationId, table_t*> tableTPtrMap;
 
-  /* apply all filters */
-  for (std::vector<int>::iterator it = queryInfoPtr->filters.begin(); it != queryInfoPtr->filters.end(); ++it) {
-    //
+  /* apply all filters and create a vector of table-types from the query selections */
+  for (std::vector<FilterInfo>::iterator it = queryInfoPtr->filters.begin(); it != queryInfoPtr->filters.end(); ++it) {
+    std::map<RelationId, table_t*>::iterator mapIt = tableTPtrMap.find(it->filterColumn.relId);
+    /* if table-type for this relation-ID already in map, then update the respective table-type */
+    if (mapIt != tableTPtrMap.end()) {
+      Select(it, mapIt->second);
+    }
+    /* otherwise add the table-type's mapping to the map */
+    else {
+      table_t* tempTableTPtr = CreateTableTFromId(it->filterColumn.relId, it->filterColumn.binding);
+      Select(it, tempTableTPtr);
+      tableTPtrMap.insert(it->filterColumn.relId, tempTableTPtr);
+    }
   }
 
-  /* create an array of sets of relations to be joined */
+  /* create a set of pointers to the table-types that are to be joined */
+  std::set<table_t*> tableTPtrSet;
+  for (std::vector<PredicateInfo>::iterator it = queryInfoPtr->predicates.begin(); it != queryInfoPtr->predicates.end(); ++it) {
+    std::map<RelationId, table_t*>::iterator mapItLeft = tableTPtrMap.find(it->left.relId),
+                                            mapItRight = tableTPtrMap.find(it->right.relId);
+    /* sanity check -- REMOVE in the end */
+    assert(mapItLeft != tableTPtrMap.end() && mapItRight != tableTPtrMap.end());
 
-  /* create an array of Join Trees, one for each set of relations */
-  std::vector<JoinTree> joinTreeVec;
+    tableTPtrSet.insert(mapItLeft);
+    tableTPtrSet.insert(mapItRight);
+  }
+
+  /* create a Join Tree by joining all the table-types of the set */
+  JoinTree* tempJoinTreePtr = constrJoinTreeFromRelations(tableTPtrSet);
 
   /* merge all Join Trees to one final Join Tree */
-  JoinTree* tempJoinTreePtr = joinTreeVec.begin();
-  for (std::vector<JoinTree>::iterator it = std::next(joinTreeVec.begin()); it != joinTreeVec.end(); ++it) {
-    tempJoinTreePtr = constrJoinTreeFromJoinTrees(tempJoinTreePtr, *it);
-  }
-  queryPlanPtr->joinTreePtr = tempJoinTreePtr;
+  // JoinTree* tempJoinTreePtr = joinTreePtrVec.begin();
+  // for (std::vector<JoinTree*>::iterator it = std::next(joinTreePtrVec.begin()); it != joinTreePtrVec.end(); ++it) {
+  //   tempJoinTreePtr = constrJoinTreeFromJoinTrees(tempJoinTreePtr, *it);
+  // }
+  // queryPlanPtr->joinTreePtr = tempJoinTreePtr;
 }
 
 /* construct an optimal left-deep Join Tree from a given set of relations */
-JoinTree* constrJoinTreeFromRelations(std::vector<Relation>& relations) {
+JoinTree* constrJoinTreeFromRelations(std::set<table_t*>& tableTPtrSet) {
   return NULL;
 }
 

@@ -6,6 +6,9 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <map>
+#include <set>
+#include <iterator>
 #include <fstream>
 #include <cassert>
 #include <cstdint>

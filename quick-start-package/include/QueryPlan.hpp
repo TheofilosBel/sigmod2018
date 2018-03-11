@@ -33,7 +33,7 @@ typedef struct QueryPlan {
 QueryPlan* constrQueryPlan(QueryInfo* queryInfoPtr);
 
 /* construct an optimal left-deep Join Tree from a given set of relations */
-JoinTree* constrJoinTreeFromRelations(std::vector<Relation>& relations);
+JoinTree* constrJoinTreeFromRelations(std::set<table_t*>& tableTPtrSet);
 
 /* construct an optimal Join Tree from two given optimal Join Trees */
 JoinTree* constrJoinTreeFromJoinTrees(JoinTree* joinTreePtr1, JoinTree* joinTreePtr2);
