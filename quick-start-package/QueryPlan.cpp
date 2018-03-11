@@ -12,6 +12,9 @@ PlanTree* PlanTree::mergePlanTrees(PlanTree* left, PlanTree* right) {
     return NULL;
 }
 
+// execute the plan described by a Plan Tree
+void executePlan(PlanTree* planTreePtr) {}
+
 // Destoys a Plan Tree properly
 void PlanTree::freePlanTree(PlanTree* planTreePtr) {}
 
@@ -25,9 +28,6 @@ double PlanTree::costOfPlanTree(PlanTree* planTreePtr) {
 
 // Builds a query plan with the given info
 void QueryPlan::build(QueryInfo& queryInfoPtr) {
-    /*
-        somehow collect relationships stats ???
-    */
 #ifdef k
     /* a map that maps each relation-ID to a pointer to it's respective table-type */
     std::map<RelationId, table_t*> tableTPtrMap;
@@ -62,13 +62,6 @@ void QueryPlan::build(QueryInfo& queryInfoPtr) {
 
     /* create a Join Tree by joining all the table-types of the set */
     JoinTree* tempJoinTreePtr = constrJoinTreeFromRelations(tableTPtrSet);
-
-    /* merge all Join Trees to one final Join Tree */
-    // JoinTree* tempJoinTreePtr = joinTreePtrVec.begin();
-    // for (std::vector<JoinTree*>::iterator it = std::next(joinTreePtrVec.begin()); it != joinTreePtrVec.end(); ++it) {
-    //   tempJoinTreePtr = constrJoinTreeFromJoinTrees(tempJoinTreePtr, *it);
-    // }
-    // queryPlanPtr->joinTreePtr = tempJoinTreePtr;
 
     /* apply all filters */
     for (std::vector<int>::iterator it = queryInfoPtr.filters.begin() ; it != queryInfoPtr.filters.end(); ++it) {}

@@ -9,25 +9,32 @@
 
 // Keeps the important info/statistics for every column
 // needed to build the plan tree
-struct ColumnInfo {
+typedef struct ColumnInfo {
     uint64_t min; // Value of the minimum element
     uint64_t max; // Value of the maximum element
     uint64_t size; // Total number of elements
     uint64_t distinct; // Number of distinct elements
-};
+} ColumnInfo;
 
 // Plan Tree's node
-struct PlanTreeNode {
+typedef struct PlanTreeNode {
+    unsigned nodeID;
+
     PlanTreeNode* left;
     PlanTreeNode* right;
     PlanTreeNode* parent;
 
+    PredicateInfo* predicateInfoPtr;
+    FilterInfo* filterInfoPtr;
+
+    ColumnInfo* intermediateColumnInfoPtr;
+
     // The constructor
     PlanTreeNode();
-};
+} PlanTreeNode;
 
 // Plan Tree data structure
-struct PlanTree {
+typedef struct PlanTree {
     PlanTreeNode* rootPtr;
 
     bool isRightDeepOnly;
@@ -40,18 +47,21 @@ struct PlanTree {
     // and return the resulted tree
     PlanTree* mergePlanTrees(PlanTree* left, PlanTree* right);
 
+    // execute the plan described by a Plan Tree
+    void executePlan(PlanTree* planTreePtr);
+
     // Destoys a Plan Tree properly
     void freePlanTree(PlanTree* planTreePtr);
 
     // Prints a Plan Tree -- for debugging
     void printPlanTree(PlanTree* planTreePtr);
 
-    // Estimates the cost of a given Plan Tree */
+    // Estimates the cost of a given Plan Tree
     double costOfPlanTree(PlanTree* planTreePtr);
-};
+} PlanTree;
 
 // Query Plan data structure
-struct QueryPlan {
+typedef struct QueryPlan {
     // Keeps the info of every column of every relation
     // Every row represents a relation
     // Every item of a row represents a column of the relation
@@ -67,7 +77,7 @@ struct QueryPlan {
 
     // Fills the columnInfo matrix with the data of every column
     void fillColumnInfo(QueryInfo& queryInfo);
-};
+} QueryPlan;
 
 /*
 // destruct a Join Tree node properly
