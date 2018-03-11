@@ -6,7 +6,8 @@
 #include <utility>
 #include <vector>
 #include "Parser.hpp"
-#include "./include/header.hpp"
+#include "QueryPlan.hpp"
+#include "header.hpp"
 
 // #define time
 
@@ -586,8 +587,8 @@ int main(int argc, char* argv[]) {
     }
 
     // Preparation phase (not timed)
-    // Build histograms, indices,...
-    /* For starters make the hash maps for the 0 and 1 relatiosn */
+    QueryPlan queryPlan;
+
 
     // The test harness will send the first query after 1 second.
     QueryInfo i;
@@ -600,18 +601,18 @@ int main(int argc, char* argv[]) {
         i.parseQuery(line);
         q_counter++;
 
-#ifdef time
+        #ifdef time
         struct timeval start;
         gettimeofday(&start, NULL);
-#endif
+        #endif
 
         JTree *jTreePtr = treegen(&i);
 
-#ifdef time
+        #ifdef time
         struct timeval end;
         gettimeofday(&end, NULL);
         timeTreegen += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
-#endif
+        #endif
 
         int *plan = NULL, plan_size = 0;
         //print_rec(jTreePtr, 0);
@@ -620,9 +621,9 @@ int main(int argc, char* argv[]) {
         // join
         //joiner.join(i);
 
-#ifdef time
+        #ifdef time
         gettimeofday(&start, NULL);
-#endif
+        #endif
 
         string result_str;
         uint64_t checksum = 0;
@@ -641,17 +642,17 @@ int main(int argc, char* argv[]) {
             }
         }
 
-#ifdef time
+        #ifdef time
         gettimeofday(&end, NULL);
         timeCheckSum += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
-#endif
+        #endif
 
         /* Print the result */
         std::cout << result_str << endl;
         //std::cout << "Implelemt JOIN " << '\n';
     }
 
-#ifdef time
+    #ifdef time
     std::cerr << "timeSelectFilter: " << (long)(timeSelectFilter * 1000) << endl;
     std::cerr << "timeSelfJoin: " << (long)(timeSelfJoin * 1000) << endl;
     std::cerr << "timeLowJoin: " << (long)(timeLowJoin * 1000) << endl;
@@ -663,7 +664,7 @@ int main(int argc, char* argv[]) {
     std::cerr << "timeTreegen: " << (long)(timeTreegen * 1000) << endl;
     std::cerr << "timeCheckSum: " << (long)(timeCheckSum * 1000) << endl;
     flush(std::cerr);
-#endif
+    #endif
 
     return 0;
 }

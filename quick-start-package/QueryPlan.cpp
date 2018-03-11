@@ -23,8 +23,8 @@ double PlanTree::costOfPlanTree(PlanTree* planTreePtr) {
     return 1.0;
 }
 
-// The Query Plan constructor
-QueryPlan::QueryPlan(QueryInfo& queryInfoPtr) {
+// Builds a query plan with the given info
+void QueryPlan::build(QueryInfo& queryInfoPtr) {
     /*
         somehow collect relationships stats ???
     */
