@@ -8,6 +8,8 @@
 #include "Parser.hpp"
 #include "./include/header.hpp"
 
+// #define time
+
 using namespace std;
 
 /* Timing variables */
