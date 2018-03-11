@@ -24,7 +24,7 @@ double PlanTree::costOfPlanTree(PlanTree* planTreePtr) {
 }
 
 // The Query Plan constructor
-QueryPlan::QueryPlan(QueryInfo* queryInfoPtr) {
+QueryPlan::QueryPlan(QueryInfo& queryInfoPtr) {
     /*
         somehow collect relationships stats ???
     */
@@ -33,7 +33,7 @@ QueryPlan::QueryPlan(QueryInfo* queryInfoPtr) {
     std::map<RelationId, table_t*> tableTPtrMap;
 
     /* apply all filters and create a vector of table-types from the query selections */
-    for (std::vector<FilterInfo>::iterator it = queryInfoPtr->filters.begin(); it != queryInfoPtr->filters.end(); ++it) {
+    for (std::vector<FilterInfo>::iterator it = queryInfoPtr.filters.begin(); it != queryInfoPtr.filters.end(); ++it) {
         std::map<RelationId, table_t*>::iterator mapIt = tableTPtrMap.find(it->filterColumn.relId);
 
         /* if table-type for this relation-ID already in map, then update the respective table-type */
@@ -50,7 +50,7 @@ QueryPlan::QueryPlan(QueryInfo* queryInfoPtr) {
 
     /* create a set of pointers to the table-types that are to be joined */
     std::set<table_t*> tableTPtrSet;
-    for (std::vector<PredicateInfo>::iterator it = queryInfoPtr->predicates.begin(); it != queryInfoPtr->predicates.end(); ++it) {
+    for (std::vector<PredicateInfo>::iterator it = queryInfoPtr.predicates.begin(); it != queryInfoPtr.predicates.end(); ++it) {
         std::map<RelationId, table_t*>::iterator mapItLeft = tableTPtrMap.find(it->left.relId),
                                             mapItRight = tableTPtrMap.find(it->right.relId);
         /* sanity check -- REMOVE in the end */
@@ -71,7 +71,7 @@ QueryPlan::QueryPlan(QueryInfo* queryInfoPtr) {
     // queryPlanPtr->joinTreePtr = tempJoinTreePtr;
 
     /* apply all filters */
-    for (std::vector<int>::iterator it = queryInfoPtr->filters.begin() ; it != queryInfoPtr->filters.end(); ++it) {}
+    for (std::vector<int>::iterator it = queryInfoPtr.filters.begin() ; it != queryInfoPtr.filters.end(); ++it) {}
 
     /* create an array of sets of relations to be joined */
 
@@ -82,4 +82,4 @@ QueryPlan::QueryPlan(QueryInfo* queryInfoPtr) {
 }
 
 // Fills the columnInfo matrix with the data of every column
-void QueryPlan::fillColumnInfo(Joiner &joiner) {}
+void QueryPlan::fillColumnInfo(QueryInfo& queryInfo) {}

@@ -60,10 +60,10 @@ struct QueryPlan {
     PlanTree* planTreePtr; // The plan tree to execute
 
     // The constructor
-    QueryPlan(QueryInfo* queryInfoPtr);
+    QueryPlan(QueryInfo& queryInfoPtr);
 
     // Fills the columnInfo matrix with the data of every column
-    void fillColumnInfo(Joiner &joiner);
+    void fillColumnInfo(QueryInfo& queryInfo);
 };
 
 /*
