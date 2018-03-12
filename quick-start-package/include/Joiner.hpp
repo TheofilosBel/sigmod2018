@@ -1,10 +1,20 @@
 #pragma once
 #include <vector>
 #include <cstdint>
+#include <sys/time.h>
 #include "Relation.hpp"
 #include "Parser.hpp"
 #include "table_t.hpp"
 
+/* Timing variables */
+extern double timeSelfJoin;
+extern double timeSelectFilter;
+extern double timeLowJoin;
+extern double timeCreateTable;
+extern double timeAddColumn;
+extern double timeTreegen;
+extern double timeCheckSum;
+extern double timeConstruct;
 
 /*
  * Prints a column
@@ -33,9 +43,7 @@ class Joiner {
     // Get the total number of relations
     int getRelationsCount();
 
-    table_t* SelectInfoToTableT(SelectInfo &sel_info);
     table_t* CreateTableTFromId(unsigned rel_id, unsigned rel_binding);
-    void AddColumnToIntermediatResult(SelectInfo &sel_info, table_t *table);
     void AddColumnToTableT(SelectInfo &sel_info, table_t *table);
 
     // The select functions
@@ -47,8 +55,9 @@ class Joiner {
     // Joins a given set of relations
     void join(QueryInfo& i);
     table_t* join(table_t *table_r, table_t *table_s);
-    table_t* cartesian_join(table_t *table_r, table_t *table_s);
     table_t* SelfJoin(table_t *table, PredicateInfo *pred_info);
+
+    table_t* radix_join(table_t *table_r, table_t *table_s);
 
 
     /* The join function
