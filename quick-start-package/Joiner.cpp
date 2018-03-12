@@ -64,21 +64,31 @@ void Joiner::Select(FilterInfo &fil_info, table_t* table) {
 void Joiner::SelectEqual(table_t *table, column_t *column, int filter) {
 
     /* Initialize helping variables */
-    uint64_t *const values  = table->column_j->values;
-    int table_index         = table->column_j->table_index;
-    const uint64_t rel_num  = table->relations_row_ids->size();
+    uint64_t *const values  = column->values;
+    int table_index         = column->binding;
+    const uint64_t size_rids  = table->size_of_row_ids;
 
-    std::vector<std::vector<int>> &old_row_ids = *table->relations_row_ids;
-    std::vector<std::vector<int>> *new_row_ids = new std::vector<std::vector<int>>(rel_num, std::vector<int>());
+    uint64_t **old_row_ids = *table->relations_row_ids;
+    uint64_t **new_row_ids = (uint64_t**)malloc(sizeof(uint64_t*)*size_rids);
+    std::vector<unsigned> &rbs = relations_bindings;
+    
+    const uint64_t size_rels = table->num_of_relations;
 
-    const uint64_t size     = old_row_ids[table_index].size();
-
+    /* index to noew the place of the row ids column */
+    for(size_t index = 0; index < size_rels; index++) {
+        if (rbs[index] == table_index) {
+            table_index = index;
+            break;
+        }
+    }
+    size_t new_tb_index = 0;
     /* Update the row ids of the table */
-    for (size_t index = 0; index < size; index++) {
-        if (values[index] == filter) {
-            for (size_t rel_index = 0; rel_index < rel_num; rel_index++) {
-                new_row_ids->operator[](rel_index).push_back(old_row_ids[rel_index][index]);
-            }
+    for (size_t rid = 0; rd < size_rids; rid++) {
+        /* go to the old row ids and take the row id of the rid val */
+        if (values[old_row_rids[rid][table_index]] == filter) {
+            /* Allocate space for the relations storing */
+            new_row_ids[new_tb_index] = old_row_ids[rid][table_index];
+            new_tb_index++;
         }
     }
 
@@ -90,22 +100,31 @@ void Joiner::SelectEqual(table_t *table, column_t *column, int filter) {
 
 void Joiner::SelectGreater(table_t *table, column_t *column, int filter){
     /* Initialize helping variables */
-    uint64_t *const values  = table->column_j->values;
-    int table_index         = table->column_j->table_index;
-    const uint64_t rel_num  = table->relations_row_ids->size();
+    uint64_t *const values  = column->values;
+    int table_index         = column->binding;
+    const uint64_t size_rids  = table->size_of_row_ids;
 
-    std::vector<std::vector<int>> &old_row_ids = *table->relations_row_ids;
-    std::vector<std::vector<int>> *new_row_ids = new std::vector<std::vector<int>>(rel_num, std::vector<int>());
+    uint64_t **old_row_ids = *table->relations_row_ids;
+    uint64_t **new_row_ids = (uint64_t**)malloc(sizeof(uint64_t*)*size_rids);
+    std::vector<unsigned> &rbs = relations_bindings;
+    
+    const uint64_t size_rels = table->num_of_relations;
 
-    const uint64_t size     = old_row_ids[table_index].size();
-
+    /* index to noew the place of the row ids column */
+    for(size_t index = 0; index < size_rels; index++) {
+        if (rbs[index] == table_index) {
+            table_index = index;
+            break;
+        }
+    }
+    size_t new_tb_index = 0;
     /* Update the row ids of the table */
-
-    for (size_t index = 0; index < size; index++) {
-        if (values[index] > filter) {
-            for (size_t rel_index = 0; rel_index < rel_num; rel_index++) {
-                new_row_ids->operator[](rel_index).push_back(old_row_ids[rel_index][index]);
-            }
+    for (size_t rid = 0; rd < size_rids; rid++) {
+        /* go to the old row ids and take the row id of the rid val */
+        if (values[old_row_rids[rid][table_index]] > filter) {
+            /* Allocate space for the relations storing */
+            new_row_ids[new_tb_index] = old_row_ids[rid][table_index];
+            new_tb_index++;
         }
     }
 
@@ -114,24 +133,36 @@ void Joiner::SelectGreater(table_t *table, column_t *column, int filter){
     table->relations_row_ids = new_row_ids;
     table->intermediate_res = true;
 }
+
 
 void Joiner::SelectLess(table_t *table, column_t *column, int filter){
+ 
     /* Initialize helping variables */
-    uint64_t *const values  = table->column_j->values;
-    int table_index         = table->column_j->table_index;
-    const uint64_t rel_num  = table->relations_row_ids->size();
+    uint64_t *const values  = column->values;
+    int table_index         = column->binding;
+    const uint64_t size_rids  = table->size_of_row_ids;
 
-    std::vector<std::vector<int>> &old_row_ids = *table->relations_row_ids;
-    std::vector<std::vector<int>> *new_row_ids = new std::vector<std::vector<int>>(rel_num, std::vector<int>());
+    uint64_t **old_row_ids = *table->relations_row_ids;
+    uint64_t **new_row_ids = (uint64_t**)malloc(sizeof(uint64_t*)*size_rids);
+    std::vector<unsigned> &rbs = relations_bindings;
+    
+    const uint64_t size_rels = table->num_of_relations;
 
-    const uint64_t size     = old_row_ids[table_index].size();
-
+    /* index to noew the place of the row ids column */
+    for(size_t index = 0; index < size_rels; index++) {
+        if (rbs[index] == table_index) {
+            table_index = index;
+            break;
+        }
+    }
+    size_t new_tb_index = 0;
     /* Update the row ids of the table */
-    for (size_t index = 0; index < size; index++) {
-        if (values[index] < filter) {
-            for (size_t rel_index = 0; rel_index < rel_num; rel_index++) {
-                new_row_ids->operator[](rel_index).push_back(old_row_ids[rel_index][index]);
-            }
+    for (size_t rid = 0; rd < size_rids; rid++) {
+        /* go to the old row ids and take the row id of the rid val */
+        if (values[old_row_rids[rid][table_index]] < filter) {
+            /* Allocate space for the relations storing */
+            new_row_ids[new_tb_index] = old_row_ids[rid][table_index];
+            new_tb_index++;
         }
     }
 
@@ -140,6 +171,7 @@ void Joiner::SelectLess(table_t *table, column_t *column, int filter){
     table->relations_row_ids = new_row_ids;
     table->intermediate_res = true;
 }
+
 
 // Creates a table_t object that represents a new relation
 table_t* Joiner::CreateTableTFromId(unsigned rel_id, unsigned rel_binding) {

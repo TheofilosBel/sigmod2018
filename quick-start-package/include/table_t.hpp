@@ -23,9 +23,11 @@ struct table_t {
     uint64_t                   **row_ids;
 
     /* use it for the filtrering TODO hash map ?*/
+    /* relations_ids[real] = row ids */
     std::vector<unsigned>      relation_ids;
 
     /* use the binfing to map the relations */
+    /* relations_bindings[row ids] = allias */
     std::vector<unsigned>      relations_bindings;
 
     /* Intermediate result falg */
@@ -38,4 +40,3 @@ struct table_t {
 
 
 column_t *CreateColumn(SelectInfo& sel_info, Joiner& joiner);
-
