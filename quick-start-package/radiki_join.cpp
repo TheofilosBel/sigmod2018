@@ -1,6 +1,7 @@
 #include <sys/time.h>           /* gettimeofday */
 #include <stdio.h>              /* printf */
 #include "Joiner.hpp"
+#include "table_t"
 
 
 
@@ -8,6 +9,7 @@
 #define NUM_RADIX_BITS 14
 #endif
 
+#define NUM_PASSES 1
 
 /** checks malloc() result */
 #ifndef MALLOC_CHECK
@@ -105,47 +107,47 @@ int64_t bucket_chaining_join(const relation_t * const R, const relation_t * cons
     return matches;
 }
 
-void radix_cluster_nopadding(relation_t * outRel, relation_t * inRel, int R, int D) {
-    tuple_t ** dst;
-    tuple_t * input;
-    /* tuple_t ** dst_end; */
-    uint32_t * tuples_per_cluster;
-    uint32_t i;
-    uint32_t offset;
+void radix_cluster_nopadding(uint64_t ** outRel, uint64_t ** inRel, column_t *column, int row_ids_size, int R, int D) {
+
+    uint64_t *** dst;
+    uint64_t   * input;
+    uint32_t   * tuples_per_cluster;
+    uint32_t     i;
+    uint64_t     offset;
     const uint32_t M = ((1 << D) - 1) << R;
     const uint32_t fanOut = 1 << D;
-    const uint32_t ntuples = inRel->num_tuples;
+    const uint32_t ntuples = row_ids_size;
 
     tuples_per_cluster = (uint32_t*)calloc(fanOut, sizeof(uint32_t));
     /* the following are fixed size when D is same for all the passes,
        and can be re-used from call to call. Allocating in this function
        just in case D differs from call to call. */
-    dst     = (tuple_t**)malloc(sizeof(tuple_t*)*fanOut);
+    dst     = (uint64_t ***)malloc(sizeof(uint64_t **) * fanOut);
     /* dst_end = (tuple_t**)malloc(sizeof(tuple_t*)*fanOut); */
 
-    input = inRel->tuples;
+    input = column->values + row_ids[0][column->binding]*sizeof(uint64_t);  // TODO FIX OUTSIDE
     /* count tuples per cluster */
     for( i=0; i < ntuples; i++ ){
-        uint32_t idx = (uint32_t)(HASH_BIT_MODULO(input->key, M, R));
+        uint32_t idx = (uint32_t)(HASH_BIT_MODULO(input, M, R));
         tuples_per_cluster[idx]++;
-        input++;
+        input += row_ids[i][column->binding]*sizeof(uint64_t);
     }
 
     offset = 0;
     /* determine the start and end of each cluster depending on the counts. */
     for ( i=0; i < fanOut; i++ ) {
-        dst[i]      = outRel->tuples + offset;
-        offset     += tuples_per_cluster[i];
+        dst[i]      = outRel + offset;
+        offset     += tuples_per_cluster[i] * sizeof(uint64_t**);
         /* dst_end[i]  = outRel->tuples + offset; */
     }
 
-    input = inRel->tuples;
+    input = column->values + row_ids[0][column->binding]*sizeof(uint64_t);  // TODO FIX OUTSIDE;
     /* copy tuples to their corresponding clusters at appropriate offsets */
     for( i=0; i < ntuples; i++ ){
-        uint32_t idx   = (uint32_t)(HASH_BIT_MODULO(input->key, M, R));
-        *dst[idx] = *input;
+        uint32_t idx   = (uint32_t)(HASH_BIT_MODULO(input, M, R));
+        *dst[idx] = *row_ids[i];
         ++dst[idx];
-        input++;
+        input += row_ids[i][column->binding]*sizeof(uint64_t);
         /* we pre-compute the start and end of each cluster, so the following
            check is unnecessary */
         /* if(++dst[idx] >= dst_end[idx]) */
@@ -158,7 +160,7 @@ void radix_cluster_nopadding(relation_t * outRel, relation_t * inRel, int R, int
     free(tuples_per_cluster);
 }
 
-table_t* radix_join(table_t *table_r, table_t *table_s) {
+table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_right, column_t *column_right) {
 
     int64_t result = 0;
     uint32_t i;
@@ -168,20 +170,10 @@ table_t* radix_join(table_t *table_r, table_t *table_s) {
     uint64_t timer1, timer2, timer3;
     #endif
 
-    relation_t *outRelR, *outRelS;
+    uint64_t **outRelR, **outRelS;
 
-    outRelR = (relation_t*) malloc(sizeof(relation_t));
-    outRelS = (relation_t*) malloc(sizeof(relation_t));
-
-    /* allocate temporary space for partitioning */
-    /* TODO: padding problem */
-    size_t sz = relR->num_tuples * sizeof(tuple_t) + RELATION_PADDING;
-    outRelR->tuples     = (tuple_t*) malloc(sz);
-    outRelR->num_tuples = relR->num_tuples;
-
-    sz = relS->num_tuples * sizeof(tuple_t) + RELATION_PADDING;
-    outRelS->tuples     = (tuple_t*) malloc(sz);
-    outRelS->num_tuples = relS->num_tuples;
+    out_row_ids_left  = (uint64_t **) malloc(sizeof(uint64_t **) * table_left->size_of_row_ids);
+    out_row_ids_right = (uint64_t **) malloc(sizeof(uint64_t **) * table_right->size_of_row_ids);
 
     #ifndef NO_TIMING
     gettimeofday(&start, NULL);
@@ -193,12 +185,16 @@ table_t* radix_join(table_t *table_r, table_t *table_s) {
     /***** do the multi-pass partitioning *****/
     #if NUM_PASSES==1
     /* apply radix-clustering on relation R for pass-1 */
-    radix_cluster_nopadding(outRelR, relR, 0, NUM_RADIX_BITS);
-    relR = outRelR;
+    radix_cluster_nopadding(out_row_ids_left, table_left->row_ids, column_left,
+                                table_left->size_of_row_ids, 0, NUM_RADIX_BITS);
+    free(table_left->row_ids); 
+    table_left->row_ids = out_row_ids_left;
 
     /* apply radix-clustering on relation S for pass-1 */
-    radix_cluster_nopadding(outRelS, relS, 0, NUM_RADIX_BITS);
-    relS = outRelS;
+    radix_cluster_nopadding(out_row_ids_right, table_right->row_ids, column_right, 
+                                table_right->size_of_row_ids, 0, NUM_RADIX_BITS);
+    free(table_right->row_ids);
+    table_right->row_ids = out_row_ids_right;
 
     #elif NUM_PASSES==2
     /* apply radix-clustering on relation R for pass-1 */
