@@ -36,6 +36,3 @@ struct table_t {
 
 };
 
-
-column_t *CreateColumn(SelectInfo& sel_info, Joiner& joiner);
-

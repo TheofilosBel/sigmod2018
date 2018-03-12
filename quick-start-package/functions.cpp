@@ -235,14 +235,14 @@ table_t* jTreeMakePlan(JTree* jTreePtr, Joiner& joiner, int *depth) {
         table_r = jTreeMakePlan(right, joiner, depth);
 
         /* Filter on right ? */
-        joiner.AddColumnToTableT(jTreePtr->predPtr->left, table_l);
-        joiner.AddColumnToTableT(jTreePtr->predPtr->right, table_r);
+        //joiner.AddColumnToTableT(jTreePtr->predPtr->left, table_l);
+        //joiner.AddColumnToTableT(jTreePtr->predPtr->right, table_r);
 
 
         //std::cerr << "++++JOIN Predicates: " <<  '\n';
         //std::cerr << "Left: "  << jTreePtr->predPtr->left.relId << "." << jTreePtr->predPtr->left.colId << '\n';
         //std::cerr << "Right: " << jTreePtr->predPtr->right.relId << "." << jTreePtr->predPtr->right.colId << '\n';
-        res = joiner.join(table_l, table_r);
+        //res = joiner.join(table_l, table_r);
         //std::cerr << "Intermediate rows: " << res->relations_row_ids->operator[](0).size()  << '\n';
         //std::cerr << "-------" << '\n';
         return res;
@@ -263,7 +263,7 @@ table_t* jTreeMakePlan(JTree* jTreePtr, Joiner& joiner, int *depth) {
         }
         else {
             FilterInfo &filter = *(jTreePtr->filterPtr);
-            joiner.AddColumnToTableT(jTreePtr->filterPtr->filterColumn, table_l);
+            //joiner.AddColumnToTableT(jTreePtr->filterPtr->filterColumn, table_l);
             joiner.Select(filter, table_l);
             //std::cerr << "----Filter Predicates: " <<  '\n';
             //std::cerr << "Relation.column: "  << filter.filterColumn.relId << "." << filter.filterColumn.colId << '\n';

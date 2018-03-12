@@ -1,11 +1,11 @@
 #include "Joiner.hpp"
 #include <cassert>
+#include <stdlib.h>
 #include <iostream>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
-#include <stdlib>
 #include "Parser.hpp"
 #include "QueryPlan.hpp"
 #include "header.hpp"
@@ -26,13 +26,32 @@ double timeConstruct = 0;
 double timeBuildPhase = 0;
 double timeProbePhase = 0;
 
+
+
+
+column_t *Joiner::CreateColumn(SelectInfo& sel_info) {
+
+    /* Get relation */
+    Relation& rel = getRelation(sel_info.relId);
+
+    /* Create and initialize the column */
+    column_t * column = (column_t *) malloc(sizeof(column_t));
+    column->size      = rel.size;
+    column->values    = rel.columns[sel_info.colId];
+    column->binding   = sel_info.binding;
+
+    return column;  //TODO delete it when done
+}
+
+
 /* +---------------------+
    |The joiner functions |
    +---------------------+ */
 
+
 /* Its better not to use it TODO change it */
 void Joiner::Select(FilterInfo &fil_info, table_t* table) {
-
+#ifdef select
 #ifdef time
     struct timeval start;
     gettimeofday(&start, NULL);
@@ -40,7 +59,7 @@ void Joiner::Select(FilterInfo &fil_info, table_t* table) {
 
     /* Construct table  - Initialize variable */
     SelectInfo &sel_info = fil_info.filterColumn;
-    column_t * column    = CreateColumn(sel_info, this); 
+    column_t * column    = CreateColumn(sel_info); 
     uint64_t filter      = fil_info.constant;
 
     if (fil_info.comparison == FilterInfo::Comparison::Less) {
@@ -58,7 +77,7 @@ void Joiner::Select(FilterInfo &fil_info, table_t* table) {
     gettimeofday(&end, NULL);
     timeSelectFilter += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
 #endif
-
+#endif
 }
 
 void Joiner::SelectEqual(table_t *table, column_t *column, int filter) {
@@ -141,6 +160,7 @@ void Joiner::SelectLess(table_t *table, column_t *column, int filter){
     table->intermediate_res = true;
 }
 
+
 // Creates a table_t object that represents a new relation
 table_t* Joiner::CreateTableTFromId(unsigned rel_id, unsigned rel_binding) {
 
@@ -153,13 +173,14 @@ table_t* Joiner::CreateTableTFromId(unsigned rel_id, unsigned rel_binding) {
     Relation &rel  = getRelation(rel_id);
 
     /* Crate - Initialize a table_t */
-    table_t *const table_t_ptr = (table_t *) malloc(sizeof(table_t));
+    table_t *const table_t_ptr = new table_t;
     table_t_ptr->intermediate_res = false;
     table_t_ptr->row_ids       = (uint64_t **) malloc(sizeof(uint64_t*) * rel.size);
 
     uint64_t** row_ids = table_t_ptr->row_ids;
     for (int i = 0; i < rel.size; ++i) {
-        row_ids[i] = (uint64_t *) malloc(sizeof(uint64_t));  // Malloc one uint64 per row 
+        row_ids[i] = (uint64_t *) malloc(sizeof(uint64_t));  // Malloc one uint64 per row
+        row_ids[i][1] = (uint64_t) i;
     }
 
     /* Keep the relation's id and binding */
@@ -175,7 +196,6 @@ table_t* Joiner::CreateTableTFromId(unsigned rel_id, unsigned rel_binding) {
     return table_t_ptr;
 }
 
-#ifdef nono
 /* The self Join Function */
 table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
 
@@ -186,14 +206,13 @@ table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
 
     /* Create - Initialize a new table */
     table_t *new_table            = new table_t;
-    new_table->relation_ids       = std::vector<int>(table->relation_ids);
+    new_table->relation_ids       = std::vector<unsigned>(table->relation_ids);
     new_table->relations_bindings = std::vector<unsigned>(table->relations_bindings);
-    new_table->relations_row_ids  = new std::vector<std::vector<int>>;
-    new_table->column_j           = new column_t;
+    new_table->row_ids  = (uint64_t **) malloc(sizeof(uint64_t**) * table->size_of_row_ids);
 
-    /* Get the 2 relation rows ids vectors in referances */
-    matrix &row_ids_matrix       = *(table->relations_row_ids);
-    matrix &new_row_ids_matrix   = *(new_table->relations_row_ids);
+    /* Get the 2 rows ids arrays */
+    uint64_t **row_ids     = table->row_ids;
+    uint64_t **new_row_ids = new_table->row_ids;
 
     /* Get the 2 relations */
     Relation & relation_l        = getRelation(predicate_ptr->left.relId);
@@ -204,13 +223,12 @@ table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
     uint64_t *column_values_r    = relation_r.columns[predicate_ptr->right.colId];
 
     /* Get their column's sizes */
-    int column_size_l            = relation_l.size;
-    int column_size_r            = relation_r.size;
+    int row_ids_size             = table->size_of_row_ids;
 
-    /* Fint the indexes of the raltions in the table's */
+    /* Find the indexes of the raltions in the table's */
     int index_l                  = -1;
     int index_r                  = -1;
-    int relations_num            = table->relations_bindings.size();
+    int relations_num            = table->num_of_relations;
 
     for (ssize_t index = 0; index < relations_num ; index++) {
 
@@ -220,9 +238,6 @@ table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
         if (predicate_ptr->right.binding == table->relations_bindings[index]){
             index_r = index;
         }
-
-        /* Initialize the new matrix */
-        new_row_ids_matrix.push_back(std::vector<int>());
     }
 
 #ifdef com
@@ -230,16 +245,18 @@ table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
 #endif
 
     /* Loop all the row_ids and keep the one's matching the predicate */
-    int rows_number = table->relations_row_ids->operator[](0).size();
+    unsigned rows_number     = table->size_of_row_ids;
+    unsigned new_table_index = 0;
     for (ssize_t i = 0; i < rows_number; i++) {
 
         /* Apply the predicate: In case of success add to new table */
-        if (column_values_l[row_ids_matrix[index_l][i]] == column_values_r[row_ids_matrix[index_r][i]]) {
+        if (column_values_l[row_ids[i][index_l]] == column_values_r[row_ids[i][index_r]]) {
 
             /* Add this row_id to all the relations */
             for (ssize_t relation = 0; relation < relations_num; relation++) {
-                new_row_ids_matrix[relation].push_back(row_ids_matrix[relation][i]);
+                new_row_ids[new_table_index][relation] = row_ids[i][relation]; 
             }
+            new_table_index++;
         }
     }
 
@@ -250,47 +267,16 @@ table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
 #endif
 
     /*Delete old table_t */
-    //delete table->relations_row_ids;
+    free(table->row_ids);
+    delete table;
 
     return new_table;
-}
-#endif
-
-void Joiner::construct(table_t *table) {
-#ifdef time
-    struct timeval start;
-    gettimeofday(&start, NULL);
-#endif
-
-    /* Innitilize helping variables */
-    column_t &column = *table->column_j;
-    const uint64_t *column_values = column.values;
-    const int       table_index   = column.table_index;
-    const uint64_t  column_size   = table->relations_row_ids->operator[](table_index).size();
-    std::vector<std::vector<int>> &row_ids = *table->relations_row_ids;
-
-    /* Create a new value's array  */
-    uint64_t *const new_values  = new uint64_t[column_size];
-
-    /* Pass the values of the old column to the new one, based on the row ids of the joiner */
-    for (int i = 0; i < column_size; i++) {
-    	new_values[i] = column_values[row_ids[table_index][i]];
-    }
-
-    /* Update the column of the table */
-    column.values = new_values;
-    column.size   = column_size;
-
-#ifdef time
-    struct timeval end;
-    gettimeofday(&end, NULL);
-    timeConstruct += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
-#endif
 }
 
 //CHECK SUM FUNCTION
 uint64_t Joiner::check_sum(SelectInfo &sel_info, table_t *table) {
 
+#ifdef noo
     /* to create the final cehcksum column */
     AddColumnToTableT(sel_info, table);
     construct(table);
@@ -303,6 +289,7 @@ uint64_t Joiner::check_sum(SelectInfo &sel_info, table_t *table) {
         sum += col[i];
 
     return sum;
+#endif return 0;
 }
 
 // Loads a relation from disk
@@ -334,7 +321,7 @@ void Joiner::join(QueryInfo& i) {}
 
 void PrintColumn(column_t *column) {
     /* Print the column's table id */
-    std::cerr << "Column of table " << column->table_index << " and size " << column->size << '\n';
+    std::cerr << "Column of table " << column->binding << " and size " << column->size << '\n';
 
     /* Iterate over the column's values and print them */
     for (int i = 0; i < column->size; i++) {
