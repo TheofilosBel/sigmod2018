@@ -353,9 +353,8 @@ int main(int argc, char* argv[]) {
     // Preparation phase (not timed)
     QueryPlan queryPlan;
 
-    /*
-      somehow collect relationships stats
-    */
+    // Get the needed info of every column
+    queryPlan.fillColumnInfo(joiner);
 
     // The test harness will send the first query after 1 second.
     QueryInfo i;

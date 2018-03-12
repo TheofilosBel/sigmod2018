@@ -75,4 +75,18 @@ void QueryPlan::build(QueryInfo& queryInfoPtr) {
 }
 
 // Fills the columnInfo matrix with the data of every column
-void QueryPlan::fillColumnInfo(QueryInfo& queryInfo) {}
+void QueryPlan::fillColumnInfo(Joiner& joiner) {
+    Relation* relation;
+    int relationsCount = joiner.getRelationsCount(); // Get the number of relations
+    int columnsCount; // Number of columns of a relation
+
+    // For every relation get its column statistics
+    for (int i = 0; i < relationsCount; i++) {
+        // Get the number of columns
+        relation = &(joiner.getRelation(i));
+        columnsCount =  relation->columns.size();
+
+        // Allocate a row for this relation
+        columnInfos[i] = (ColumnInfo*) malloc(columnsCount * sizeof(ColumnInfo));
+    }
+}
