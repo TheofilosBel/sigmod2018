@@ -48,9 +48,9 @@ class Joiner {
 
     // The select functions
     void Select(FilterInfo &sel_info, table_t *table);
-    void SelectEqual(table_t *table, int filter);
-    void SelectGreater(table_t *table, int filter);
-    void SelectLess(table_t *table, int filter);
+    void SelectEqual(table_t *table, column_t *column, int filter);
+    void SelectGreater(table_t *table, column_t *column, int filter);
+    void SelectLess(table_t *table, column_t *column, int filter);
 
     // Joins a given set of relations
     void join(QueryInfo& i);

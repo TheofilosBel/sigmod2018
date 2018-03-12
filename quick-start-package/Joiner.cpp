@@ -51,6 +51,8 @@ void Joiner::Select(FilterInfo &fil_info, table_t* table) {
         SelectEqual(table, column, filter);
     }
 
+    free(column);
+
 #ifdef time
     struct timeval end;
     gettimeofday(&end, NULL);
@@ -86,7 +88,7 @@ void Joiner::SelectEqual(table_t *table, column_t *column, int filter) {
     table->intermediate_res = true;
 }
 
-void Joiner::SelectGreater(table_t *table, int filter){
+void Joiner::SelectGreater(table_t *table, column_t *column, int filter){
     /* Initialize helping variables */
     uint64_t *const values  = table->column_j->values;
     int table_index         = table->column_j->table_index;
@@ -113,7 +115,7 @@ void Joiner::SelectGreater(table_t *table, int filter){
     table->intermediate_res = true;
 }
 
-void Joiner::SelectLess(table_t *table, int filter){
+void Joiner::SelectLess(table_t *table, column_t *column, int filter){
     /* Initialize helping variables */
     uint64_t *const values  = table->column_j->values;
     int table_index         = table->column_j->table_index;
