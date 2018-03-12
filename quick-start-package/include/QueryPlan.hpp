@@ -9,15 +9,15 @@
 
 // Keeps the important info/statistics for every column
 // needed to build the plan tree
-typedef struct ColumnInfo {
+struct ColumnInfo {
     uint64_t min; // Value of the minimum element
     uint64_t max; // Value of the maximum element
     uint64_t size; // Total number of elements
     uint64_t distinct; // Number of distinct elements
-} ColumnInfo;
+};
 
 // Plan Tree's node
-typedef struct PlanTreeNode {
+struct PlanTreeNode {
     unsigned nodeID;
 
     PlanTreeNode* left;
@@ -31,10 +31,10 @@ typedef struct PlanTreeNode {
 
     // The constructor
     PlanTreeNode();
-} PlanTreeNode;
+};
 
 // Plan Tree data structure
-typedef struct PlanTree {
+struct PlanTree {
     PlanTreeNode* rootPtr;
 
     bool isRightDeepOnly;
@@ -58,14 +58,14 @@ typedef struct PlanTree {
 
     // Estimates the cost of a given Plan Tree
     double costOfPlanTree(PlanTree* planTreePtr);
-} PlanTree;
+};
 
 // Query Plan data structure
-typedef struct QueryPlan {
+struct QueryPlan {
     // Keeps the info of every column of every relation
     // Every row represents a relation
     // Every item of a row represents a column of the relation
-    std::vector<std::vector<ColumnInfo>> columnInfo;
+    ColumnInfo** columnInfos;
 
     PlanTree* planTreePtr; // The plan tree to execute
 
@@ -76,8 +76,8 @@ typedef struct QueryPlan {
     void build(QueryInfo& queryInfoPtr);
 
     // Fills the columnInfo matrix with the data of every column
-    void fillColumnInfo(QueryInfo& queryInfo);
-} QueryPlan;
+    void fillColumnInfo(Joiner& joiner);
+};
 
 /*
 // destruct a Join Tree node properly
