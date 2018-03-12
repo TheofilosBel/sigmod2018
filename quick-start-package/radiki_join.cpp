@@ -56,15 +56,15 @@
  *
  * @return number of result tuples
  */
-int64_t bucket_chaining_join(const relation_t * const R, const relation_t * const S, relation_t * const tmpR) {
+int64_t bucket_chaining_join(const uint64_t ** const R, const int size_left, const uint64_t ** const S, const int size_right, int * const tmpR) {
     int * next, * bucket;
-    const uint32_t numR = R->num_tuples;
+    const uint32_t numR = left_size;
     uint32_t N = numR;
-    int64_t matches = 0;
+    uint64_t matches = 0;
 
     NEXT_POW_2(N);
     /* N <<= 1; */
-    const uint32_t MASK = (N-1) << (NUM_RADIX_BITS);
+    const uint64_t MASK = (N-1) << (NUM_RADIX_BITS);
 
     next   = (int*) malloc(sizeof(int) * numR);
     /* posix_memalign((void**)&next, CACHE_LINE_SIZE, numR * sizeof(int)); */
@@ -107,7 +107,7 @@ int64_t bucket_chaining_join(const relation_t * const R, const relation_t * cons
     return matches;
 }
 
-void radix_cluster_nopadding(uint64_t ** outRel, uint64_t ** inRel, column_t *column, int row_ids_size, int R, int D) {
+void radix_cluster_nopadding(uint64_t ** out_rel_ids, uint64_t ** in_rel_ids, column_t *column, int row_ids_size, int R, int D) {
 
     uint64_t *** dst;
     uint64_t   * input;
@@ -125,33 +125,27 @@ void radix_cluster_nopadding(uint64_t ** outRel, uint64_t ** inRel, column_t *co
     dst     = (uint64_t ***)malloc(sizeof(uint64_t **) * fanOut);
     /* dst_end = (tuple_t**)malloc(sizeof(tuple_t*)*fanOut); */
 
-    input = column->values + row_ids[0][column->binding]*sizeof(uint64_t);  // TODO FIX OUTSIDE
+
     /* count tuples per cluster */
     for( i=0; i < ntuples; i++ ){
+        input = column->values + in_rel_ids[i][column->binding]*sizeof(uint64_t);
         uint32_t idx = (uint32_t)(HASH_BIT_MODULO(input, M, R));
         tuples_per_cluster[idx]++;
-        input += row_ids[i][column->binding]*sizeof(uint64_t);
     }
 
     offset = 0;
     /* determine the start and end of each cluster depending on the counts. */
     for ( i=0; i < fanOut; i++ ) {
-        dst[i]      = outRel + offset;
+        dst[i]      = out_rel_ids + offset;
         offset     += tuples_per_cluster[i] * sizeof(uint64_t**);
-        /* dst_end[i]  = outRel->tuples + offset; */
     }
 
-    input = column->values + row_ids[0][column->binding]*sizeof(uint64_t);  // TODO FIX OUTSIDE;
     /* copy tuples to their corresponding clusters at appropriate offsets */
     for( i=0; i < ntuples; i++ ){
+        input = column->values + in_rel_ids[i][column->binding]*sizeof(uint64_t);
         uint32_t idx   = (uint32_t)(HASH_BIT_MODULO(input, M, R));
-        *dst[idx] = *row_ids[i];
+        *dst[idx] = *in_rel_ids[i];
         ++dst[idx];
-        input += row_ids[i][column->binding]*sizeof(uint64_t);
-        /* we pre-compute the start and end of each cluster, so the following
-           check is unnecessary */
-        /* if(++dst[idx] >= dst_end[idx]) */
-        /*     REALLOCATE(dst[idx], dst_end[idx]); */
     }
 
     /* clean up temp */
@@ -165,7 +159,7 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
     int64_t result = 0;
     uint32_t i;
 
-    #ifndef NO_TIMING
+    #ifndef time
     struct timeval start, end;
     uint64_t timer1, timer2, timer3;
     #endif
@@ -175,26 +169,47 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
     out_row_ids_left  = (uint64_t **) malloc(sizeof(uint64_t **) * table_left->size_of_row_ids);
     out_row_ids_right = (uint64_t **) malloc(sizeof(uint64_t **) * table_right->size_of_row_ids);
 
-    #ifndef NO_TIMING
+    #ifndef time
     gettimeofday(&start, NULL);
     startTimer(&timer1);
     startTimer(&timer2);
     startTimer(&timer3);
     #endif
 
+    /* Fix the columns */
+    int index_l = -1;
+    int index_r = -1;
+    for (ssize_t index = 0; index < table_left->num_of_relations ; index++) {
+        if (column_left->binding == table_left->relations_bindings[index]){
+            index_l = index;
+        }
+    }
+    for (ssize_t index = 0; index < table_right->num_of_relations ; index++) {
+        if (column_right->binding == table_right->relations_bindings[index]){
+            index_r = index;
+        }
+    }
+
+    if (index_l == index_r != -1 ) std::cerr << "Error in radix : No relation mapping" << '\n';
+    column_left->binding = index_l;
+    column_right->binding = index_r;
+
+
     /***** do the multi-pass partitioning *****/
     #if NUM_PASSES==1
     /* apply radix-clustering on relation R for pass-1 */
     radix_cluster_nopadding(out_row_ids_left, table_left->row_ids, column_left,
                                 table_left->size_of_row_ids, 0, NUM_RADIX_BITS);
-    free(table_left->row_ids); 
+    free(table_left->row_ids);
     table_left->row_ids = out_row_ids_left;
+    uint64_t **row_ids_left = out_row_ids_left;
 
     /* apply radix-clustering on relation S for pass-1 */
-    radix_cluster_nopadding(out_row_ids_right, table_right->row_ids, column_right, 
+    radix_cluster_nopadding(out_row_ids_right, table_right->row_ids, column_right,
                                 table_right->size_of_row_ids, 0, NUM_RADIX_BITS);
     free(table_right->row_ids);
     table_right->row_ids = out_row_ids_right;
+    uint64_t **row_ids_right = out_row_ids_right;
 
     #elif NUM_PASSES==2
     /* apply radix-clustering on relation R for pass-1 */
@@ -224,20 +239,26 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
     #endif
 
 
-    #ifndef NO_TIMING
+    #ifndef time
     stopTimer(&timer3);
     #endif
 
+
+    /* Why re compute */
     int * R_count_per_cluster = (int*)calloc((1<<NUM_RADIX_BITS), sizeof(int));
     int * S_count_per_cluster = (int*)calloc((1<<NUM_RADIX_BITS), sizeof(int));
 
     /* compute number of tuples per cluster */
-    for( i=0; i < relR->num_tuples; i++ ){
-        uint32_t idx = (relR->tuples[i].key) & ((1<<NUM_RADIX_BITS)-1);
+    uint64_t **row_ids = table_left->row_ids;
+    unsigned   index   = column_left->binding;
+    for( i=0; i < table_left->size_of_row_ids; i++ ){
+        uint32_t idx = (column_left[row_ids[i][index]) & ((1<<NUM_RADIX_BITS)-1);
         R_count_per_cluster[idx] ++;
     }
+    row_ids = table_right->row_ids;
+    index   = column_right->binding;
     for( i=0; i < relS->num_tuples; i++ ){
-        uint32_t idx = (relS->tuples[i].key) & ((1<<NUM_RADIX_BITS)-1);
+        uint32_t idx = (column_right[row_ids[i][index]]) & ((1<<NUM_RADIX_BITS)-1);
         S_count_per_cluster[idx] ++;
     }
 
@@ -245,19 +266,18 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
     int r, s; /* start index of next clusters */
     r = s = 0;
     for( i=0; i < (1<<NUM_RADIX_BITS); i++ ){
-        relation_t tmpR, tmpS;
+        uint64_t temp_left[R_count_per_cluster[i]];
+        uint64_t temp_right[S_count_per_cluster[i]];
 
         if(R_count_per_cluster[i] > 0 && S_count_per_cluster[i] > 0){
 
-            tmpR.num_tuples = R_count_per_cluster[i];
-            tmpR.tuples = relR->tuples + r;
+            tmp_left =  row_ids_left + r * sizeof(uint64_t*);
             r += R_count_per_cluster[i];
 
-            tmpS.num_tuples = S_count_per_cluster[i];
-            tmpS.tuples = relS->tuples + s;
+            tmp_right =  row_ids_right + s * sizeof(uint64_t*);
             s += S_count_per_cluster[i];
 
-            result += bucket_chaining_join(&tmpR, &tmpS, NULL);
+            result += bucket_chaining_join(&tmpR, R_count_per_cluster[i], &tmpS, S_count_per_cluster[i], NULL);
         }
         else {
             r += R_count_per_cluster[i];
@@ -265,13 +285,12 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
         }
     }
 
-    #ifndef NO_TIMING
+    #ifndef time
     /* TODO: actually we're not timing build */
     stopTimer(&timer2);/* build finished */
     stopTimer(&timer1);/* probe finished */
     gettimeofday(&end, NULL);
     /* now print the timing results: */
-    print_timing(timer1, timer2, timer3, relS->num_tuples, result, &start, &end);
     #endif
 
     /* clean-up temporary buffers */
