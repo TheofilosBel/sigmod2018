@@ -10,7 +10,7 @@
 #include "QueryPlan.hpp"
 #include "header.hpp"
 
-// #define time
+#define time
 
 using namespace std;
 
@@ -25,6 +25,7 @@ double timeCheckSum = 0;
 double timeConstruct = 0;
 double timeBuildPhase = 0;
 double timeProbePhase = 0;
+double timePreparation = 0;
 
 
 
@@ -331,7 +332,11 @@ uint64_t Joiner::check_sum(SelectInfo &sel_info, table_t *table) {
 
     return sum;
 #endif
+<<<<<<< HEAD
   return 0;
+=======
+    return 0;
+>>>>>>> 79a65761bb0d98f109b26a03b131d7b2ddd6af94
 }
 
 // Loads a relation from disk
@@ -395,11 +400,22 @@ int main(int argc, char* argv[]) {
         joiner.addRelation(line.c_str());
     }
 
+    #ifdef time
+    struct timeval start;
+    gettimeofday(&start, NULL);
+    #endif
+
     // Preparation phase (not timed)
     //QueryPlan queryPlan;
 
     // Get the needed info of every column
     //queryPlan.fillColumnInfo(joiner);
+
+    #ifdef time
+    struct timeval end;
+    gettimeofday(&end, NULL);
+    timePreparation += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+    #endif
 
     // The test harness will send the first query after 1 second.
     QueryInfo i;
@@ -413,14 +429,12 @@ int main(int argc, char* argv[]) {
         q_counter++;
 
         #ifdef time
-        struct timeval start;
         gettimeofday(&start, NULL);
         #endif
 
         JTree *jTreePtr = treegen(&i);
 
         #ifdef time
-        struct timeval end;
         gettimeofday(&end, NULL);
         timeTreegen += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
         #endif
@@ -440,8 +454,8 @@ int main(int argc, char* argv[]) {
         uint64_t checksum = 0;
         std::vector<SelectInfo> &selections = i.selections;
         for (size_t i = 0; i < selections.size(); i++) {
-
             checksum = joiner.check_sum(selections[i], result);
+
             if (checksum == 0) {
                 result_str += "NULL";
             } else {
@@ -475,6 +489,7 @@ int main(int argc, char* argv[]) {
     std::cerr << "timeTreegen: " << (long)(timeTreegen * 1000) << endl;
     std::cerr << "timeCheckSum: " << (long)(timeCheckSum * 1000) << endl;
     std::cerr << "timeConstruct: " << (long)(timeConstruct * 1000) << endl;
+    std::cerr << "timePreparation: " << (long)(timePreparation * 1000) << endl;
     flush(std::cerr);
     #endif
 

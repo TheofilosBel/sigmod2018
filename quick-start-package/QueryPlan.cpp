@@ -1,19 +1,80 @@
+#include <set>
 #include "QueryPlan.hpp"
 
 // The Plan Tree Node constructor
 PlanTreeNode::PlanTreeNode() {}
 
-// The Plan Tree constructor
-PlanTree::PlanTree(std::set<table_t*>& tableSet) {}
+// Construct plan tree from set of relationship IDs
+PlanTree* PlanTree::makePlanTree(std::set<int>& relIdSet) {
+    std::unordered_map< std::vector<bool>, PlanTree* > BestTree;
 
-// Merges two join trees into one
-// and return the resulted tree
-PlanTree* PlanTree::mergePlanTrees(PlanTree* left, PlanTree* right) {
+    for (int i = 0; i < relIdSet.size(); i++) {
+        PlanTree* planTreePtr = (PlanTree*) malloc(1 * sizeof(PlanTree));
+        PlanTreeNode* PlanTreeNodePtr = (PlanTreeNode*) malloc(1 * sizeof(PlanTreeNode));
+        planTreePtr->root = PlanTreeNodePtr;
+        std::vector<bool> tempVec(relIdSet.size(), false);
+        tempVec[i] = true;
+        BestTree[tempVec] = planTreePtr;
+    }
+
+    // generate power-set of given set
+    /* source: https://www.geeksforgeeks.org/power-set/ */
+    std::map< int, std::set< std::set<int> > > powerSetMap;
+    for (int j = 1; j <= relIdSet.size(); j++) {
+        unsigned int powerSetSize = pow(2, relIdSet.size());
+        std::set< std::set<int> > tempSetOfSets;
+        for (int counter = 0; counter < powerSetSize; counter++) {
+            std::set<int> tempSet;
+            for (int k = 0; k < j; k++) {
+                if (counter & (1 << k))
+                    tempSet.insert(k);
+            }
+            tempSetOfSets.insert(tempSet);
+        }
+        powerSetMap[j] = tempSetOfSets;
+    }
+
+    for (int i = 0; i < relIdSet.size()-1; i++) {
+        for (auto s : powerSetMap[i]) {
+            for (int j = 0; j < relIdSet.size(); j++) {
+                // if j not in s
+                if (s.find(j) == s.end()) {
+                    std::set<int> tempSet;
+                    tempSet.insert(j);
+                    if (!connected(tempSet, s))
+                        continue;
+
+                    std::vector<bool> tempVecS(relIdSet.size(), false);
+                    for (auto i : s) tempVecS[i] = true;
+                    PlanTree* currTree = makePlanTree(BestTree[tempVecS], j);
+
+                    std::set<int> s1 = s;
+                    s1.insert(j);
+                    std::vector<bool> tempVecS1(relIdSet.size(), false);
+                    for (auto i : s1) tempVecS1[i] = true;
+                    if (BestTree.at(tempVecS1) == NULL || cost(BestTree.at(tempVecS1)) > cost(currTree))
+                        BestTree.at(tempVecS1) = currTree;
+                }
+            }
+        }
+    }
+
+    std::vector<bool> tempVecS(relIdSet.size(), true);
+    return BestTree.at(tempVecS);
+}
+
+// returns true, if there is a join predicate between one of the relations in its first argument and one of the relations in its second
+bool PlanTree::connected(std::set<int>& set1, std::set<int>& set2) {
+    return true;
+}
+
+// Adds a relationship to a join tree
+PlanTree* PlanTree::makePlanTree(PlanTree* left, int relId) {
     return NULL;
 }
 
 // execute the plan described by a Plan Tree
-void executePlan(PlanTree* planTreePtr) {}
+void PlanTree::executePlan(PlanTree* planTreePtr) {}
 
 // Destoys a Plan Tree properly
 void PlanTree::freePlanTree(PlanTree* planTreePtr) {}
@@ -22,7 +83,7 @@ void PlanTree::freePlanTree(PlanTree* planTreePtr) {}
 void PlanTree::printPlanTree(PlanTree* planTreePtr) {}
 
 // Estimates the cost of a given Plan Tree */
-double PlanTree::costOfPlanTree(PlanTree* planTreePtr) {
+double PlanTree::cost(PlanTree* planTreePtr) {
     return 1.0;
 }
 
@@ -80,13 +141,47 @@ void QueryPlan::fillColumnInfo(Joiner& joiner) {
     int relationsCount = joiner.getRelationsCount(); // Get the number of relations
     int columnsCount; // Number of columns of a relation
 
-    // For every relation get its column statistics
-    for (int i = 0; i < relationsCount; i++) {
-        // Get the number of columns
-        relation = &(joiner.getRelation(i));
-        columnsCount =  relation->columns.size();
+    // Allocate memory for every relation
+    columnInfos = (ColumnInfo**) malloc(relationsCount * sizeof(ColumnInfo*));
 
-        // Allocate a row for this relation
-        columnInfos[i] = (ColumnInfo*) malloc(columnsCount * sizeof(ColumnInfo));
+    // For every relation get its column statistics
+    for (int rel = 0; rel < relationsCount; rel++) {
+        // Get the number of columns
+        relation = &(joiner.getRelation(rel));
+        columnsCount = relation->columns.size();
+
+        // Allocate memory for the columns
+        columnInfos[rel] = (ColumnInfo*) malloc(columnsCount * sizeof(ColumnInfo));
+
+        std::cerr << "relation: " << rel << std::endl;
+        flush(std::cerr);
+
+        // Get the info of every column
+        for (int col = 0; col < columnsCount; col++) {
+            uint64_t minimum = std::numeric_limits<uint64_t>::max(); // Value of minimum element
+            uint64_t maximum = 0; // Value of maximum element
+            std::set<uint64_t> distinctElements; // Keep the distinct elements of the column
+
+            uint64_t tuples = relation->size;
+            for (int i = 0; i < tuples; i++) {
+                uint64_t element = relation->columns[col][i];
+                if (element > maximum) maximum = element;
+                if (element < minimum) minimum = element;
+                distinctElements.insert(element);
+            }
+
+            // Save the infos
+            columnInfos[rel][col].min = minimum;
+            columnInfos[rel][col].max = maximum;
+            columnInfos[rel][col].size = tuples;
+            columnInfos[rel][col].distinct = (uint64_t) distinctElements.size();
+
+            std::cerr << "    column: " << col << std::endl;
+            std::cerr << "    min: " << columnInfos[rel][col].min << std::endl;
+            std::cerr << "    max: " << columnInfos[rel][col].max << std::endl;
+            std::cerr << "    size: " << columnInfos[rel][col].size << std::endl;
+            std::cerr << "    distinct: " << columnInfos[rel][col].distinct << std::endl << std::endl;
+            flush(std::cerr);
+        }
     }
 }
