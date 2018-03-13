@@ -332,11 +332,7 @@ uint64_t Joiner::check_sum(SelectInfo &sel_info, table_t *table) {
 
     return sum;
 #endif
-<<<<<<< HEAD
   return 0;
-=======
-    return 0;
->>>>>>> 79a65761bb0d98f109b26a03b131d7b2ddd6af94
 }
 
 // Loads a relation from disk
@@ -360,7 +356,7 @@ table_t* Joiner::join(table_t *table_r, table_t *table_s, PredicateInfo * pred) 
     column_t * column_right = CreateColumn(pred->right);
 
     /* Do the radix join */
-    radix_join(table_t *table_left, column_t *column_left, table_t *table_right, column_t *column_right);
+    //radix_join(table_t *table_left, column_t *column_left, table_t *table_right, column_t *column_right);
 
     free(column_left);
     free(column_right);

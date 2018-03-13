@@ -1,5 +1,6 @@
 #include <set>
 #include "QueryPlan.hpp"
+#include <unordered_map>
 
 // The Plan Tree Node constructor
 PlanTreeNode::PlanTreeNode() {}
