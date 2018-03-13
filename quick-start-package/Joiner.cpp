@@ -350,18 +350,18 @@ Relation& Joiner::getRelation(unsigned relationId) {
 }
 
 // The join function
-table_t* Joiner::join(table_t *table_r, table_t *table_s, PredicateInfo * pred) {
+table_t* Joiner::join(table_t *table_left, table_t *table_right, PredicateInfo * pred) {
 
     column_t * column_left = CreateColumn(pred->left);
     column_t * column_right = CreateColumn(pred->right);
 
     /* Do the radix join */
-    //radix_join(table_t *table_left, column_t *column_left, table_t *table_right, column_t *column_right);
+    radix_join(table_left, column_left, table_right, column_right);
 
     free(column_left);
     free(column_right);
 
-    return table_r;
+    return table_left;
 }
 
 // Get the total number of relations

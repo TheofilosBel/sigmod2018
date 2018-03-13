@@ -88,10 +88,13 @@ void radix_cluster_nopadding(uint64_t ** out_rel_ids, uint64_t ** in_rel_ids, co
 
     /* count tuples per cluster */
     for( i=0; i < ntuples; i++ ){
-        input = column->values + in_rel_ids[i][column->binding]*sizeof(uint64_t);
+        input = column->values + in_rel_ids[i][column->binding]*sizeof(uint64_t*);
         uint64_t idx = (uint64_t)(HASH_BIT_MODULO(*input, M, R));
         tuples_per_cluster[idx]++;
     }
+
+    std::cerr << "HERE " << ntuples << '\n';
+    flush(std::cerr);
 
     offset = 0;
     /* determine the start and end of each cluster depending on the counts. */
@@ -102,7 +105,7 @@ void radix_cluster_nopadding(uint64_t ** out_rel_ids, uint64_t ** in_rel_ids, co
 
     /* copy tuples to their corresponding clusters at appropriate offsets */
     for( i=0; i < ntuples; i++ ){
-        input = column->values + in_rel_ids[i][column->binding]*sizeof(uint64_t);
+        input = column->values + in_rel_ids[i][column->binding]*sizeof(uint64_t*);
         uint64_t idx   = (uint64_t)(HASH_BIT_MODULO(*input, M, R));
         *dst[idx] = in_rel_ids[i];
         ++dst[idx];
@@ -150,10 +153,9 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
         }
     }
 
-    if (index_l == index_r != -1 ) std::cerr << "Error in radix : No relation mapping" << '\n';
+    if (index_l == -1 || index_r == -1 ) std::cerr << "Error in radix : No relation mapping" << '\n';
     column_left->binding = index_l;
     column_right->binding = index_r;
-
 
     /***** do the multi-pass partitioning *****/
     #if NUM_PASSES==1
