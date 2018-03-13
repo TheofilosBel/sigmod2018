@@ -247,44 +247,44 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
 
 
     /* Why re compute */
+    int * L_count_per_cluster = (int*)calloc((1<<NUM_RADIX_BITS), sizeof(int));
     int * R_count_per_cluster = (int*)calloc((1<<NUM_RADIX_BITS), sizeof(int));
-    int * S_count_per_cluster = (int*)calloc((1<<NUM_RADIX_BITS), sizeof(int));
 
     /* compute number of tuples per cluster */
     uint64_t **row_ids = table_left->row_ids;
     unsigned   index   = column_left->binding;
     for( i=0; i < table_left->size_of_row_ids; i++ ) {
         uint32_t idx = (column_left->values[row_ids[i][index]]) & ((1<<NUM_RADIX_BITS)-1);
-        R_count_per_cluster[idx] ++;
+        L_count_per_cluster[idx] ++;
     }
     row_ids = table_right->row_ids;
     index   = column_right->binding;
     for( i=0; i < table_right->size_of_row_ids; i++ ){
         uint32_t idx = (column_right->values[row_ids[i][index]]) & ((1<<NUM_RADIX_BITS)-1);
-        S_count_per_cluster[idx] ++;
+        R_count_per_cluster[idx] ++;
     }
 
     /* build hashtable on inner */
-    int r, s; /* start index of next clusters */
-    r = s = 0;
+    int l, r; /* start index of next clusters */
+    l = r = 0;
     for( i=0; i < (1<<NUM_RADIX_BITS); i++ ){
         uint64_t ** tmp_left;
         uint64_t ** tmp_right;
 
-        if(R_count_per_cluster[i] > 0 && S_count_per_cluster[i] > 0){
+        if(L_count_per_cluster[i] > 0 && R_count_per_cluster[i] > 0){
 
-            tmp_left =  row_ids_left + r * sizeof(uint64_t*);
+            tmp_left =  row_ids_left + l * sizeof(uint64_t*);
+            l += L_count_per_cluster[i];
+
+            tmp_right =  row_ids_right + r * sizeof(uint64_t*);
             r += R_count_per_cluster[i];
 
-            tmp_right =  row_ids_right + s * sizeof(uint64_t*);
-            s += S_count_per_cluster[i];
-
-            result += bucket_chaining_join(tmp_left, column_left, R_count_per_cluster[i],
-                                            tmp_right, column_right, S_count_per_cluster[i], NULL);
+            result += bucket_chaining_join(tmp_left, column_left, L_count_per_cluster[i],
+                                            tmp_right, column_right, R_count_per_cluster[i], NULL);
         }
         else {
+            l += L_count_per_cluster[i];
             r += R_count_per_cluster[i];
-            s += S_count_per_cluster[i];
         }
     }
 
@@ -297,7 +297,7 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
     #endif
 
     /* clean-up temporary buffers */
-    free(S_count_per_cluster);
+    free(L_count_per_cluster);
     free(R_count_per_cluster);
 
     #if NUM_PASSES == 1
