@@ -42,10 +42,10 @@ struct PlanTree {
     bool isLeftDeepOnly;
 
     // Construct plan tree from set of relationship IDs
-    PlanTree* makePlanTree(std::set<int>& relIdSet);
+    PlanTree* makePlanTree(std::set<int>& relIdSet, std::set<PredicateInfo>& predSet);
 
     // returns true, if there is a join predicate between one of the relations in its first argument and one of the relations in its second
-    bool connected(std::set<int>& set1, std::set<int>& set2);
+    bool connected(int relId, std::set<int>& idSet, std::set<PredicateInfo>& predSet);
 
     // Adds a relationship to a join tree
     PlanTree* makePlanTree(PlanTree* left, int relId);

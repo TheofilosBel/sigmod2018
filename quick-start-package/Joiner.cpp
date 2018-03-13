@@ -403,10 +403,10 @@ int main(int argc, char* argv[]) {
     #endif
 
     // Preparation phase (not timed)
-    //QueryPlan queryPlan;
+    QueryPlan queryPlan;
 
     // Get the needed info of every column
-    //queryPlan.fillColumnInfo(joiner);
+    queryPlan.fillColumnInfo(joiner);
 
     #ifdef time
     struct timeval end;

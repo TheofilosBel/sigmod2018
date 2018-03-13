@@ -6,7 +6,7 @@
 PlanTreeNode::PlanTreeNode() {}
 
 // Construct plan tree from set of relationship IDs
-PlanTree* PlanTree::makePlanTree(std::set<int>& relIdSet) {
+PlanTree* PlanTree::makePlanTree(std::set<int>& relIdSet, std::set<PredicateInfo>& predSet) {
     std::unordered_map< std::vector<bool>, PlanTree* > BestTree;
 
     for (int i = 0; i < relIdSet.size(); i++) {
@@ -40,9 +40,7 @@ PlanTree* PlanTree::makePlanTree(std::set<int>& relIdSet) {
             for (int j = 0; j < relIdSet.size(); j++) {
                 // if j not in s
                 if (s.find(j) == s.end()) {
-                    std::set<int> tempSet;
-                    tempSet.insert(j);
-                    if (!connected(tempSet, s))
+                    if (!connected(j, s, predSet))
                         continue;
 
                     std::vector<bool> tempVecS(relIdSet.size(), false);
@@ -65,8 +63,13 @@ PlanTree* PlanTree::makePlanTree(std::set<int>& relIdSet) {
 }
 
 // returns true, if there is a join predicate between one of the relations in its first argument and one of the relations in its second
-bool PlanTree::connected(std::set<int>& set1, std::set<int>& set2) {
-    return true;
+bool PlanTree::connected(int relId, std::set<int>& idSet, std::set<PredicateInfo>& predSet) {
+    for (auto p : predSet)
+        for (auto s : idSet)
+            if ((p.left.relId == relId && p.right.relId == s) && (p.left.relId == s && p.right.relId == relId))
+                return true;
+
+    return false;
 }
 
 // Adds a relationship to a join tree
