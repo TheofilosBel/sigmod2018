@@ -56,9 +56,10 @@
  *
  * @return number of result tuples
  */
-int64_t bucket_chaining_join(const uint64_t ** const R, const int size_left, const uint64_t ** const S, const int size_right, int * const tmpR) {
+int64_t bucket_chaining_join(const uint64_t ** const R, const column_t * column_left, const int size_left,
+                             const uint64_t ** const S, const column_t * column_right, const int size_right, int * const tmpR) {
     int * next, * bucket;
-    const uint32_t numR = left_size;
+    const uint32_t numR = size_left;
     uint32_t N = numR;
     uint64_t matches = 0;
 
@@ -70,9 +71,11 @@ int64_t bucket_chaining_join(const uint64_t ** const R, const int size_left, con
     /* posix_memalign((void**)&next, CACHE_LINE_SIZE, numR * sizeof(int)); */
     bucket = (int*) calloc(N, sizeof(int));
 
-    const tuple_t * const Rtuples = R->tuples;
+    const uint64_t * const Rtuples;
+    const uint64_t         index = column_left->binding;
     for(uint32_t i=0; i < numR; ){
-        uint32_t idx = HASH_BIT_MODULO(R->tuples[i].key, MASK, NUM_RADIX_BITS);
+        Rtuples = column_left->values + R[i][index]*sizeof(uint64_t*);
+        uint32_t idx = HASH_BIT_MODULO(*Rtuples, MASK, NUM_RADIX_BITS);
         next[i]      = bucket[idx];
         bucket[idx]  = ++i;     /* we start pos's from 1 instead of 0 */
 
@@ -81,18 +84,19 @@ int64_t bucket_chaining_join(const uint64_t ** const R, const int size_left, con
         /* matches += idx; */
     }
 
-    const tuple_t * const Stuples = S->tuples;
-    const uint32_t        numS    = S->num_tuples;
-
+    const uint64_t * const Stuples;
+    const uint32_t         numS  = size_right;
+    index = column_right->binding;
     /* Disable the following loop for no-probe for the break-down experiments */
     /* PROBE- LOOP */
     for(uint32_t i=0; i < numS; i++ ){
-
-        uint32_t idx = HASH_BIT_MODULO(Stuples[i].key, MASK, NUM_RADIX_BITS);
+        Stuples = column_right->values + S[i][index]*sizeof(uint64_t *);
+        Rtuples = column_left->values + R[i][index]*sizeof(uint64_t*);
+        uint32_t idx = HASH_BIT_MODULO(*Stuples, MASK, NUM_RADIX_BITS);
 
         for(int hit = bucket[idx]; hit > 0; hit = next[hit-1]){
-
-            if(Stuples[i].key == Rtuples[hit-1].key){
+            Rtuples = column_left->values + R[hit-1][index]*sizeof(uint64_t*);
+            if(*Stuples == *Rtuples){
                 /* TODO: copy to the result buffer, we skip it */
                 matches ++;
             }
@@ -251,8 +255,8 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
     /* compute number of tuples per cluster */
     uint64_t **row_ids = table_left->row_ids;
     unsigned   index   = column_left->binding;
-    for( i=0; i < table_left->size_of_row_ids; i++ ){
-        uint32_t idx = (column_left[row_ids[i][index]) & ((1<<NUM_RADIX_BITS)-1);
+    for( i=0; i < table_left->size_of_row_ids; i++ ) {
+        uint32_t idx = (column_left[row_ids[i][index]]) & ((1<<NUM_RADIX_BITS)-1);
         R_count_per_cluster[idx] ++;
     }
     row_ids = table_right->row_ids;
