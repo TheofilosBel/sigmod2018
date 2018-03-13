@@ -6,12 +6,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 # set(CMAKE_C_COMPILER /usr/local/bin/gcc)
 set(CMAKE_CXX_COMPILER /usr/bin/g++-6)
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Ofast -march=native -fsanitize=address -Wall")
+
+#set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Ofast -march=native -fsanitize=address -Wall")
+#set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address -Wall -Ofast -march=native -fopenmp")
+#add_compile_options(-Ofast -march=native -fopenmp)
 
 include_directories(include)
 
 
-add_library(database Relation.cpp functions.cpp treegen.cpp Parser.cpp Utils.cpp QueryGraph.cpp )
+add_library(database Relation.cpp functions.cpp treegen.cpp Parser.cpp Utils.cpp QueryPlan.cpp)
 target_include_directories(database PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
@@ -22,7 +25,7 @@ if (CMAKE_BUILD_TYPE MATCHES "[Dd][Ee][Bb][Uu][Gg]" OR FORCE_TESTS)
     add_subdirectory(test)
 endif()
 
-set(SOURCE_FILES QueryGraph.cpp functions.cpp treegen.cpp Relation.cpp Parser.cpp Utils.cpp)
+set(SOURCE_FILES functions.cpp treegen.cpp Relation.cpp Parser.cpp Utils.cpp QueryPlan.cpp)
 set(SOURCE_FILE_FOR_Query2SQL Relation.cpp Parser.cpp Utils.cpp)
 add_executable(Joiner Joiner.cpp ${SOURCE_FILES})
 target_link_libraries(Joiner database)
