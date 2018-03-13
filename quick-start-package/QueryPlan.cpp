@@ -1,3 +1,4 @@
+#include <set>
 #include "QueryPlan.hpp"
 
 // The Plan Tree Node constructor
@@ -140,13 +141,47 @@ void QueryPlan::fillColumnInfo(Joiner& joiner) {
     int relationsCount = joiner.getRelationsCount(); // Get the number of relations
     int columnsCount; // Number of columns of a relation
 
-    // For every relation get its column statistics
-    for (int i = 0; i < relationsCount; i++) {
-        // Get the number of columns
-        relation = &(joiner.getRelation(i));
-        columnsCount =  relation->columns.size();
+    // Allocate memory for every relation
+    columnInfos = (ColumnInfo**) malloc(relationsCount * sizeof(ColumnInfo*));
 
-        // Allocate a row for this relation
-        columnInfos[i] = (ColumnInfo*) malloc(columnsCount * sizeof(ColumnInfo));
+    // For every relation get its column statistics
+    for (int rel = 0; rel < relationsCount; rel++) {
+        // Get the number of columns
+        relation = &(joiner.getRelation(rel));
+        columnsCount = relation->columns.size();
+
+        // Allocate memory for the columns
+        columnInfos[rel] = (ColumnInfo*) malloc(columnsCount * sizeof(ColumnInfo));
+
+        std::cerr << "relation: " << rel << std::endl;
+        flush(std::cerr);
+
+        // Get the info of every column
+        for (int col = 0; col < columnsCount; col++) {
+            uint64_t minimum = std::numeric_limits<uint64_t>::max(); // Value of minimum element
+            uint64_t maximum = 0; // Value of maximum element
+            std::set<uint64_t> distinctElements; // Keep the distinct elements of the column
+
+            uint64_t tuples = relation->size;
+            for (int i = 0; i < tuples; i++) {
+                uint64_t element = relation->columns[col][i];
+                if (element > maximum) maximum = element;
+                if (element < minimum) minimum = element;
+                distinctElements.insert(element);
+            }
+
+            // Save the infos
+            columnInfos[rel][col].min = minimum;
+            columnInfos[rel][col].max = maximum;
+            columnInfos[rel][col].size = tuples;
+            columnInfos[rel][col].distinct = (uint64_t) distinctElements.size();
+
+            std::cerr << "    column: " << col << std::endl;
+            std::cerr << "    min: " << columnInfos[rel][col].min << std::endl;
+            std::cerr << "    max: " << columnInfos[rel][col].max << std::endl;
+            std::cerr << "    size: " << columnInfos[rel][col].size << std::endl;
+            std::cerr << "    distinct: " << columnInfos[rel][col].distinct << std::endl << std::endl;
+            flush(std::cerr);
+        }
     }
 }

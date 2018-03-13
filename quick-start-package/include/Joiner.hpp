@@ -15,6 +15,7 @@ extern double timeAddColumn;
 extern double timeTreegen;
 extern double timeCheckSum;
 extern double timeConstruct;
+extern double timeQueryGraph;
 
 /*
  * Prints a column
