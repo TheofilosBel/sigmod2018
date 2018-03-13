@@ -3,17 +3,77 @@
 // The Plan Tree Node constructor
 PlanTreeNode::PlanTreeNode() {}
 
-// The Plan Tree constructor
-PlanTree::PlanTree(std::set<table_t*>& tableSet) {}
+// Construct plan tree from set of relationship IDs
+PlanTree* PlanTree::makePlanTree(std::set<int>& relIdSet) {
+    std::unordered_map< std::vector<bool>, PlanTree* > BestTree;
 
-// Merges two join trees into one
-// and return the resulted tree
-PlanTree* PlanTree::mergePlanTrees(PlanTree* left, PlanTree* right) {
+    for (int i = 0; i < relIdSet.size(); i++) {
+        PlanTree* planTreePtr = (PlanTree*) malloc(1 * sizeof(PlanTree));
+        PlanTreeNode* PlanTreeNodePtr = (PlanTreeNode*) malloc(1 * sizeof(PlanTreeNode));
+        planTreePtr->root = PlanTreeNodePtr;
+        std::vector<bool> tempVec(relIdSet.size(), false);
+        tempVec[i] = true;
+        BestTree[tempVec] = planTreePtr;
+    }
+
+    // generate power-set of given set
+    /* source: https://www.geeksforgeeks.org/power-set/ */
+    std::map< int, std::set< std::set<int> > > powerSetMap;
+    for (int j = 1; j <= relIdSet.size(); j++) {
+        unsigned int powerSetSize = pow(2, relIdSet.size());
+        std::set< std::set<int> > tempSetOfSets;
+        for (int counter = 0; counter < powerSetSize; counter++) {
+            std::set<int> tempSet;
+            for (int k = 0; k < j; k++) {
+                if (counter & (1 << k))
+                    tempSet.insert(k);
+            }
+            tempSetOfSets.insert(tempSet);
+        }
+        powerSetMap[j] = tempSetOfSets;
+    }
+
+    for (int i = 0; i < relIdSet.size()-1; i++) {
+        for (auto s : powerSetMap[i]) {
+            for (int j = 0; j < relIdSet.size(); j++) {
+                // if j not in s
+                if (s.find(j) == s.end()) {
+                    std::set<int> tempSet;
+                    tempSet.insert(j);
+                    if (!connected(tempSet, s))
+                        continue;
+
+                    std::vector<bool> tempVecS(relIdSet.size(), false);
+                    for (auto i : s) tempVecS[i] = true;
+                    PlanTree* currTree = makePlanTree(BestTree[tempVecS], j);
+
+                    std::set<int> s1 = s;
+                    s1.insert(j);
+                    std::vector<bool> tempVecS1(relIdSet.size(), false);
+                    for (auto i : s1) tempVecS1[i] = true;
+                    if (BestTree.at(tempVecS1) == NULL || cost(BestTree.at(tempVecS1)) > cost(currTree))
+                        BestTree.at(tempVecS1) = currTree;
+                }
+            }
+        }
+    }
+
+    std::vector<bool> tempVecS(relIdSet.size(), true);
+    return BestTree.at(tempVecS);
+}
+
+// returns true, if there is a join predicate between one of the relations in its first argument and one of the relations in its second
+bool PlanTree::connected(std::set<int>& set1, std::set<int>& set2) {
+    return true;
+}
+
+// Adds a relationship to a join tree
+PlanTree* PlanTree::makePlanTree(PlanTree* left, int relId) {
     return NULL;
 }
 
 // execute the plan described by a Plan Tree
-void executePlan(PlanTree* planTreePtr) {}
+void PlanTree::executePlan(PlanTree* planTreePtr) {}
 
 // Destoys a Plan Tree properly
 void PlanTree::freePlanTree(PlanTree* planTreePtr) {}
@@ -22,7 +82,7 @@ void PlanTree::freePlanTree(PlanTree* planTreePtr) {}
 void PlanTree::printPlanTree(PlanTree* planTreePtr) {}
 
 // Estimates the cost of a given Plan Tree */
-double PlanTree::costOfPlanTree(PlanTree* planTreePtr) {
+double PlanTree::cost(PlanTree* planTreePtr) {
     return 1.0;
 }
 

@@ -59,7 +59,7 @@ void Joiner::Select(FilterInfo &fil_info, table_t* table) {
 
     /* Construct table  - Initialize variable */
     SelectInfo &sel_info = fil_info.filterColumn;
-    column_t * column    = CreateColumn(sel_info); 
+    column_t * column    = CreateColumn(sel_info);
     uint64_t filter      = fil_info.constant;
 
     if (fil_info.comparison == FilterInfo::Comparison::Less) {
@@ -89,7 +89,7 @@ void Joiner::SelectEqual(table_t *table, column_t *column, int filter) {
     uint64_t **old_row_ids = table->row_ids;
     uint64_t **new_row_ids = (uint64_t**)malloc(sizeof(uint64_t*)*size_rids);
     std::vector<unsigned> &rbs = table->relations_bindings;
-    
+
     const uint64_t size_rels = table->num_of_relations;
 
     /* index to noew the place of the row ids column */
@@ -125,7 +125,7 @@ void Joiner::SelectGreater(table_t *table, column_t *column, int filter){
     uint64_t **old_row_ids = table->row_ids;
     uint64_t **new_row_ids = (uint64_t**)malloc(sizeof(uint64_t*)*size_rids);
     std::vector<unsigned> &rbs = table->relations_bindings;
-    
+
     const uint64_t size_rels = table->num_of_relations;
 
     /* index to noew the place of the row ids column */
@@ -154,7 +154,7 @@ void Joiner::SelectGreater(table_t *table, column_t *column, int filter){
 
 
 void Joiner::SelectLess(table_t *table, column_t *column, int filter){
- 
+
     /* Initialize helping variables */
     uint64_t *const values  = column->values;
     int table_index         = column->binding;
@@ -163,7 +163,7 @@ void Joiner::SelectLess(table_t *table, column_t *column, int filter){
     uint64_t **old_row_ids = table->row_ids;
     uint64_t **new_row_ids = (uint64_t**)malloc(sizeof(uint64_t*)*size_rids);
     std::vector<unsigned> &rbs = table->relations_bindings;
-    
+
     const uint64_t size_rels = table->num_of_relations;
 
     /* index to noew the place of the row ids column */
@@ -284,7 +284,7 @@ table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
 
             /* Add this row_id to all the relations */
             for (ssize_t relation = 0; relation < relations_num; relation++) {
-                new_row_ids[new_table_index][relation] = row_ids[i][relation]; 
+                new_row_ids[new_table_index][relation] = row_ids[i][relation];
             }
             new_table_index++;
         }
@@ -319,7 +319,8 @@ uint64_t Joiner::check_sum(SelectInfo &sel_info, table_t *table) {
         sum += col[i];
 
     return sum;
-#endif return 0;
+#endif
+    return 0;
 }
 
 // Loads a relation from disk

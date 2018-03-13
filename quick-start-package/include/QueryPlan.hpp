@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <map>
 #include <set>
+#include <math.h>
 #include "Joiner.hpp"
 
 // Keeps the important info/statistics for every column
@@ -35,17 +36,19 @@ struct PlanTreeNode {
 
 // Plan Tree data structure
 struct PlanTree {
-    PlanTreeNode* rootPtr;
+    PlanTreeNode* root;
 
     bool isRightDeepOnly;
     bool isLeftDeepOnly;
 
-    // The constructor
-    PlanTree(std::set<table_t*>& tableSet);
+    // Construct plan tree from set of relationship IDs
+    PlanTree* makePlanTree(std::set<int>& relIdSet);
 
-    // Merges two join trees into one
-    // and return the resulted tree
-    PlanTree* mergePlanTrees(PlanTree* left, PlanTree* right);
+    // returns true, if there is a join predicate between one of the relations in its first argument and one of the relations in its second
+    bool connected(std::set<int>& set1, std::set<int>& set2);
+
+    // Adds a relationship to a join tree
+    PlanTree* makePlanTree(PlanTree* left, int relId);
 
     // execute the plan described by a Plan Tree
     void executePlan(PlanTree* planTreePtr);
@@ -57,7 +60,7 @@ struct PlanTree {
     void printPlanTree(PlanTree* planTreePtr);
 
     // Estimates the cost of a given Plan Tree
-    double costOfPlanTree(PlanTree* planTreePtr);
+    double cost(PlanTree* planTreePtr);
 };
 
 // Query Plan data structure
