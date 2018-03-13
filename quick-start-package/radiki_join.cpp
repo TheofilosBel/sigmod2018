@@ -3,8 +3,6 @@
 #include "Joiner.hpp"
 #include "table_t.hpp"
 
-
-
 #ifndef NUM_RADIX_BITS
 #define NUM_RADIX_BITS 14
 #endif
@@ -51,31 +49,31 @@
  *  the partitioning phase, which is common for all algorithms. Moreover, R and
  *  S typically fit into L2 or at least R and |R|*sizeof(int) fits into L2 cache.
  *
- * @param R input relation R
- * @param S input relation S
+ * @param R input relation R->row ids
+ * @param S input relation S->row ids
  *
  * @return number of result tuples
  */
-int64_t bucket_chaining_join(uint64_t ** R, const column_t * column_left, const int size_left,
-                             uint64_t ** S, const column_t * column_right, const int size_right, int * const tmpR) {
+int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const int size_left,
+                             uint64_t ** R, const column_t * column_right, const int size_right, int * const tmpR) {
     int * next, * bucket;
-    const uint32_t numR = size_left;
-    uint32_t N = numR;
+    const uint32_t numL = size_left;
+    uint32_t N = numL;
     uint64_t matches = 0;
 
     NEXT_POW_2(N);
     /* N <<= 1; */
     const uint64_t MASK = (N-1) << (NUM_RADIX_BITS);
 
-    next   = (int*) malloc(sizeof(int) * numR);
+    next   = (int*) malloc(sizeof(int) * numL);
     /* posix_memalign((void**)&next, CACHE_LINE_SIZE, numR * sizeof(int)); */
     bucket = (int*) calloc(N, sizeof(int));
 
-    const uint64_t * Rtuples;
+    const uint64_t * Ltuples;
     uint64_t         index = column_left->binding;
-    for(uint32_t i=0; i < numR; ){
-        Rtuples = column_left->values + R[i][index]*sizeof(uint64_t*);
-        uint32_t idx = HASH_BIT_MODULO(*Rtuples, MASK, NUM_RADIX_BITS);
+    for(uint32_t i=0; i < numL; ){
+        Ltuples = column_left->values + L[i][index]*sizeof(uint64_t*);
+        uint32_t idx = HASH_BIT_MODULO(*Ltuples, MASK, NUM_RADIX_BITS);
         next[i]      = bucket[idx];
         bucket[idx]  = ++i;     /* we start pos's from 1 instead of 0 */
 
@@ -84,19 +82,19 @@ int64_t bucket_chaining_join(uint64_t ** R, const column_t * column_left, const 
         /* matches += idx; */
     }
 
-    const uint64_t * Stuples;
-    const uint32_t   numS  = size_right;
+    const uint64_t * Rtuples;
+    const uint32_t   numR  = size_right;
     index = column_right->binding;
     /* Disable the following loop for no-probe for the break-down experiments */
     /* PROBE- LOOP */
-    for(uint32_t i=0; i < numS; i++ ){
-        Stuples = column_right->values + S[i][index]*sizeof(uint64_t *);
-        Rtuples = column_left->values + R[i][index]*sizeof(uint64_t*);
-        uint32_t idx = HASH_BIT_MODULO(*Stuples, MASK, NUM_RADIX_BITS);
+    for(uint32_t i=0; i < numR; i++ ){
+        Rtuples = column_right->values + R[i][index]*sizeof(uint64_t *);
+        Ltuples = column_left->values + L[i][index]*sizeof(uint64_t*);
+        uint32_t idx = HASH_BIT_MODULO(*Rtuples, MASK, NUM_RADIX_BITS);
 
         for(int hit = bucket[idx]; hit > 0; hit = next[hit-1]){
-            Rtuples = column_left->values + R[hit-1][index]*sizeof(uint64_t*);
-            if(*Stuples == *Rtuples){
+            Ltuples = column_left->values + L[hit-1][index]*sizeof(uint64_t*);
+            if(*Rtuples == *Ltuples){
                 /* TODO: copy to the result buffer, we skip it */
                 matches ++;
             }

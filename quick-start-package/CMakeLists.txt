@@ -9,7 +9,7 @@ set(CMAKE_CXX_COMPILER /usr/bin/g++-6)
 
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Ofast -march=native -fsanitize=address -Wall")
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address -Wall -Ofast -march=native -fopenmp")
-#add_compile_options(-Ofast -march=native -fopenmp)
+add_compile_options(-Ofast -march=native -fopenmp)
 
 include_directories(include)
 
