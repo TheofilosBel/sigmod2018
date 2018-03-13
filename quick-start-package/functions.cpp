@@ -1,5 +1,5 @@
 #include <iostream>
-#include "./include/functions.hpp"
+#include "functions.hpp"
 
 /*          Sample query tree:
                                              --- (7) B1<1000
@@ -224,7 +224,11 @@ table_t* jTreeMakePlan(JTree* jTreePtr, Joiner& joiner, int *depth) {
     table_t *res;
 
     if (left == NULL && right == NULL) {
+        std::cerr << "Before create" << '\n';
+        flush(std::cerr);
         return joiner.CreateTableTFromId(jTreePtr->node_id, jTreePtr->binding_id);
+        std::cerr << "After create" << '\n';
+        flush(std::cerr);
     }
 
     table_l = jTreeMakePlan(left, joiner, depth);
@@ -235,16 +239,14 @@ table_t* jTreeMakePlan(JTree* jTreePtr, Joiner& joiner, int *depth) {
         table_r = jTreeMakePlan(right, joiner, depth);
 
         /* Filter on right ? */
-        //joiner.AddColumnToTableT(jTreePtr->predPtr->left, table_l);
-        //joiner.AddColumnToTableT(jTreePtr->predPtr->right, table_r);
-
-
-        //std::cerr << "++++JOIN Predicates: " <<  '\n';
-        //std::cerr << "Left: "  << jTreePtr->predPtr->left.relId << "." << jTreePtr->predPtr->left.colId << '\n';
-        //std::cerr << "Right: " << jTreePtr->predPtr->right.relId << "." << jTreePtr->predPtr->right.colId << '\n';
-        //res = joiner.join(table_l, table_r);
-        //std::cerr << "Intermediate rows: " << res->relations_row_ids->operator[](0).size()  << '\n';
-        //std::cerr << "-------" << '\n';
+        std::cerr << "++++JOIN Predicates: " <<  '\n';
+        std::cerr << "Left: "  << jTreePtr->predPtr->left.relId << "." << jTreePtr->predPtr->left.colId << '\n';
+        std::cerr << "Right: " << jTreePtr->predPtr->right.relId << "." << jTreePtr->predPtr->right.colId << '\n';
+        flush(std::cerr);
+        res = joiner.join(table_l, table_r, jTreePtr->predPtr);
+        std::cerr << "Intermediate rows: " << res->size_of_row_ids << '\n';
+        std::cerr << "-------" << '\n';
+        flush(std::cerr);
         return res;
 
     }
@@ -253,23 +255,25 @@ table_t* jTreeMakePlan(JTree* jTreePtr, Joiner& joiner, int *depth) {
 
         if (jTreePtr->filterPtr == NULL) {
 
-            //std::cerr << "====Self JOIN Predicates: " <<  '\n';
-            //std::cerr << "Left: "  << jTreePtr->predPtr->left.relId << "." << jTreePtr->predPtr->left.colId << '\n';
-            //std::cerr << "Right: " << jTreePtr->predPtr->right.relId << "." << jTreePtr->predPtr->right.colId << '\n';
+            std::cerr << "====Self JOIN Predicates: " <<  '\n';
+            std::cerr << "Left: "  << jTreePtr->predPtr->left.relId << "." << jTreePtr->predPtr->left.colId << '\n';
+            std::cerr << "Right: " << jTreePtr->predPtr->right.relId << "." << jTreePtr->predPtr->right.colId << '\n';
+            flush(std::cerr);
             res = joiner.SelfJoin(table_l, jTreePtr->predPtr);
-            //std::cerr << "Intermediate rows: " << res->relations_row_ids->operator[](0).size()  << '\n';
-            //std::cerr << "-------" << '\n';
+            std::cerr << "Intermediate rows: " << res->size_of_row_ids  << '\n';
+            std::cerr << "-------" << '\n';
+            flush(std::cerr);
             return res;
         }
         else {
             FilterInfo &filter = *(jTreePtr->filterPtr);
-            //joiner.AddColumnToTableT(jTreePtr->filterPtr->filterColumn, table_l);
             joiner.Select(filter, table_l);
-            //std::cerr << "----Filter Predicates: " <<  '\n';
-            //std::cerr << "Relation.column: "  << filter.filterColumn.relId << "." << filter.filterColumn.colId << '\n';
-            //std::cerr << "Constant: " << filter.constant << '\n';
-            //std::cerr << "Intermediate rows: " << table_l->relations_row_ids->operator[](0).size()  << '\n';
-            //std::cerr << "-------" << '\n';
+            std::cerr << "----Filter Predicates: " <<  '\n';
+            std::cerr << "Relation.column: "  << filter.filterColumn.relId << "." << filter.filterColumn.colId << '\n';
+            std::cerr << "Constant: " << filter.constant << '\n';
+            std::cerr << "Intermediate rows: " << table_l->size_of_row_ids  << '\n';
+            std::cerr << "-------" << '\n';
+            flush(std::cerr);
             return table_l;
         }
     }

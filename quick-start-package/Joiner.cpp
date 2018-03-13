@@ -133,9 +133,11 @@ void Joiner::SelectGreater(table_t *table, column_t *column, int filter){
     for(size_t index = 0; index < size_rels; index++) {
         if (rbs[index] == table_index) {
             table_index = index;
+            std::cerr << "SELECT : Index found " << table_index << '\n';
             break;
         }
     }
+
     size_t new_tb_index = 0;
     /* Update the row ids of the table */
     for (size_t rid = 0; rid < size_rids; rid++) {
@@ -151,6 +153,7 @@ void Joiner::SelectGreater(table_t *table, column_t *column, int filter){
     delete table->row_ids;
     table->row_ids = new_row_ids;
     table->intermediate_res = true;
+    table->size_of_row_ids = new_tb_index;
 }
 
 
@@ -206,12 +209,14 @@ table_t* Joiner::CreateTableTFromId(unsigned rel_id, unsigned rel_binding) {
     /* Crate - Initialize a table_t */
     table_t *const table_t_ptr = new table_t;
     table_t_ptr->intermediate_res = false;
+    table_t_ptr->size_of_row_ids  = rel.size;
+    table_t_ptr->num_of_relations = 1;
     table_t_ptr->row_ids       = (uint64_t **) malloc(sizeof(uint64_t*) * rel.size);
 
     uint64_t** row_ids = table_t_ptr->row_ids;
     for (int i = 0; i < rel.size; ++i) {
         row_ids[i] = (uint64_t *) malloc(sizeof(uint64_t));  // Malloc one uint64 per row
-        row_ids[i][1] = (uint64_t) i;
+        row_ids[i][0] = (uint64_t) i;
     }
 
     /* Keep the relation's id and binding */
@@ -271,8 +276,10 @@ table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
         }
     }
 
-#ifdef com
+#ifndef com
     if (index_l == -1 || index_r == -1) std::cerr << "Error in SelfJoin: No mapping found for predicates" << '\n';
+    //std::cerr << "Index left " << index_l << " index right " << index_r << '\n';
+    flush(cerr);
 #endif
 
     /* Loop all the row_ids and keep the one's matching the predicate */
@@ -284,12 +291,16 @@ table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
         if (column_values_l[row_ids[i][index_l]] == column_values_r[row_ids[i][index_r]]) {
 
             /* Add this row_id to all the relations */
-            for (ssize_t relation = 0; relation < relations_num; relation++) {
-                new_row_ids[new_table_index][relation] = row_ids[i][relation];
-            }
+            new_row_ids[new_table_index] = row_ids[i];
             new_table_index++;
         }
     }
+
+    /* Update pointers */
+    new_table->size_of_row_ids  = new_table_index;
+    new_table->num_of_relations = table->num_of_relations;
+    new_table->intermediate_res = true;
+
 
 #ifdef time
     struct timeval end;
@@ -321,7 +332,11 @@ uint64_t Joiner::check_sum(SelectInfo &sel_info, table_t *table) {
 
     return sum;
 #endif
+<<<<<<< HEAD
+  return 0;
+=======
     return 0;
+>>>>>>> 79a65761bb0d98f109b26a03b131d7b2ddd6af94
 }
 
 // Loads a relation from disk
@@ -336,6 +351,20 @@ Relation& Joiner::getRelation(unsigned relationId) {
         throw;
     }
     return relations[relationId];
+}
+
+// The join function
+table_t* Joiner::join(table_t *table_r, table_t *table_s, PredicateInfo * pred) {
+
+    column_t * column_left = CreateColumn(pred->left);
+    column_t * column_right = CreateColumn(pred->right);
+
+
+
+    free(column_left);
+    free(column_right);
+
+    return table_r;
 }
 
 // Get the total number of relations
@@ -377,10 +406,10 @@ int main(int argc, char* argv[]) {
     #endif
 
     // Preparation phase (not timed)
-    QueryPlan queryPlan;
+    //QueryPlan queryPlan;
 
     // Get the needed info of every column
-    queryPlan.fillColumnInfo(joiner);
+    //queryPlan.fillColumnInfo(joiner);
 
     #ifdef time
     struct timeval end;
@@ -395,7 +424,7 @@ int main(int argc, char* argv[]) {
         if (line == "F") continue; // End of a batch
 
         // Parse the query
-        //std::cerr << q_counter  << ": " << line << '\n';
+        std::cerr << q_counter  << ": " << line << '\n';
         i.parseQuery(line);
         q_counter++;
 
@@ -424,7 +453,7 @@ int main(int argc, char* argv[]) {
         string result_str;
         uint64_t checksum = 0;
         std::vector<SelectInfo> &selections = i.selections;
-        for (size_t i = 0; i < selections.size(); i++) {            
+        for (size_t i = 0; i < selections.size(); i++) {
             checksum = joiner.check_sum(selections[i], result);
 
             if (checksum == 0) {
