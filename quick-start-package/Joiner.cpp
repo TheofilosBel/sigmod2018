@@ -277,6 +277,7 @@ table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
 
 #ifndef com
     if (index_l == -1 || index_r == -1) std::cerr << "Error in SelfJoin: No mapping found for predicates" << '\n';
+    //std::cerr << "Index left " << index_l << " index right " << index_r << '\n';
     flush(cerr);
 #endif
 
@@ -348,10 +349,11 @@ Relation& Joiner::getRelation(unsigned relationId) {
 }
 
 // The join function
-table_t* join(table_t *table_r, table_t *table_s, PredicateInfo& pred) {
+table_t* Joiner::join(table_t *table_r, table_t *table_s, PredicateInfo * pred) {
 
     column_t * column_left = CreateColumn(pred->left);
     column_t * column_right = CreateColumn(pred->right);
+
 
 
     free(column_left);
