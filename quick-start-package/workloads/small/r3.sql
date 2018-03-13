@@ -1,2 +1,2 @@
-CREATE TABLE r3 (c0 bigint,c1 bigint,c2 bigint,c3 bigint);
-copy r3 from 'r3.tbl' delimiter '|';
+
+LOAD DATA LOCAL INFILE 'r3.tbl'INTO TABLE r3 FIELDS TERMINATED BY '|';

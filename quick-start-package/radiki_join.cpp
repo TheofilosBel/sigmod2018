@@ -1,7 +1,7 @@
 #include <sys/time.h>           /* gettimeofday */
-#include <stdio.h>              /* printf */
+#include <iostream>              /* printf */
 #include "Joiner.hpp"
-#include "table_t"
+#include "table_t.hpp"
 
 
 
@@ -56,8 +56,8 @@
  *
  * @return number of result tuples
  */
-int64_t bucket_chaining_join(const uint64_t ** const R, const column_t * column_left, const int size_left,
-                             const uint64_t ** const S, const column_t * column_right, const int size_right, int * const tmpR) {
+int64_t bucket_chaining_join(uint64_t ** R, const column_t * column_left, const int size_left,
+                             uint64_t ** S, const column_t * column_right, const int size_right, int * const tmpR) {
     int * next, * bucket;
     const uint32_t numR = size_left;
     uint32_t N = numR;
@@ -71,8 +71,8 @@ int64_t bucket_chaining_join(const uint64_t ** const R, const column_t * column_
     /* posix_memalign((void**)&next, CACHE_LINE_SIZE, numR * sizeof(int)); */
     bucket = (int*) calloc(N, sizeof(int));
 
-    const uint64_t * const Rtuples;
-    const uint64_t         index = column_left->binding;
+    const uint64_t * Rtuples;
+    uint64_t         index = column_left->binding;
     for(uint32_t i=0; i < numR; ){
         Rtuples = column_left->values + R[i][index]*sizeof(uint64_t*);
         uint32_t idx = HASH_BIT_MODULO(*Rtuples, MASK, NUM_RADIX_BITS);
@@ -84,8 +84,8 @@ int64_t bucket_chaining_join(const uint64_t ** const R, const column_t * column_
         /* matches += idx; */
     }
 
-    const uint64_t * const Stuples;
-    const uint32_t         numS  = size_right;
+    const uint64_t * Stuples;
+    const uint32_t   numS  = size_right;
     index = column_right->binding;
     /* Disable the following loop for no-probe for the break-down experiments */
     /* PROBE- LOOP */
@@ -133,7 +133,7 @@ void radix_cluster_nopadding(uint64_t ** out_rel_ids, uint64_t ** in_rel_ids, co
     /* count tuples per cluster */
     for( i=0; i < ntuples; i++ ){
         input = column->values + in_rel_ids[i][column->binding]*sizeof(uint64_t);
-        uint32_t idx = (uint32_t)(HASH_BIT_MODULO(input, M, R));
+        uint64_t idx = (uint64_t)(HASH_BIT_MODULO(*input, M, R));
         tuples_per_cluster[idx]++;
     }
 
@@ -147,8 +147,8 @@ void radix_cluster_nopadding(uint64_t ** out_rel_ids, uint64_t ** in_rel_ids, co
     /* copy tuples to their corresponding clusters at appropriate offsets */
     for( i=0; i < ntuples; i++ ){
         input = column->values + in_rel_ids[i][column->binding]*sizeof(uint64_t);
-        uint32_t idx   = (uint32_t)(HASH_BIT_MODULO(input, M, R));
-        *dst[idx] = *in_rel_ids[i];
+        uint64_t idx   = (uint64_t)(HASH_BIT_MODULO(*input, M, R));
+        *dst[idx] = in_rel_ids[i];
         ++dst[idx];
     }
 
@@ -163,17 +163,17 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
     int64_t result = 0;
     uint32_t i;
 
-    #ifndef time
+    #ifdef time
     struct timeval start, end;
     uint64_t timer1, timer2, timer3;
     #endif
 
-    uint64_t **outRelR, **outRelS;
+    uint64_t **out_row_ids_left, **out_row_ids_right;
 
     out_row_ids_left  = (uint64_t **) malloc(sizeof(uint64_t **) * table_left->size_of_row_ids);
     out_row_ids_right = (uint64_t **) malloc(sizeof(uint64_t **) * table_right->size_of_row_ids);
 
-    #ifndef time
+    #ifdef time
     gettimeofday(&start, NULL);
     startTimer(&timer1);
     startTimer(&timer2);
@@ -243,7 +243,7 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
     #endif
 
 
-    #ifndef time
+    #ifdef time
     stopTimer(&timer3);
     #endif
 
@@ -256,13 +256,13 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
     uint64_t **row_ids = table_left->row_ids;
     unsigned   index   = column_left->binding;
     for( i=0; i < table_left->size_of_row_ids; i++ ) {
-        uint32_t idx = (column_left[row_ids[i][index]]) & ((1<<NUM_RADIX_BITS)-1);
+        uint32_t idx = (column_left->values[row_ids[i][index]]) & ((1<<NUM_RADIX_BITS)-1);
         R_count_per_cluster[idx] ++;
     }
     row_ids = table_right->row_ids;
     index   = column_right->binding;
-    for( i=0; i < relS->num_tuples; i++ ){
-        uint32_t idx = (column_right[row_ids[i][index]]) & ((1<<NUM_RADIX_BITS)-1);
+    for( i=0; i < table_right->size_of_row_ids; i++ ){
+        uint32_t idx = (column_right->values[row_ids[i][index]]) & ((1<<NUM_RADIX_BITS)-1);
         S_count_per_cluster[idx] ++;
     }
 
@@ -270,8 +270,8 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
     int r, s; /* start index of next clusters */
     r = s = 0;
     for( i=0; i < (1<<NUM_RADIX_BITS); i++ ){
-        uint64_t temp_left[R_count_per_cluster[i]];
-        uint64_t temp_right[S_count_per_cluster[i]];
+        uint64_t ** tmp_left;
+        uint64_t ** tmp_right;
 
         if(R_count_per_cluster[i] > 0 && S_count_per_cluster[i] > 0){
 
@@ -281,7 +281,8 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
             tmp_right =  row_ids_right + s * sizeof(uint64_t*);
             s += S_count_per_cluster[i];
 
-            result += bucket_chaining_join(&tmpR, R_count_per_cluster[i], &tmpS, S_count_per_cluster[i], NULL);
+            result += bucket_chaining_join(tmp_left, column_left, R_count_per_cluster[i],
+                                            tmp_right, column_right, S_count_per_cluster[i], NULL);
         }
         else {
             r += R_count_per_cluster[i];
@@ -289,7 +290,7 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
         }
     }
 
-    #ifndef time
+    #ifdef time
     /* TODO: actually we're not timing build */
     stopTimer(&timer2);/* build finished */
     stopTimer(&timer1);/* probe finished */
@@ -303,11 +304,11 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
 
     #if NUM_PASSES == 1
     /* clean up temporary relations */
-    free(outRelR->tuples);
-    free(outRelS->tuples);
-    free(outRelR);
-    free(outRelS);
+    //free(outRelR->tuples);
+    //free(outRelS->tuples);
+    //free(outRelR);
+    //free(outRelS);
     #endif
 
-    return result;
+    return NULL;
 }
