@@ -1,48 +1,4 @@
-#include <sys/time.h>           /* gettimeofday */
-#include <iostream>              /* printf */
-#include "Joiner.hpp"
-#include "table_t.hpp"
-
-
-
-#ifndef NUM_RADIX_BITS
-#define NUM_RADIX_BITS 14
-#endif
-
-#define NUM_PASSES 1
-
-/** checks malloc() result */
-#ifndef MALLOC_CHECK
-#define MALLOC_CHECK(M)                                                 \
-    if(!M){                                                             \
-        printf("[ERROR] MALLOC_CHECK: %s : %d\n", __FILE__, __LINE__);  \
-        perror(": malloc() failed!\n");                                 \
-        exit(EXIT_FAILURE);                                             \
-    }
-#endif
-
-/* #define RADIX_HASH(V)  ((V>>7)^(V>>13)^(V>>21)^V) */
-#define HASH_BIT_MODULO(K, MASK, NBITS) (((K) & MASK) >> NBITS)
-
-#ifndef NEXT_POW_2
-/**
- *  compute the next number, greater than or equal to 32-bit unsigned v.
- *  taken from "bit twiddling hacks":
- *  http://graphics.stanford.edu/~seander/bithacks.html
- */
-#define NEXT_POW_2(V)                           \
-    do {                                        \
-        V--;                                    \
-        V |= V >> 1;                            \
-        V |= V >> 2;                            \
-        V |= V >> 4;                            \
-        V |= V >> 8;                            \
-        V |= V >> 16;                           \
-        V++;                                    \
-    } while(0)
-#endif
-
-#define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
+#include "RadixJoin.hpp"
 
 /**
  *  This algorithm builds the hashtable using the bucket chaining idea and used
