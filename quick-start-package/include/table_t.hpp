@@ -14,24 +14,26 @@ struct hash_entry {
 struct column_t {
     uint64_t *values;
     uint64_t  size;
-    uint64_t  table_index;
-    unsigned  id;
+    unsigned  binding;
 };
 
 struct table_t {
 
     /* Row Ids and relation Ids */
-    std::vector<std::vector<int>>  *relations_row_ids;
+    uint64_t                   **row_ids;
 
     /* use it for the filtrering TODO hash map ?*/
-    std::vector<int>               relation_ids;
+    /* relations_ids[real] = row ids */
+    std::vector<unsigned>      relation_ids;
 
     /* use the binfing to map the relations */
-    std::vector<unsigned>          relations_bindings;
+    /* relations_bindings[row ids] = allias */
+    std::vector<unsigned>      relations_bindings;
 
     /* Intermediate result falg */
     bool intermediate_res;
 
-    /* column_t pointer of column to join */
-    column_t *column_j;
+    int size_of_row_ids;
+    int num_of_relations;
+
 };
