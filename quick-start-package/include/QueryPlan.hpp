@@ -19,7 +19,7 @@ struct ColumnInfo {
 
 // Plan Tree's node
 struct PlanTreeNode {
-    unsigned nodeID;
+    unsigned nodeId;
 
     PlanTreeNode* left;
     PlanTreeNode* right;
@@ -27,11 +27,7 @@ struct PlanTreeNode {
 
     PredicateInfo* predicateInfoPtr;
     FilterInfo* filterInfoPtr;
-
-    ColumnInfo* intermediateColumnInfoPtr;
-
-    // The constructor
-    PlanTreeNode();
+    ColumnInfo* intermediateColumnInfoPtr; // The info of the result of a join
 };
 
 // Plan Tree data structure
@@ -41,13 +37,13 @@ struct PlanTree {
     bool isRightDeepOnly;
     bool isLeftDeepOnly;
 
-    // Construct plan tree from set of relationship IDs
-    PlanTree* makePlanTree(std::set<int>& relIdSet, std::set<PredicateInfo>& predSet);
+    // Constructs a plan tree from a set of relations id's
+    PlanTree* makePlanTree(std::vector<RelationId>& relationIds, std::vector<PredicateInfo>& predicates);
 
     // returns true, if there is a join predicate between one of the relations in its first argument and one of the relations in its second
     bool connected(int relId, std::set<int>& idSet, std::set<PredicateInfo>& predSet);
 
-    // Adds a relationship to a join tree
+    // Adds a relation to a join tree
     PlanTree* makePlanTree(PlanTree* left, int relId);
 
     // execute the plan described by a Plan Tree
@@ -71,9 +67,6 @@ struct QueryPlan {
     ColumnInfo** columnInfos;
 
     PlanTree* planTreePtr; // The plan tree to execute
-
-    // The constructor
-    //QueryPlan()
 
     // Build a query plan with the given info
     void build(QueryInfo& queryInfoPtr);

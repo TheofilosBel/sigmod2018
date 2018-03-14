@@ -2,18 +2,33 @@
 #include "QueryPlan.hpp"
 #include <unordered_map>
 
-// The Plan Tree Node constructor
-PlanTreeNode::PlanTreeNode() {}
-
-// Construct plan tree from set of relationship IDs
-PlanTree* PlanTree::makePlanTree(std::set<int>& relIdSet, std::set<PredicateInfo>& predSet) {
+// Construct plan tree from set of relations IDs
+PlanTree* PlanTree::makePlanTree(std::vector<RelationId>& relationIds, std::vector<PredicateInfo>& predicates) {
+    // Maps every possible set of relations to its respective best plan tree
     std::unordered_map< std::vector<bool>, PlanTree* > BestTree;
 
-    for (int i = 0; i < relIdSet.size(); i++) {
-        PlanTree* planTreePtr = (PlanTree*) malloc(1 * sizeof(PlanTree));
-        PlanTreeNode* PlanTreeNodePtr = (PlanTreeNode*) malloc(1 * sizeof(PlanTreeNode));
-        planTreePtr->root = PlanTreeNodePtr;
-        std::vector<bool> tempVec(relIdSet.size(), false);
+    // Initialise the BestTree structure
+    for (int i = 0; i < relationIds.size(); i++) {
+        // Allocate memory
+        PlanTree* planTreePtr = (PlanTree*) malloc(sizeof(PlanTree));
+        PlanTreeNode* planTreeNodePtr = (PlanTreeNode*) malloc(sizeof(PlanTreeNode));
+        
+        // Initialise planTreeNode
+        planTreeNodePtr->nodeId = relationIds[i]; // The true id of the relation
+        planTreeNodePtr->left = NULL;
+        planTreeNodePtr->right = NULL;
+        planTreeNodePtr->parent = NULL;
+        planTreeNodePtr->predicateInfoPtr = NULL;
+        planTreeNodePtr->filterInfoPtr = NULL;
+        planTreeNodePtr->intermediateColumnInfoPtr = NULL;
+
+        // Initialise planTree
+        planTreePtr->root = planTreeNodePtr;
+        planTreePtr->isRightDeepOnly = false;
+        planTreePtr->isLeftDeepOnly = true;
+
+        // Insert into the BestTree
+        std::vector<bool> tempVec(relationIds.size(), false);
         tempVec[i] = true;
         BestTree[tempVec] = planTreePtr;
     }
@@ -21,8 +36,8 @@ PlanTree* PlanTree::makePlanTree(std::set<int>& relIdSet, std::set<PredicateInfo
     // generate power-set of given set
     /* source: https://www.geeksforgeeks.org/power-set/ */
     std::map< int, std::set< std::set<int> > > powerSetMap;
-    for (int j = 1; j <= relIdSet.size(); j++) {
-        unsigned int powerSetSize = pow(2, relIdSet.size());
+    for (int j = 1; j <= relationIds.size(); j++) {
+        unsigned int powerSetSize = pow(2, relationIds.size());
         std::set< std::set<int> > tempSetOfSets;
         for (int counter = 0; counter < powerSetSize; counter++) {
             std::set<int> tempSet;
@@ -35,21 +50,21 @@ PlanTree* PlanTree::makePlanTree(std::set<int>& relIdSet, std::set<PredicateInfo
         powerSetMap[j] = tempSetOfSets;
     }
 
-    for (int i = 0; i < relIdSet.size()-1; i++) {
+    for (int i = 0; i < relationIds.size()-1; i++) {
         for (auto s : powerSetMap[i]) {
-            for (int j = 0; j < relIdSet.size(); j++) {
+            for (int j = 0; j < relationIds.size(); j++) {
                 // if j not in s
                 if (s.find(j) == s.end()) {
-                    if (!connected(j, s, predSet))
-                        continue;
+                    //if (!connected(j, s, predicates))
+                    //    continue;
 
-                    std::vector<bool> tempVecS(relIdSet.size(), false);
+                    std::vector<bool> tempVecS(relationIds.size(), false);
                     for (auto i : s) tempVecS[i] = true;
                     PlanTree* currTree = makePlanTree(BestTree[tempVecS], j);
 
                     std::set<int> s1 = s;
                     s1.insert(j);
-                    std::vector<bool> tempVecS1(relIdSet.size(), false);
+                    std::vector<bool> tempVecS1(relationIds.size(), false);
                     for (auto i : s1) tempVecS1[i] = true;
                     if (BestTree.at(tempVecS1) == NULL || cost(BestTree.at(tempVecS1)) > cost(currTree))
                         BestTree.at(tempVecS1) = currTree;
@@ -58,7 +73,7 @@ PlanTree* PlanTree::makePlanTree(std::set<int>& relIdSet, std::set<PredicateInfo
         }
     }
 
-    std::vector<bool> tempVecS(relIdSet.size(), true);
+    std::vector<bool> tempVecS(relationIds.size(), true);
     return BestTree.at(tempVecS);
 }
 
@@ -72,7 +87,7 @@ bool PlanTree::connected(int relId, std::set<int>& idSet, std::set<PredicateInfo
     return false;
 }
 
-// Adds a relationship to a join tree
+// Adds a relation to a join tree
 PlanTree* PlanTree::makePlanTree(PlanTree* left, int relId) {
     return NULL;
 }
