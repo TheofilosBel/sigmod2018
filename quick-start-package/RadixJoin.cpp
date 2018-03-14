@@ -88,8 +88,6 @@ int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const 
                 memcpy(&matched_row_ids[new_rids_index][0], &L[hit-1][0], sizeof(uint64_t) * rel_num_left);
                 memcpy(&matched_row_ids[new_rids_index][rel_num_left], &R[i][0], sizeof(uint64_t) * rel_num_right);
 
-
-                matches += column_left->values[matched_row_ids[new_rids_index][index_l]];
                 new_rids_index++;
             }
         }
@@ -103,6 +101,8 @@ int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const 
     //flush(std::cerr);
 
     /* clean up temp */
+    free(next);
+    free(bucket);
 
     //std::cerr << "END " <<  matched_row_ids[0][0] << '\n';
     //flush(std::cerr);
@@ -279,7 +279,7 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
             tmp_right =  out_row_ids_right + r;
             r += R_count_per_cluster[i];
 
-            result += bucket_chaining_join(tmp_left, column_left, L_count_per_cluster[i], table_left->num_of_relations,
+            bucket_chaining_join(tmp_left, column_left, L_count_per_cluster[i], table_left->num_of_relations,
                                             tmp_right, column_right, R_count_per_cluster[i], table_right->num_of_relations, result_table);
         }
         else {

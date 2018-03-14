@@ -11,16 +11,6 @@
 
 #define NUM_PASSES 1
 
-/** checks malloc() result */
-#ifndef MALLOC_CHECK
-#define MALLOC_CHECK(M)                                                 \
-    if(!M){                                                             \
-        printf("[ERROR] MALLOC_CHECK: %s : %d\n", __FILE__, __LINE__);  \
-        perror(": malloc() failed!\n");                                 \
-        exit(EXIT_FAILURE);                                             \
-    }
-#endif
-
 /* #define RADIX_HASH(V)  ((V>>7)^(V>>13)^(V>>21)^V) */
 #define HASH_BIT_MODULO(K, MASK, NBITS) (((K) & MASK) >> NBITS)
 
