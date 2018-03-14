@@ -51,7 +51,7 @@ int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const 
     uint32_t         new_rids_index = result_table->size_of_row_ids;
     const uint64_t * Rtuples;
     const uint32_t   numR  = size_right;
-    uint32_t       index_r = column_right->binding;
+    uint32_t        index_r = column_right->binding;
     /* Disable the following loop for no-probe for the break-down experiments */
     /* PROBE- LOOP */
     for(uint32_t i=0; i < numR; i++ ){
@@ -74,6 +74,7 @@ int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const 
                     matched_row_ids = new_pointer;
 
                     result_table->allocated_size = size;
+                    std::cerr<< "new size is ->"<<size<<'\n';
                 }
 
                 /* Create new uint64_t array */
@@ -103,8 +104,6 @@ int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const 
     //flush(std::cerr);
 
     /* clean up temp */
-    free(bucket);
-    free(next);
 
     //std::cerr << "END " <<  matched_row_ids[0][0] << '\n';
     //flush(std::cerr);
@@ -248,6 +247,9 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
     result_table->num_of_relations = table_left->num_of_relations + table_right->num_of_relations;
     result_table->size_of_row_ids  = 0;
     result_table->row_ids          = (uint64_t **) malloc(sizeof(uint64_t **) * result_table->allocated_size);
+
+
+    /* upload the bindings and the relations */
     result_table->relations_bindings.insert(result_table->relations_bindings.end(),table_left->relations_bindings.begin(), table_left->relations_bindings.end());
     result_table->relations_bindings.insert(result_table->relations_bindings.end(),table_right->relations_bindings.begin(), table_right->relations_bindings.end());
     result_table->relation_ids.insert(result_table->relation_ids.end(),table_left->relation_ids.begin(), table_left->relation_ids.end());
