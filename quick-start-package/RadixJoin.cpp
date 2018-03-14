@@ -33,6 +33,7 @@ int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const 
     uint64_t ** matched_row_ids = result_table->row_ids;
 
     NEXT_POW_2(N);
+    std::cerr << "N is " << N << '\n';
     /* N <<= 1; */
     const uint64_t MASK = (N-1) << (NUM_RADIX_BITS);
 
@@ -126,7 +127,6 @@ void radix_cluster_nopadding(uint64_t ** out_rel_ids, uint64_t ** in_rel_ids, co
 
     /* count tuples per cluster */
     for(i = 0; i < ntuples; i++){
-
         input = column->values + in_rel_ids[i][column->binding];
         uint64_t idx = (uint64_t)(HASH_BIT_MODULO(*input, M, R));
         tuples_per_cluster[idx]++;

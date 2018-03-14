@@ -20,7 +20,7 @@ double timeTreegen = 0;
 double timeCheckSum = 0;
 double timeRadixJoin = 0;
 double timePreparation = 0;
-
+double timeLowJoin = 0;
 
 extern double timeBuildPhase;
 extern double timeProbePhase;
@@ -245,7 +245,7 @@ table_t* Joiner::CreateTableTFromId(unsigned rel_id, unsigned rel_binding) {
  * 3)Ids E [0,...,size-1]
  * 4)Made the code repeatable to put some & in the arrays of row ids
 */
-table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
+table_t* Joiner::low_join(table_t *table_r, column_t *column_r,  table_t *table_s, column_t *column_s) {
 
 #ifdef time
     struct timeval start;
@@ -264,16 +264,32 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
     column_t *hash_col;
     column_t *iter_col;
 
+    int index_r                  = -1;
+    int index_s                  = -1;
+    for (ssize_t index = 0; index < table_r->num_of_relations ; index++) {
+
+        if (column_r->binding == table_r->relations_bindings[index]) {
+            index_r = index;
+        }
+    }
+    for (ssize_t index = 0; index < table_s->num_of_relations ; index++) {
+
+        if (column_s->binding == table_s->relations_bindings[index]) {
+            index_s = index;
+        }
+    }
 
     /* check on wich table will create the hash_table */
-    if (table_r->column_j->size <= table_s->column_j->size) {
-        hash_size = table_r->column_j->size;
-        hash_col = table_r->column_j;
-        std::vector<std::vector<int>> &h_rows = *table_r->relations_row_ids;
+    if (table_r->size_of_row_ids <= table_s->size_of_row_ids) {
+        hash_size = table_r->size_of_row_ids;
+        hash_col  = column_r;
+        uint64_t ** h_rows = table_r->row_ids;
+        int rel_num_left = table_r->num_of_relations;
 
-        iter_size = table_s->column_j->size;
-        iter_col = table_s->column_j;
-        std::vector<std::vector<int>> &i_rows = *table_s->relations_row_ids;
+        iter_size = table_s->size_of_row_ids;
+        iter_col  = column_s;
+        int rel_num_right  = table_s->num_of_relations;
+        uint64_t ** i_rows = table_s->row_ids;
 
 #ifdef time
         struct timeval start_build;
@@ -284,9 +300,9 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
         for (uint64_t i = 0; i < hash_size; i++) {
             /* store hash[value of the column] = {rowid, index} */
             hash_entry hs;
-            hs.row_id = h_rows[hash_col->table_index][i];
+            hs.row_id = h_rows[i][index_r];
             hs.index = i;
-            hash_c.insert({hash_col->values[i], hs});
+            hash_c.insert({hash_col->values[h_rows[i][index_r]], hs});
         }
 
 
@@ -299,30 +315,47 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
         gettimeofday(&start_probe, NULL);
 #endif
         /* create the updated relations_row_ids, merge the sizes*/
-        updated_table_t->relations_row_ids = new std::vector<std::vector<int>>(h_rows.size()+i_rows.size());
-        //uint64_t size = ((uint64_t) (hash_size * hash_size)) / 100;
-        for (size_t relation = 0; relation < h_rows.size()+i_rows.size(); relation++) {
-                updated_table_t->relations_row_ids->operator[](relation).reserve(((uint64_t)(hash_size/10) * (hash_size)/10));
-        }
-        std::vector<std::vector<int>> &update_row_ids = *updated_table_t->relations_row_ids;
+        uint32_t allocated_size = hash_size;
+        updated_table_t->row_ids   = (uint64_t **) malloc(sizeof(uint64_t **) * allocated_size);
+        updated_table_t->num_of_relations = table_s->num_of_relations + table_r->num_of_relations;
+        updated_table_t->allocated_size = allocated_size;
+        uint64_t ** update_row_ids = updated_table_t->row_ids;
 
         /* now the phase of hashing */
+        uint32_t table_index = 0;
+        uint32_t vector_size = updated_table_t->num_of_relations;
         for (uint64_t i = 0; i < iter_size; i++) {
             /* remember we may have multi vals in 1 key,if it isnt a primary key */
             /* vals->first = key ,vals->second = value */
-            auto range_vals = hash_c.equal_range(iter_col->values[i]);
+            auto range_vals = hash_c.equal_range(iter_col->values[i_rows[i][index_s]]);
             for(auto &vals = range_vals.first; vals != range_vals.second; vals++) {
                 /* store all the result then push it int the new row ids */
                 /* its faster than to push back 1 every time */
                 /* get the first values from the r's rows ids */
-                for (uint64_t j = 0 ; j < h_rows.size(); j++)
-                    update_row_ids[j].emplace_back(h_rows[j][vals->second.index]);
+                /* Reallocate in case of emergency */
+                if (table_index == allocated_size) {
+                    //std::cerr << "In realloc" << '\n';
 
-                /* then go to the s's row ids to get the values */
-                for (uint64_t j = 0; j < i_rows.size(); j++)
-                    update_row_ids[j + h_rows.size()].emplace_back(i_rows[j][i]);
+                    allocated_size = allocated_size * 2;
+                    uint64_t** new_pointer = (uint64_t **) realloc(update_row_ids, sizeof(uint64_t*) * allocated_size);
+
+                    if (new_pointer == NULL) std::cerr << "Error in realloc " << '\n';
+                    update_row_ids = new_pointer;
+
+                    updated_table_t->allocated_size = allocated_size;
+                }
+
+                update_row_ids[table_index] = (uint64_t *) malloc(sizeof(uint64_t *) * vector_size);
+
+                /* Copy the vectors to the new ones */
+                memcpy(&update_row_ids[table_index][0], &h_rows[vals->second.index][0], sizeof(uint64_t) * rel_num_left);
+                memcpy(&update_row_ids[table_index][rel_num_left], &i_rows[i][0], sizeof(uint64_t) * rel_num_right);
+
+                table_index++;
             }
         }
+        updated_table_t->size_of_row_ids = table_index;
+        updated_table_t->row_ids = update_row_ids;
 
         updated_table_t->relation_ids.reserve(table_r->relation_ids.size()+table_s->relation_ids.size());
         updated_table_t->relation_ids.insert(updated_table_t->relation_ids.end() ,table_r->relation_ids.begin(), table_r->relation_ids.end());
@@ -339,27 +372,29 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
     }
     /* table_r->column_j->size > table_s->column_j->size */
     else {
-
 #ifdef time
         struct timeval start_build;
         gettimeofday(&start_build, NULL);
 #endif
-        hash_size = table_s->column_j->size;
-        hash_col = table_s->column_j;
-        std::vector<std::vector<int>> &h_rows = *table_s->relations_row_ids;
+        hash_size = table_s->size_of_row_ids;
+        hash_col = column_s;
+        uint64_t ** h_rows = table_s->row_ids;
+        int rel_num_left  = table_s->num_of_relations;
 
-        iter_size = table_r->column_j->size;
-        iter_col = table_r->column_j;
-        std::vector<std::vector<int>> &i_rows = *table_r->relations_row_ids;
+        iter_size = table_r->size_of_row_ids;
+        iter_col  = column_r;
+        uint64_t ** i_rows = table_r->row_ids;
+        int rel_num_right  = table_r->num_of_relations;
 
         /* now put the values of the column_r in the hash_table(construction phase) */
         for (uint64_t i = 0; i < hash_size; i++) {
             /* store hash[value of the column] = {rowid, index} */
             hash_entry hs;
-            hs.row_id = h_rows[hash_col->table_index][i];
+            hs.row_id = h_rows[i][index_s];
             hs.index = i;
-            hash_c.insert({hash_col->values[i], hs});
+            hash_c.insert({hash_col->values[h_rows[i][index_s]], hs});
         }
+
 #ifdef time
         struct timeval end_build;
         gettimeofday(&end_build, NULL);
@@ -369,31 +404,47 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
         gettimeofday(&start_probe, NULL);
 #endif
         /* create the updated relations_row_ids, merge the sizes*/
-        updated_table_t->relations_row_ids = new std::vector<std::vector<int>>(h_rows.size()+i_rows.size());
-        //uint64_t size = ((uint64_t) (hash_size * hash_size)) / 100;
-        for (size_t relation = 0; relation < h_rows.size()+i_rows.size(); relation++) {
-                updated_table_t->relations_row_ids->operator[](relation).reserve(((uint64_t)(hash_size/10) * (hash_size)/10));
-        }
-        //updated_table_t->relations_row_ids->resize(h_rows.size()+i_rows.size(), std::vector<int>());
-        std::vector<std::vector<int>> &update_row_ids = *updated_table_t->relations_row_ids;
+        uint32_t allocated_size = hash_size;
+        updated_table_t->row_ids   = (uint64_t **) malloc(sizeof(uint64_t **) * allocated_size);
+        updated_table_t->num_of_relations = table_s->num_of_relations + table_r->num_of_relations;
+        updated_table_t->allocated_size = allocated_size;
+        uint64_t ** update_row_ids = updated_table_t->row_ids;
 
         /* now the phase of hashing */
+        uint32_t table_index = 0;
+        uint32_t vector_size = updated_table_t->num_of_relations;
         for (uint64_t i = 0; i < iter_size; i++) {
             /* remember we may have multi vals in 1 key,if it isnt a primary key */
             /* vals->first = key ,vals->second = value */
-            auto range_vals = hash_c.equal_range(iter_col->values[i]);
+            auto range_vals = hash_c.equal_range(iter_col->values[i_rows[i][index_r]]);
             for(auto &vals = range_vals.first; vals != range_vals.second; vals++) {
                 /* store all the result then push it int the new row ids */
                 /* its faster than to push back 1 every time */
+                /* get the first values from the r's rows ids */
+                /* Reallocate in case of emergency */
+                if (table_index == allocated_size) {
+                    allocated_size = allocated_size * 2;
+                    uint64_t** new_pointer = (uint64_t **) realloc(update_row_ids, sizeof(uint64_t*) * allocated_size);
 
-                for (uint64_t j = 0 ; j < h_rows.size(); j++)
-                    update_row_ids[j].emplace_back(h_rows[j][vals->second.index]);
+                    if (new_pointer == NULL) std::cerr << "Error in realloc " << '\n';
+                    update_row_ids = new_pointer;
 
-                /* then go to the s's row ids to get the values */
-                for (uint64_t j = 0; j < i_rows.size(); j++)
-                    update_row_ids[j + h_rows.size()].emplace_back(i_rows[j][i]);
+                    updated_table_t->allocated_size = allocated_size;
+                }
+
+                update_row_ids[table_index] = (uint64_t *) malloc(sizeof(uint64_t *) * vector_size);
+
+                /* Copy the vectors to the new ones */
+                memcpy(&update_row_ids[table_index][0], &h_rows[vals->second.index][0], sizeof(uint64_t) * rel_num_left);
+                memcpy(&update_row_ids[table_index][rel_num_left], &i_rows[i][0], sizeof(uint64_t) * rel_num_right);
+
+                table_index++;
             }
         }
+        updated_table_t->size_of_row_ids = table_index;
+        updated_table_t->row_ids = update_row_ids;
+
+
         updated_table_t->relation_ids.reserve(table_s->relation_ids.size()+table_r->relation_ids.size());
         updated_table_t->relation_ids.insert(updated_table_t->relation_ids.end() ,table_s->relation_ids.begin(), table_s->relation_ids.end());
         updated_table_t->relation_ids.insert(updated_table_t->relation_ids.end() ,table_r->relation_ids.begin(), table_r->relation_ids.end());
@@ -411,11 +462,6 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
     }
     /* concatenate the relaitons ids for the merge */
     updated_table_t->intermediate_res = true;
-    updated_table_t->column_j = new column_t;
-
-    /* do the cleaning */
-    delete table_r->relations_row_ids;
-    delete table_s->relations_row_ids;
 
 #ifdef time
     struct timeval end;
@@ -567,7 +613,8 @@ table_t* Joiner::join(table_t *table_left, table_t *table_right, PredicateInfo *
 #endif
 
     /* Do the radix join */
-    table_t * res = radix_join(table_left, column_left, table_right, column_right);
+    //table_t * res = radix_join(table_left, column_left, table_right, column_right);
+    table_t * res = low_join(table_left, column_left, table_right, column_right);
 
 #ifdef time
     struct timeval end;
@@ -575,8 +622,8 @@ table_t* Joiner::join(table_t *table_left, table_t *table_right, PredicateInfo *
     timeRadixJoin += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
 #endif
 
-    free(table_left->row_ids);
-    free(table_right->row_ids);
+    //free(table_left->row_ids);
+    //free(table_right->row_ids);
     free(column_left);
     free(column_right);
 
@@ -641,7 +688,7 @@ int main(int argc, char* argv[]) {
 #define titina
 #ifdef titina
         // Parse the query
-        std::cerr << q_counter  << ": " << line << '\n';
+        //std::cerr << q_counter  << ": " << line << '\n';
         i.parseQuery(line);
         q_counter++;
 
