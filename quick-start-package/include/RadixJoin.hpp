@@ -5,8 +5,6 @@
 #include <stdlib.h>
 #include "table_t.hpp"
 
-
-
 #ifndef NUM_RADIX_BITS
 #define NUM_RADIX_BITS 14
 #endif

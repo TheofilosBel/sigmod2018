@@ -20,9 +20,12 @@ double timeTreegen = 0;
 double timeCheckSum = 0;
 double timeRadixJoin = 0;
 double timePreparation = 0;
-double timeBuildPhase = 0;
-double timeProbePhase = 0;
-double timePartition  = 0;
+
+
+extern double timeBuildPhase;
+extern double timeProbePhase;
+extern double timePartition;
+
 
 
 #define time

@@ -2,6 +2,11 @@
 
 using namespace std;
 
+#define time
+double timeBuildPhase = 0;
+double timeProbePhase = 0;
+double timePartition  = 0;
+
 /**
  *  This algorithm builds the hashtable using the bucket chaining idea and used
  *  in PRO implementation. Join between given two relations is evaluated using
@@ -67,14 +72,13 @@ int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const 
 
                 /* Reallocate in case of emergency */
                 if (new_rids_index == size) {
-                    size = size << 1;
+                    size = size * 10;
                     uint64_t** new_pointer = (uint64_t **) realloc(matched_row_ids, sizeof(uint64_t*) * size);
 
                     if (new_pointer == NULL) std::cerr << "Error in realloc " << '\n';
                     matched_row_ids = new_pointer;
 
                     result_table->allocated_size = size;
-                    std::cerr<< "new size is ->"<<size<<'\n';
                 }
 
                 /* Create new uint64_t array */
@@ -84,11 +88,6 @@ int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const 
                 memcpy(&matched_row_ids[new_rids_index][0], &L[hit-1][0], sizeof(uint64_t) * rel_num_left);
                 memcpy(&matched_row_ids[new_rids_index][rel_num_left], &R[i][0], sizeof(uint64_t) * rel_num_right);
 
-
-                //std::cerr << "L array " << L[0][0] << '\n';
-                //flush(cerr);
-                //std::cerr << "M array " << matched_row_ids[0][0] << '\n';
-                //flush(cerr);
 
                 matches += column_left->values[matched_row_ids[new_rids_index][index_l]];
                 new_rids_index++;
