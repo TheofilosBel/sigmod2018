@@ -418,10 +418,10 @@ int main(int argc, char* argv[]) {
     #endif
 
     // Preparation phase (not timed)
-    //QueryPlan queryPlan;
+    QueryPlan queryPlan;
 
     // Get the needed info of every column
-    //queryPlan.fillColumnInfo(joiner);
+    queryPlan.fillColumnInfo(joiner);
 
     #ifdef time
     struct timeval end;
@@ -446,7 +446,9 @@ int main(int argc, char* argv[]) {
         #endif
 
         JTree *jTreePtr = treegen(&i);
-
+        // Create the optimal join tree
+        JoinTree* optimalJoinTree = queryPlan.joinTreePtr->build(i.relationIds, i.predicates);
+        
         #ifdef time
         gettimeofday(&end, NULL);
         timeTreegen += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;

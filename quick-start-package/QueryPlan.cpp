@@ -2,56 +2,96 @@
 #include "QueryPlan.hpp"
 #include <unordered_map>
 
-// The Plan Tree Node constructor
-PlanTreeNode::PlanTreeNode() {}
+using namespace std;
 
-// Construct plan tree from set of relationship IDs
-PlanTree* PlanTree::makePlanTree(std::set<int>& relIdSet) {
-    std::unordered_map< std::vector<bool>, PlanTree* > BestTree;
+// Construct plan tree from set of relations IDs
+JoinTree* JoinTree::build(vector<RelationId>& relationIds, vector<PredicateInfo>& predicates) {
+    // Maps every possible set of relations to its respective best plan tree
+    unordered_map< vector<bool>, JoinTree* > BestTree;
+    int relationsCount = relationIds.size();
 
-    for (int i = 0; i < relIdSet.size(); i++) {
-        PlanTree* planTreePtr = (PlanTree*) malloc(1 * sizeof(PlanTree));
-        PlanTreeNode* PlanTreeNodePtr = (PlanTreeNode*) malloc(1 * sizeof(PlanTreeNode));
-        planTreePtr->root = PlanTreeNodePtr;
-        std::vector<bool> tempVec(relIdSet.size(), false);
+    // Initialise the BestTree structure
+    for (int i = 0; i < relationsCount; i++) {
+        // Allocate memory
+        JoinTree* joinTreePtr = (JoinTree*) malloc(sizeof(JoinTree));
+        JoinTreeNode* joinTreeNodePtr = (JoinTreeNode*) malloc(sizeof(JoinTreeNode));
+        
+        // Initialise JoinTreeNode
+        joinTreeNodePtr->nodeId = relationIds[i]; // The true id of the relation
+        joinTreeNodePtr->left = NULL;
+        joinTreeNodePtr->right = NULL;
+        joinTreeNodePtr->parent = NULL;
+        joinTreeNodePtr->predicateInfoPtr = NULL;
+        joinTreeNodePtr->filterInfoPtr = NULL;
+        joinTreeNodePtr->intermediateColumnInfoPtr = NULL;
+
+        // Initialise JoinTree
+        joinTreePtr->root = joinTreeNodePtr;
+        joinTreePtr->isRightDeepOnly = false;
+        joinTreePtr->isLeftDeepOnly = true;
+
+        // Insert into the BestTree
+        vector<bool> tempVec(relationsCount, false);
         tempVec[i] = true;
-        BestTree[tempVec] = planTreePtr;
+        BestTree[tempVec] = joinTreePtr;
     }
 
-    // generate power-set of given set
-    /* source: https://www.geeksforgeeks.org/power-set/ */
-    std::map< int, std::set< std::set<int> > > powerSetMap;
-    for (int j = 1; j <= relIdSet.size(); j++) {
-        unsigned int powerSetSize = pow(2, relIdSet.size());
-        std::set< std::set<int> > tempSetOfSets;
-        for (int counter = 0; counter < powerSetSize; counter++) {
-            std::set<int> tempSet;
-            for (int k = 0; k < j; k++) {
-                if (counter & (1 << k))
-                    tempSet.insert(k);
+    // Maps all sets of a certain size to their size
+    map< int, set< set<int> > > powerSetMap;
+
+    // Generate power-set of the given set of relations
+    // source: www.geeksforgeeks.org/power-set/
+    unsigned int powerSetSize = pow(2, relationsCount);
+
+    for (int counter = 0; counter < powerSetSize; counter++) {
+        set<int> tempSet;
+        for (int j = 0; j < relationsCount; j++) {
+            if (counter & (1 << j)) {
+                tempSet.insert(relationIds[j]);
             }
-            tempSetOfSets.insert(tempSet);
+        
+            // Save all sets of a certain size
+            powerSetMap[tempSet.size()].insert(tempSet);
         }
-        powerSetMap[j] = tempSetOfSets;
     }
 
-    for (int i = 0; i < relIdSet.size()-1; i++) {
+    /*
+    // Print the power set
+    fprintf(stderr, "\nrelations = ");
+    for (int i = 0; i < relationsCount; i++) fprintf(stderr, "%d ", relationIds[i]);
+    fprintf(stderr, "\n");
+
+    for (int i = 1; i <= relationsCount; i++) {
+        fprintf(stderr, "set size = %d contains sets = {", i);
         for (auto s : powerSetMap[i]) {
-            for (int j = 0; j < relIdSet.size(); j++) {
-                // if j not in s
+            fprintf(stderr, "{");
+            for (auto i : s) {
+                fprintf(stderr, " %d ", i);
+            }
+            fprintf(stderr, "}");
+        }
+        fprintf(stderr, "}\n");
+    }
+    */
+
+#ifdef k
+    // Dynamic programming algorithm
+    for (int i = 1; i <= relationsCount; i++) {
+        for (auto s : powerSetMap[i]) {
+            for (int j = 0; j < relationsCount; j++) {
+                // If j is not in the set
                 if (s.find(j) == s.end()) {
-                    std::set<int> tempSet;
-                    tempSet.insert(j);
-                    if (!connected(tempSet, s))
-                        continue;
+                    //if (!connected(j, s, predicates))
+                    //    continue;
 
-                    std::vector<bool> tempVecS(relIdSet.size(), false);
-                    for (auto i : s) tempVecS[i] = true;
-                    PlanTree* currTree = makePlanTree(BestTree[tempVecS], j);
+                    // Create the bit vector representation of the set
+                    vector<bool> setToVector(relationsCount, false);
+                    for (auto i : s) setToVector[i] = true;
+                    JoinTree* currTree = CreateJoinTree(BestTree[setToVector], j);
 
-                    std::set<int> s1 = s;
+                    set<int> s1 = s;
                     s1.insert(j);
-                    std::vector<bool> tempVecS1(relIdSet.size(), false);
+                    vector<bool> tempVecS1(relationsCount, false);
                     for (auto i : s1) tempVecS1[i] = true;
                     if (BestTree.at(tempVecS1) == NULL || cost(BestTree.at(tempVecS1)) > cost(currTree))
                         BestTree.at(tempVecS1) = currTree;
@@ -60,31 +100,42 @@ PlanTree* PlanTree::makePlanTree(std::set<int>& relIdSet) {
         }
     }
 
-    std::vector<bool> tempVecS(relIdSet.size(), true);
-    return BestTree.at(tempVecS);
+    vector<bool> setToVector(relationsCount, true);
+    return BestTree.at(setToVector);
+# endif
+
+    return NULL;
 }
 
-// returns true, if there is a join predicate between one of the relations in its first argument and one of the relations in its second
-bool PlanTree::connected(std::set<int>& set1, std::set<int>& set2) {
-    return true;
-}
+// returns true, if there is a join predicate between one of the relations in its first argument
+// and one of the relations in its second
+/*
+bool JoinTree::connected(int relId, set<int>& idSet, set<PredicateInfo>& predSet) {
+    for (auto p : predSet)
+        for (auto s : idSet)
+            if ((p.left.relId == relId && p.right.relId == s) && (p.left.relId == s && p.right.relId == relId))
+                return true;
 
-// Adds a relationship to a join tree
-PlanTree* PlanTree::makePlanTree(PlanTree* left, int relId) {
+    return false;
+}
+*/
+
+// Adds a relation to a join tree
+JoinTree* JoinTree::CreateJoinTree(JoinTree* left, int relId) {
     return NULL;
 }
 
 // execute the plan described by a Plan Tree
-void PlanTree::executePlan(PlanTree* planTreePtr) {}
+void JoinTree::execute(JoinTree* joinTreePtr) {}
 
 // Destoys a Plan Tree properly
-void PlanTree::freePlanTree(PlanTree* planTreePtr) {}
+void JoinTree::freeJoinTree(JoinTree* joinTreePtr) {}
 
 // Prints a Plan Tree -- for debugging
-void PlanTree::printPlanTree(PlanTree* planTreePtr) {}
+void JoinTree::printJoinTree(JoinTree* joinTreePtr) {}
 
 // Estimates the cost of a given Plan Tree */
-double PlanTree::cost(PlanTree* planTreePtr) {
+double JoinTree::cost(JoinTree* joinTreePtr) {
     return 1.0;
 }
 
@@ -92,11 +143,11 @@ double PlanTree::cost(PlanTree* planTreePtr) {
 void QueryPlan::build(QueryInfo& queryInfoPtr) {
 #ifdef k
     /* a map that maps each relation-ID to a pointer to it's respective table-type */
-    std::map<RelationId, table_t*> tableTPtrMap;
+    map<RelationId, table_t*> tableTPtrMap;
 
     /* apply all filters and create a vector of table-types from the query selections */
-    for (std::vector<FilterInfo>::iterator it = queryInfoPtr.filters.begin(); it != queryInfoPtr.filters.end(); ++it) {
-        std::map<RelationId, table_t*>::iterator mapIt = tableTPtrMap.find(it->filterColumn.relId);
+    for (vector<FilterInfo>::iterator it = queryInfoPtr.filters.begin(); it != queryInfoPtr.filters.end(); ++it) {
+        map<RelationId, table_t*>::iterator mapIt = tableTPtrMap.find(it->filterColumn.relId);
 
         /* if table-type for this relation-ID already in map, then update the respective table-type */
         if (mapIt != tableTPtrMap.end()) {
@@ -111,9 +162,9 @@ void QueryPlan::build(QueryInfo& queryInfoPtr) {
     }
 
     /* create a set of pointers to the table-types that are to be joined */
-    std::set<table_t*> tableTPtrSet;
-    for (std::vector<PredicateInfo>::iterator it = queryInfoPtr.predicates.begin(); it != queryInfoPtr.predicates.end(); ++it) {
-        std::map<RelationId, table_t*>::iterator mapItLeft = tableTPtrMap.find(it->left.relId),
+    set<table_t*> tableTPtrSet;
+    for (vector<PredicateInfo>::iterator it = queryInfoPtr.predicates.begin(); it != queryInfoPtr.predicates.end(); ++it) {
+        map<RelationId, table_t*>::iterator mapItLeft = tableTPtrMap.find(it->left.relId),
                                             mapItRight = tableTPtrMap.find(it->right.relId);
         /* sanity check -- REMOVE in the end */
         assert(mapItLeft != tableTPtrMap.end() && mapItRight != tableTPtrMap.end());
@@ -126,7 +177,7 @@ void QueryPlan::build(QueryInfo& queryInfoPtr) {
     JoinTree* tempJoinTreePtr = constrJoinTreeFromRelations(tableTPtrSet);
 
     /* apply all filters */
-    for (std::vector<int>::iterator it = queryInfoPtr.filters.begin() ; it != queryInfoPtr.filters.end(); ++it) {}
+    for (vector<int>::iterator it = queryInfoPtr.filters.begin() ; it != queryInfoPtr.filters.end(); ++it) {}
 
     /* create an array of sets of relations to be joined */
 
@@ -154,14 +205,14 @@ void QueryPlan::fillColumnInfo(Joiner& joiner) {
         // Allocate memory for the columns
         columnInfos[rel] = (ColumnInfo*) malloc(columnsCount * sizeof(ColumnInfo));
 
-        std::cerr << "relation: " << rel << std::endl;
-        flush(std::cerr);
+        cerr << "relation: " << rel << endl;
+        flush(cerr);
 
         // Get the info of every column
         for (int col = 0; col < columnsCount; col++) {
-            uint64_t minimum = std::numeric_limits<uint64_t>::max(); // Value of minimum element
+            uint64_t minimum = numeric_limits<uint64_t>::max(); // Value of minimum element
             uint64_t maximum = 0; // Value of maximum element
-            std::set<uint64_t> distinctElements; // Keep the distinct elements of the column
+            set<uint64_t> distinctElements; // Keep the distinct elements of the column
 
             uint64_t tuples = relation->size;
             for (int i = 0; i < tuples; i++) {
@@ -177,12 +228,12 @@ void QueryPlan::fillColumnInfo(Joiner& joiner) {
             columnInfos[rel][col].size = tuples;
             columnInfos[rel][col].distinct = (uint64_t) distinctElements.size();
 
-            std::cerr << "    column: " << col << std::endl;
-            std::cerr << "    min: " << columnInfos[rel][col].min << std::endl;
-            std::cerr << "    max: " << columnInfos[rel][col].max << std::endl;
-            std::cerr << "    size: " << columnInfos[rel][col].size << std::endl;
-            std::cerr << "    distinct: " << columnInfos[rel][col].distinct << std::endl << std::endl;
-            flush(std::cerr);
+            cerr << "    column: " << col << endl;
+            cerr << "    min: " << columnInfos[rel][col].min << endl;
+            cerr << "    max: " << columnInfos[rel][col].max << endl;
+            cerr << "    size: " << columnInfos[rel][col].size << endl;
+            cerr << "    distinct: " << columnInfos[rel][col].distinct << endl << endl;
+            flush(cerr);
         }
     }
 }
