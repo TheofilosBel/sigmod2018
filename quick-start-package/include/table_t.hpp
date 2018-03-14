@@ -33,6 +33,7 @@ struct table_t {
     /* Intermediate result falg */
     bool intermediate_res;
 
+    ssize_t allocated_size;
     int size_of_row_ids;
     int num_of_relations;
 

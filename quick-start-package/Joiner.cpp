@@ -115,6 +115,8 @@ void Joiner::SelectEqual(table_t *table, column_t *column, int filter) {
     delete table->row_ids;
     table->row_ids = new_row_ids;
     table->intermediate_res = true;
+    table->allocated_size   = size_rids;
+    table->size_of_row_ids  = new_tb_index;
 }
 
 void Joiner::SelectGreater(table_t *table, column_t *column, int filter){
@@ -153,7 +155,8 @@ void Joiner::SelectGreater(table_t *table, column_t *column, int filter){
     delete table->row_ids;
     table->row_ids = new_row_ids;
     table->intermediate_res = true;
-    table->size_of_row_ids = new_tb_index;
+    table->allocated_size   = size_rids;
+    table->size_of_row_ids  = new_tb_index;
 }
 
 
@@ -192,6 +195,8 @@ void Joiner::SelectLess(table_t *table, column_t *column, int filter){
     delete table->row_ids;
     table->row_ids = new_row_ids;
     table->intermediate_res = true;
+    table->allocated_size   = size_rids;
+    table->size_of_row_ids  = new_tb_index;
 }
 
 
@@ -210,6 +215,7 @@ table_t* Joiner::CreateTableTFromId(unsigned rel_id, unsigned rel_binding) {
     table_t *const table_t_ptr = new table_t;
     table_t_ptr->intermediate_res = false;
     table_t_ptr->size_of_row_ids  = rel.size;
+    table_t_ptr->allocated_size   = rel.size;
     table_t_ptr->num_of_relations = 1;
     table_t_ptr->row_ids       = (uint64_t **) malloc(sizeof(uint64_t*) * rel.size);
 
@@ -298,6 +304,7 @@ table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
 
     /* Update pointers */
     new_table->size_of_row_ids  = new_table_index;
+    new_table->allocated_size   = table->size_of_row_ids;
     new_table->num_of_relations = table->num_of_relations;
     new_table->intermediate_res = true;
 
@@ -318,21 +325,29 @@ table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
 //CHECK SUM FUNCTION
 uint64_t Joiner::check_sum(SelectInfo &sel_info, table_t *table) {
 
-#ifdef noo
     /* to create the final cehcksum column */
-    AddColumnToTableT(sel_info, table);
-    construct(table);
+    column_t * column = CreateColumn(sel_info);
+    int   table_index = -1;
 
-    const uint64_t* col = table->column_j->values;
-    const uint64_t size = table->column_j->size;
+    /* Get the index from the row_ids 2d array */
+    for (ssize_t index = 0; index < table->num_of_relations; index++) {
+
+        if (column->binding == table->relations_bindings[index]) {
+            table_index = index;
+            break;
+        }
+    }
+
+    if (table_index == -1) std::cerr << "Error in CheckSum: No mapping found for predicates" << '\n';
+
+    uint64_t *  values  = column->values;
+    uint64_t ** row_ids = table->row_ids;
     uint64_t sum = 0;
-
+    int     size = table->size_of_row_ids;
     for (uint64_t i = 0 ; i < size; i++)
-        sum += col[i];
+        sum += values[row_ids[i][table_index]];
 
     return sum;
-#endif
-  return 0;
 }
 
 // Loads a relation from disk
@@ -356,12 +371,12 @@ table_t* Joiner::join(table_t *table_left, table_t *table_right, PredicateInfo *
     column_t * column_right = CreateColumn(pred->right);
 
     /* Do the radix join */
-    radix_join(table_left, column_left, table_right, column_right);
+    table_t * res = radix_join(table_left, column_left, table_right, column_right);
 
     free(column_left);
     free(column_right);
 
-    return table_left;
+    return res;
 }
 
 // Get the total number of relations
@@ -420,6 +435,7 @@ int main(int argc, char* argv[]) {
     while (getline(cin, line)) {
         if (line == "F") continue; // End of a batch
 
+#ifdef titina
         // Parse the query
         std::cerr << q_counter  << ": " << line << '\n';
         i.parseQuery(line);
@@ -471,7 +487,8 @@ int main(int argc, char* argv[]) {
 
         /* Print the result */
         std::cout << result_str << endl;
-        //std::cout << "Implelemt JOIN " << '\n';
+#endif
+        std::cout << "Implelemt JOIN " << '\n';
     }
 
     #ifdef time

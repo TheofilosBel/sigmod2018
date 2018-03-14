@@ -1,6 +1,8 @@
 #pragma once
 #include <sys/time.h>           /* gettimeofday */
 #include <iostream>              /* printf */
+#include <string.h>
+#include <stdlib.h>
 #include "Joiner.hpp"
 #include "table_t.hpp"
 
@@ -44,8 +46,8 @@
 
 #define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
 
-int64_t bucket_chaining_join(uint64_t ** R, const column_t * column_left, const int size_left,
-                             uint64_t ** S, const column_t * column_right, const int size_right, int * const tmpR);
+int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const int size_left, int rel_num_left,
+                             uint64_t ** R, const column_t * column_right, const int size_right, int rel_num_right, table_t * result_table);
 
 void radix_cluster_nopadding(uint64_t ** out_rel_ids, uint64_t ** in_rel_ids, column_t *column, int row_ids_size, int R, int D);
 
