@@ -83,13 +83,12 @@ int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const 
                 }
 
                 /* Create new uint64_t array */
-                //if (size != 32)
                 matched_row_ids[new_rids_index] = (uint64_t *) malloc(sizeof(uint64_t *) * vector_size);
 
                 std::cerr << "--- 5 " <<  "  p: " << &matched_row_ids[new_rids_index] << endl;
                 flush(std::cerr);
                 
-                memcpy(matched_row_ids[new_rids_index], L[hit-1], sizeof(uint64_t) * rel_num_left);
+                memcpy(&matched_row_ids[new_rids_index][0], L[hit-1], sizeof(uint64_t) * rel_num_left);
                 memcpy(&matched_row_ids[new_rids_index][rel_num_left], R[i], sizeof(uint64_t) * rel_num_right);
                 
                 new_rids_index++;
@@ -105,8 +104,6 @@ int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const 
 
     /* Update the size of the array */
     result_table->size_of_row_ids = new_rids_index;
-    //std::cerr << "IN here " << result_table->size_of_row_ids << '\n';
-    //flush(std::cerr);
 
     /* clean up temp */
     free(bucket);
