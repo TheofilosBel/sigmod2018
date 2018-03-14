@@ -238,6 +238,195 @@ table_t* Joiner::CreateTableTFromId(unsigned rel_id, unsigned rel_binding) {
     return table_t_ptr;
 }
 
+
+/*
+ * 1)Classic hash_join implementation with unorderd_map(stl)
+ * 2)Create hashtable from the row_table with the lowest size
+ * 3)Ids E [0,...,size-1]
+ * 4)Made the code repeatable to put some & in the arrays of row ids
+*/
+table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
+
+#ifdef time
+    struct timeval start;
+    gettimeofday(&start, NULL);
+#endif
+
+    /* create hash_table for the hash_join phase */
+    std::unordered_multimap<uint64_t, hash_entry> hash_c;
+
+    /* the new table_t to continue the joins */
+    table_t *updated_table_t = new table_t;
+
+
+    /* hash_size->size of the hashtable,iter_size->size to iterate over to find same vals */
+    uint64_t hash_size,iter_size;
+    column_t *hash_col;
+    column_t *iter_col;
+
+
+    /* check on wich table will create the hash_table */
+    if (table_r->column_j->size <= table_s->column_j->size) {
+        hash_size = table_r->column_j->size;
+        hash_col = table_r->column_j;
+        std::vector<std::vector<int>> &h_rows = *table_r->relations_row_ids;
+
+        iter_size = table_s->column_j->size;
+        iter_col = table_s->column_j;
+        std::vector<std::vector<int>> &i_rows = *table_s->relations_row_ids;
+
+#ifdef time
+        struct timeval start_build;
+        gettimeofday(&start_build, NULL);
+#endif
+
+        /* now put the values of the column_r in the hash_table(construction phase) */
+        for (uint64_t i = 0; i < hash_size; i++) {
+            /* store hash[value of the column] = {rowid, index} */
+            hash_entry hs;
+            hs.row_id = h_rows[hash_col->table_index][i];
+            hs.index = i;
+            hash_c.insert({hash_col->values[i], hs});
+        }
+
+
+#ifdef time
+        struct timeval end_build;
+        gettimeofday(&end_build, NULL);
+        timeBuildPhase += (end_build.tv_sec - start_build.tv_sec) + (end_build.tv_usec - start_build.tv_usec) / 1000000.0;
+
+        struct timeval start_probe;
+        gettimeofday(&start_probe, NULL);
+#endif
+        /* create the updated relations_row_ids, merge the sizes*/
+        updated_table_t->relations_row_ids = new std::vector<std::vector<int>>(h_rows.size()+i_rows.size());
+        //uint64_t size = ((uint64_t) (hash_size * hash_size)) / 100;
+        for (size_t relation = 0; relation < h_rows.size()+i_rows.size(); relation++) {
+                updated_table_t->relations_row_ids->operator[](relation).reserve(((uint64_t)(hash_size/10) * (hash_size)/10));
+        }
+        std::vector<std::vector<int>> &update_row_ids = *updated_table_t->relations_row_ids;
+
+        /* now the phase of hashing */
+        for (uint64_t i = 0; i < iter_size; i++) {
+            /* remember we may have multi vals in 1 key,if it isnt a primary key */
+            /* vals->first = key ,vals->second = value */
+            auto range_vals = hash_c.equal_range(iter_col->values[i]);
+            for(auto &vals = range_vals.first; vals != range_vals.second; vals++) {
+                /* store all the result then push it int the new row ids */
+                /* its faster than to push back 1 every time */
+                /* get the first values from the r's rows ids */
+                for (uint64_t j = 0 ; j < h_rows.size(); j++)
+                    update_row_ids[j].emplace_back(h_rows[j][vals->second.index]);
+
+                /* then go to the s's row ids to get the values */
+                for (uint64_t j = 0; j < i_rows.size(); j++)
+                    update_row_ids[j + h_rows.size()].emplace_back(i_rows[j][i]);
+            }
+        }
+
+        updated_table_t->relation_ids.reserve(table_r->relation_ids.size()+table_s->relation_ids.size());
+        updated_table_t->relation_ids.insert(updated_table_t->relation_ids.end() ,table_r->relation_ids.begin(), table_r->relation_ids.end());
+        updated_table_t->relation_ids.insert(updated_table_t->relation_ids.end() ,table_s->relation_ids.begin(), table_s->relation_ids.end());
+
+        updated_table_t->relations_bindings.reserve(table_r->relations_bindings.size()+table_s->relations_bindings.size());
+        updated_table_t->relations_bindings.insert(updated_table_t->relations_bindings.end() ,table_r->relations_bindings.begin(), table_r->relations_bindings.end());
+        updated_table_t->relations_bindings.insert(updated_table_t->relations_bindings.end() ,table_s->relations_bindings.begin(), table_s->relations_bindings.end());
+#ifdef time
+        struct timeval end_probe;
+        gettimeofday(&end_probe, NULL);
+        timeProbePhase += (end_probe.tv_sec - start_probe.tv_sec) + (end_probe.tv_usec - start_probe.tv_usec) / 1000000.0;
+#endif
+    }
+    /* table_r->column_j->size > table_s->column_j->size */
+    else {
+
+#ifdef time
+        struct timeval start_build;
+        gettimeofday(&start_build, NULL);
+#endif
+        hash_size = table_s->column_j->size;
+        hash_col = table_s->column_j;
+        std::vector<std::vector<int>> &h_rows = *table_s->relations_row_ids;
+
+        iter_size = table_r->column_j->size;
+        iter_col = table_r->column_j;
+        std::vector<std::vector<int>> &i_rows = *table_r->relations_row_ids;
+
+        /* now put the values of the column_r in the hash_table(construction phase) */
+        for (uint64_t i = 0; i < hash_size; i++) {
+            /* store hash[value of the column] = {rowid, index} */
+            hash_entry hs;
+            hs.row_id = h_rows[hash_col->table_index][i];
+            hs.index = i;
+            hash_c.insert({hash_col->values[i], hs});
+        }
+#ifdef time
+        struct timeval end_build;
+        gettimeofday(&end_build, NULL);
+        timeBuildPhase += (end_build.tv_sec - start_build.tv_sec) + (end_build.tv_usec - start_build.tv_usec) / 1000000.0;
+
+        struct timeval start_probe;
+        gettimeofday(&start_probe, NULL);
+#endif
+        /* create the updated relations_row_ids, merge the sizes*/
+        updated_table_t->relations_row_ids = new std::vector<std::vector<int>>(h_rows.size()+i_rows.size());
+        //uint64_t size = ((uint64_t) (hash_size * hash_size)) / 100;
+        for (size_t relation = 0; relation < h_rows.size()+i_rows.size(); relation++) {
+                updated_table_t->relations_row_ids->operator[](relation).reserve(((uint64_t)(hash_size/10) * (hash_size)/10));
+        }
+        //updated_table_t->relations_row_ids->resize(h_rows.size()+i_rows.size(), std::vector<int>());
+        std::vector<std::vector<int>> &update_row_ids = *updated_table_t->relations_row_ids;
+
+        /* now the phase of hashing */
+        for (uint64_t i = 0; i < iter_size; i++) {
+            /* remember we may have multi vals in 1 key,if it isnt a primary key */
+            /* vals->first = key ,vals->second = value */
+            auto range_vals = hash_c.equal_range(iter_col->values[i]);
+            for(auto &vals = range_vals.first; vals != range_vals.second; vals++) {
+                /* store all the result then push it int the new row ids */
+                /* its faster than to push back 1 every time */
+
+                for (uint64_t j = 0 ; j < h_rows.size(); j++)
+                    update_row_ids[j].emplace_back(h_rows[j][vals->second.index]);
+
+                /* then go to the s's row ids to get the values */
+                for (uint64_t j = 0; j < i_rows.size(); j++)
+                    update_row_ids[j + h_rows.size()].emplace_back(i_rows[j][i]);
+            }
+        }
+        updated_table_t->relation_ids.reserve(table_s->relation_ids.size()+table_r->relation_ids.size());
+        updated_table_t->relation_ids.insert(updated_table_t->relation_ids.end() ,table_s->relation_ids.begin(), table_s->relation_ids.end());
+        updated_table_t->relation_ids.insert(updated_table_t->relation_ids.end() ,table_r->relation_ids.begin(), table_r->relation_ids.end());
+
+        updated_table_t->relations_bindings.reserve(table_s->relations_bindings.size()+table_r->relations_bindings.size());
+        updated_table_t->relations_bindings.insert(updated_table_t->relations_bindings.end() ,table_s->relations_bindings.begin(), table_s->relations_bindings.end());
+        updated_table_t->relations_bindings.insert(updated_table_t->relations_bindings.end() ,table_r->relations_bindings.begin(), table_r->relations_bindings.end());
+
+#ifdef time
+        struct timeval end_probe;
+        gettimeofday(&end_probe, NULL);
+        timeProbePhase += (end_probe.tv_sec - start_probe.tv_sec) + (end_probe.tv_usec - start_probe.tv_usec) / 1000000.0;
+#endif
+
+    }
+    /* concatenate the relaitons ids for the merge */
+    updated_table_t->intermediate_res = true;
+    updated_table_t->column_j = new column_t;
+
+    /* do the cleaning */
+    delete table_r->relations_row_ids;
+    delete table_s->relations_row_ids;
+
+#ifdef time
+    struct timeval end;
+    gettimeofday(&end, NULL);
+    timeLowJoin += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+#endif
+
+    return updated_table_t;
+}
+
+
 /* The self Join Function */
 table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
 
