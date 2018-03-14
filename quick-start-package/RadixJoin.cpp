@@ -58,82 +58,56 @@ int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const 
         Rtuples = column_right->values + R[i][index_r];
         uint32_t idx = HASH_BIT_MODULO(*Rtuples, MASK, NUM_RADIX_BITS);
 
-        std::cerr << "New loop " << vector_size << " " << rel_num_left << '\n';
-        flush(cerr);
         for(int hit = bucket[idx]; hit > 0; hit = next[hit-1]){
-
-            std::cerr << "--- 2 " << "Hit=" << hit << " index " << new_rids_index << endl;
-            flush(std::cerr);
 
             Ltuples = column_left->values + L[hit-1][index_l];
 
             /* We have a match */
             if(*Rtuples == *Ltuples){
 
-                //std::cerr << "--- 1 " << size << '\n';
-                //flush(std::cerr);
-
                 /* Reallocate in case of emergency */
                 if (new_rids_index == size) {
-                    std::cerr << "hit realloc thres in radix " << size << " " << new_rids_index<< '\n';
-                    flush(std::cerr);
                     size = size << 1;
-                    matched_row_ids = (uint64_t **) realloc(matched_row_ids, size);
+                    uint64_t** new_pointer = (uint64_t **) realloc(matched_row_ids, sizeof(uint64_t*) * size);
+
+                    if (new_pointer == NULL) std::cerr << "Error in realloc " << '\n';
+                    matched_row_ids = new_pointer;
+
                     result_table->allocated_size = size;
                 }
 
                 /* Create new uint64_t array */
-                //if (size != 32)
                 matched_row_ids[new_rids_index] = (uint64_t *) malloc(sizeof(uint64_t *) * vector_size);
 
-                std::cerr << "--- 5 " <<  "  p: " << &matched_row_ids[new_rids_index] << endl;
-                flush(std::cerr);
-
                 /* Copy the vectors to the new ones */
-                //std::cerr << "--- A "<< "  p: " << &matched_row_ids[new_rids_index][0] << endl;
-                //flush(std::cerr);
-                if (size != 32)
-                    memcpy(matched_row_ids[new_rids_index], L[hit-1], sizeof(uint64_t) * rel_num_left);
-                //for (size_t j = 0; j < rel_num_left; j++) {
-                //    matched_row_ids[new_rids_index][j] = L[hit-1][j];
-                //}
+                memcpy(&matched_row_ids[new_rids_index][0], &L[hit-1][0], sizeof(uint64_t) * rel_num_left);
+                memcpy(&matched_row_ids[new_rids_index][rel_num_left], &R[i][0], sizeof(uint64_t) * rel_num_right);
 
-                //std::cerr << "--- B "<< "  p: " << &matched_row_ids[new_rids_index][rel_num_left] << endl;
-                //flush(std::cerr);
-                if (size != 32)
-                    memcpy(&matched_row_ids[new_rids_index][rel_num_left], R[i], sizeof(uint64_t) * rel_num_right);
-                //for (size_t j = 0; j < rel_num_right; j++) {
-                //    matched_row_ids[new_rids_index][j + rel_num_left] = R[hit-1][j];
-                //}
 
-                //std::cerr << "--- C "<< "  p: " << &matched_row_ids[new_rids_index][rel_num_left + rel_num_right] << endl;
-                //flush(std::cerr);
+                //std::cerr << "L array " << L[0][0] << '\n';
+                //flush(cerr);
+                //std::cerr << "M array " << matched_row_ids[0][0] << '\n';
+                //flush(cerr);
 
-                //std::cerr << "DID one copy: " << '\n';
-                //std::cerr << matched_row_ids[new_rids_index][index] << " = " << L[hit-1][index] << '\n';
-                //std::cerr << matched_row_ids[new_rids_index][index + rel_num_left] << " = " << R[i][index] << '\n';
-                //flush(std::cerr);
-
-                //matches += column_left->values[matched_row_ids[new_rids_index][index_l]];
+                matches += column_left->values[matched_row_ids[new_rids_index][index_l]];
                 new_rids_index++;
-
-                std::cerr << "--- 7 " << next[hit-1] << " p: " << &next[0] <<  endl;
-                flush(std::cerr);
             }
         }
     }
     /* PROBE-LOOP END  */
-    std::cerr << "END" << '\n';
-    flush(std::cerr);
 
     /* Update the size of the array */
     result_table->size_of_row_ids = new_rids_index;
-    //std::cerr << "IN here " << result_table->size_of_row_ids << '\n';
+    result_table->row_ids = matched_row_ids;
+    //std::cerr << "END" << '\n';
     //flush(std::cerr);
 
     /* clean up temp */
     free(bucket);
     free(next);
+
+    //std::cerr << "END " <<  matched_row_ids[0][0] << '\n';
+    //flush(std::cerr);
 
     return matches;
 }
@@ -154,17 +128,14 @@ void radix_cluster_nopadding(uint64_t ** out_rel_ids, uint64_t ** in_rel_ids, co
        and can be re-used from call to call. Allocating in this function
        just in case D differs from call to call. */
     dst     = (uint64_t ***)malloc(sizeof(uint64_t **) * fanOut);
-    /* dst_end = (tuple_t**)malloc(sizeof(tuple_t*)*fanOut); */
 
     /* count tuples per cluster */
     for(i = 0; i < ntuples; i++){
+
         input = column->values + in_rel_ids[i][column->binding];
         uint64_t idx = (uint64_t)(HASH_BIT_MODULO(*input, M, R));
         tuples_per_cluster[idx]++;
     }
-
-    std::cerr << "Relations size " << row_ids_size << " binding " << column->binding << '\n';
-    flush(std::cerr);
 
     offset = 0;
     /* determine the start and end of each cluster depending on the counts. */
@@ -190,23 +161,17 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
 
     uint64_t result = 0;
     uint32_t i;
-
-    #ifdef time
-    struct timeval start, end;
-    uint64_t timer1, timer2, timer3;
-    #endif
-
     uint64_t **out_row_ids_left, **out_row_ids_right;
+
+
 
     out_row_ids_left  = (uint64_t **) malloc(sizeof(uint64_t **) * table_left->size_of_row_ids);
     out_row_ids_right = (uint64_t **) malloc(sizeof(uint64_t **) * table_right->size_of_row_ids);
 
-    #ifdef time
+#ifdef time
+    struct timeval start;
     gettimeofday(&start, NULL);
-    startTimer(&timer1);
-    startTimer(&timer2);
-    startTimer(&timer3);
-    #endif
+#endif
 
     /* Fix the columns */
     //std::cerr << "Left binding before " << column_left->binding << '\n';
@@ -226,15 +191,11 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
         }
     }
 
-
-    std::cerr << "Size of rb " << table_left->relations_bindings.size() << " " << table_right->relations_bindings.size() << '\n';
-    std::cerr << "Size of rids " << table_left->relation_ids.size() << " " << table_right->relation_ids.size() << '\n';
     if (index_l == -1 || index_r == -1 ) std::cerr << "Error in radix : No relation mapping" << '\n';
     column_left->binding = index_l;
     column_right->binding = index_r;
 
     /***** do the multi-pass partitioning *****/
-    #if NUM_PASSES==1
 
     /* apply radix-clustering on relation R for pass-1 */
     radix_cluster_nopadding(out_row_ids_left, table_left->row_ids, column_left,
@@ -248,11 +209,15 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
     free(table_right->row_ids);
     table_right->row_ids = out_row_ids_right;
 
-    #endif
+#ifdef time
+    struct timeval end;
+    gettimeofday(&end, NULL);
+    timePartition += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+#endif
 
-    #ifdef time
-    stopTimer(&timer3);
-    #endif
+#ifdef time
+    gettimeofday(&start, NULL);
+#endif
 
     /* Why re compute */
     int * L_count_per_cluster = (int*)calloc((1<<NUM_RADIX_BITS), sizeof(int));
@@ -288,6 +253,16 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
     result_table->relation_ids.insert(result_table->relation_ids.end(),table_left->relation_ids.begin(), table_left->relation_ids.end());
     result_table->relation_ids.insert(result_table->relation_ids.end(),table_right->relation_ids.begin(), table_right->relation_ids.end());
 
+
+#ifdef time
+    gettimeofday(&end, NULL);
+    timeBuildPhase += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+#endif
+
+#ifdef time
+    gettimeofday(&start, NULL);
+#endif
+
     /* build hashtable on inner */
     int l, r; /* start index of next clusters */
     l = r = 0;
@@ -312,15 +287,11 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
         }
     }
 
-    #ifdef time
-    /* TODO: actually we're not timing build */
-    stopTimer(&timer2);/* build finished */
-    stopTimer(&timer1);/* probe finished */
+#ifdef time
     gettimeofday(&end, NULL);
-    /* now print the timing results: */
-    #endif
-
-    std::cerr << "Check sum (left)" << result << '\n';
+    timeProbePhase += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+#endif
+    //std::cerr << "Check sum (left)" << result << '\n';
 
     /* clean-up temporary buffers */
     free(L_count_per_cluster);

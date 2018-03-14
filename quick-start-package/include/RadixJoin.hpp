@@ -3,8 +3,8 @@
 #include <iostream>              /* printf */
 #include <string.h>
 #include <stdlib.h>
-#include "Joiner.hpp"
 #include "table_t.hpp"
+
 
 
 #ifndef NUM_RADIX_BITS
