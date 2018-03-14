@@ -472,6 +472,38 @@ table_t* Joiner::low_join(table_t *table_r, column_t *column_r,  table_t *table_
     return updated_table_t;
 }
 
+void Joiner::construct(table_t *table) {
+#ifdef time
+    struct timeval start;
+    gettimeofday(&start, NULL);
+#endif
+
+    /* Innitilize helping variables */
+    column_t &column = *table->column_j;
+    const uint64_t *column_values = column.values;
+    const int       table_index   = column.table_index;
+    const uint64_t  column_size   = table->relations_row_ids->operator[](table_index).size();
+    std::vector<std::vector<int>> &row_ids = *table->relations_row_ids;
+
+    /* Create a new value's array  */
+    uint64_t *const new_values  = new uint64_t[column_size];
+
+    /* Pass the values of the old column to the new one, based on the row ids of the joiner */
+    for (int i = 0; i < column_size; i++) {
+    	new_values[i] = column_values[row_ids[table_index][i]];
+    }
+
+    /* Update the column of the table */
+    column.values = new_values;
+    column.size   = column_size;
+
+#ifdef time
+    struct timeval end;
+    gettimeofday(&end, NULL);
+    timeConstruct += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+#endif
+}
+
 
 /* The self Join Function */
 table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
