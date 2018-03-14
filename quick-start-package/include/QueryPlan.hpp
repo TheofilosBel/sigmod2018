@@ -17,46 +17,47 @@ struct ColumnInfo {
     uint64_t distinct; // Number of distinct elements
 };
 
-// Plan Tree's node
-struct PlanTreeNode {
+// Join Tree's node
+struct JoinTreeNode {
     unsigned nodeId;
 
-    PlanTreeNode* left;
-    PlanTreeNode* right;
-    PlanTreeNode* parent;
+    JoinTreeNode* left;
+    JoinTreeNode* right;
+    JoinTreeNode* parent;
 
     PredicateInfo* predicateInfoPtr;
     FilterInfo* filterInfoPtr;
     ColumnInfo* intermediateColumnInfoPtr; // The info of the result of a join
 };
 
-// Plan Tree data structure
-struct PlanTree {
-    PlanTreeNode* root;
+// Join Tree data structure
+struct JoinTree {
+    JoinTreeNode* root;
 
     bool isRightDeepOnly;
     bool isLeftDeepOnly;
 
-    // Constructs a plan tree from a set of relations id's
-    PlanTree* makePlanTree(std::vector<RelationId>& relationIds, std::vector<PredicateInfo>& predicates);
+    // Constructs a Join tree from a set of relations id's
+    JoinTree* build(std::vector<RelationId>& relationIds, std::vector<PredicateInfo>& predicates);
 
-    // returns true, if there is a join predicate between one of the relations in its first argument and one of the relations in its second
-    bool connected(int relId, std::set<int>& idSet, std::set<PredicateInfo>& predSet);
+    // returns true, if there is a join predicate between one of the relations in its first argument
+    //and one of the relations in its second
+    //bool connected(int relId, std::set<int>& idSet, std::set<PredicateInfo>& predSet);
 
     // Adds a relation to a join tree
-    PlanTree* makePlanTree(PlanTree* left, int relId);
+    JoinTree* CreateJoinTree(JoinTree* left, int relId);
 
-    // execute the plan described by a Plan Tree
-    void executePlan(PlanTree* planTreePtr);
+    // execute the Join described by a Join Tree
+    void execute(JoinTree* joinTreePtr);
 
-    // Destoys a Plan Tree properly
-    void freePlanTree(PlanTree* planTreePtr);
+    // Destoys a Join Tree properly
+    void freeJoinTree(JoinTree* joinTreePtr);
 
-    // Prints a Plan Tree -- for debugging
-    void printPlanTree(PlanTree* planTreePtr);
+    // Prints a Join Tree -- for debugging
+    void printJoinTree(JoinTree* joinTreePtr);
 
-    // Estimates the cost of a given Plan Tree
-    double cost(PlanTree* planTreePtr);
+    // Estimates the cost of a given Join Tree
+    double cost(JoinTree* joinTreePtr);
 };
 
 // Query Plan data structure
@@ -66,7 +67,7 @@ struct QueryPlan {
     // Every item of a row represents a column of the relation
     ColumnInfo** columnInfos;
 
-    PlanTree* planTreePtr; // The plan tree to execute
+    JoinTree* joinTreePtr; // The plan tree to execute
 
     // Build a query plan with the given info
     void build(QueryInfo& queryInfoPtr);

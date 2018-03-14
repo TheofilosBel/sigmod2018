@@ -3,68 +3,73 @@
 #include <unordered_map>
 
 // Construct plan tree from set of relations IDs
-PlanTree* PlanTree::makePlanTree(std::vector<RelationId>& relationIds, std::vector<PredicateInfo>& predicates) {
+JoinTree* JoinTree::build(std::vector<RelationId>& relationIds, std::vector<PredicateInfo>& predicates) {
     // Maps every possible set of relations to its respective best plan tree
-    std::unordered_map< std::vector<bool>, PlanTree* > BestTree;
+    std::unordered_map< std::vector<bool>, JoinTree* > BestTree;
+    int relationsCount = relationIds.size();
 
     // Initialise the BestTree structure
-    for (int i = 0; i < relationIds.size(); i++) {
+    for (int i = 0; i < relationsCount; i++) {
         // Allocate memory
-        PlanTree* planTreePtr = (PlanTree*) malloc(sizeof(PlanTree));
-        PlanTreeNode* planTreeNodePtr = (PlanTreeNode*) malloc(sizeof(PlanTreeNode));
+        JoinTree* joinTreePtr = (JoinTree*) malloc(sizeof(JoinTree));
+        JoinTreeNode* joinTreeNodePtr = (JoinTreeNode*) malloc(sizeof(JoinTreeNode));
         
-        // Initialise planTreeNode
-        planTreeNodePtr->nodeId = relationIds[i]; // The true id of the relation
-        planTreeNodePtr->left = NULL;
-        planTreeNodePtr->right = NULL;
-        planTreeNodePtr->parent = NULL;
-        planTreeNodePtr->predicateInfoPtr = NULL;
-        planTreeNodePtr->filterInfoPtr = NULL;
-        planTreeNodePtr->intermediateColumnInfoPtr = NULL;
+        // Initialise JoinTreeNode
+        joinTreeNodePtr->nodeId = relationIds[i]; // The true id of the relation
+        joinTreeNodePtr->left = NULL;
+        joinTreeNodePtr->right = NULL;
+        joinTreeNodePtr->parent = NULL;
+        joinTreeNodePtr->predicateInfoPtr = NULL;
+        joinTreeNodePtr->filterInfoPtr = NULL;
+        joinTreeNodePtr->intermediateColumnInfoPtr = NULL;
 
-        // Initialise planTree
-        planTreePtr->root = planTreeNodePtr;
-        planTreePtr->isRightDeepOnly = false;
-        planTreePtr->isLeftDeepOnly = true;
+        // Initialise JoinTree
+        joinTreePtr->root = joinTreeNodePtr;
+        joinTreePtr->isRightDeepOnly = false;
+        joinTreePtr->isLeftDeepOnly = true;
 
         // Insert into the BestTree
-        std::vector<bool> tempVec(relationIds.size(), false);
+        std::vector<bool> tempVec(relationsCount, false);
         tempVec[i] = true;
-        BestTree[tempVec] = planTreePtr;
+        BestTree[tempVec] = joinTreePtr;
     }
 
-    // generate power-set of given set
-    /* source: https://www.geeksforgeeks.org/power-set/ */
+    // Maps all sets of a certain size to their size
     std::map< int, std::set< std::set<int> > > powerSetMap;
-    for (int j = 1; j <= relationIds.size(); j++) {
-        unsigned int powerSetSize = pow(2, relationIds.size());
-        std::set< std::set<int> > tempSetOfSets;
-        for (int counter = 0; counter < powerSetSize; counter++) {
-            std::set<int> tempSet;
-            for (int k = 0; k < j; k++) {
-                if (counter & (1 << k))
-                    tempSet.insert(k);
+
+    // Generate power-set of the given set of relations
+    // source: www.geeksforgeeks.org/power-set/
+    unsigned int powerSetSize = pow(2, relationsCount);
+
+    for (int counter = 0; counter < powerSetSize; counter++) {
+        std::set<int> tempSet;
+        for (int j = 0; j < relationsCount; j++) {
+            if (counter & (1 << j)) {
+                tempSet.insert(j);
             }
-            tempSetOfSets.insert(tempSet);
+        
+            // Save all sets of a certain size
+            powerSetMap[j].insert(tempSet);
         }
-        powerSetMap[j] = tempSetOfSets;
     }
 
-    for (int i = 0; i < relationIds.size()-1; i++) {
+    // Dynamic programming algorithm
+    for (int i = 1; i <= relationsCount; i++) {
         for (auto s : powerSetMap[i]) {
-            for (int j = 0; j < relationIds.size(); j++) {
-                // if j not in s
+            for (int j = 0; j < relationsCount; j++) {
+                // If j is not in the set
                 if (s.find(j) == s.end()) {
                     //if (!connected(j, s, predicates))
                     //    continue;
 
-                    std::vector<bool> tempVecS(relationIds.size(), false);
-                    for (auto i : s) tempVecS[i] = true;
-                    PlanTree* currTree = makePlanTree(BestTree[tempVecS], j);
+                    // Create the bit vector representation of the set
+                    std::vector<bool> setToVector(relationsCount, false);
+                    for (auto i : s) setToVector[i] = true;
+                    JoinTree* currTree = CreateJoinTree(BestTree[setToVector], j);
 
                     std::set<int> s1 = s;
                     s1.insert(j);
-                    std::vector<bool> tempVecS1(relationIds.size(), false);
+                    std::vector<bool> tempVecS1(relationsCount, false);
                     for (auto i : s1) tempVecS1[i] = true;
                     if (BestTree.at(tempVecS1) == NULL || cost(BestTree.at(tempVecS1)) > cost(currTree))
                         BestTree.at(tempVecS1) = currTree;
@@ -73,12 +78,14 @@ PlanTree* PlanTree::makePlanTree(std::vector<RelationId>& relationIds, std::vect
         }
     }
 
-    std::vector<bool> tempVecS(relationIds.size(), true);
-    return BestTree.at(tempVecS);
+    std::vector<bool> setToVector(relationsCount, true);
+    return BestTree.at(setToVector);
 }
 
-// returns true, if there is a join predicate between one of the relations in its first argument and one of the relations in its second
-bool PlanTree::connected(int relId, std::set<int>& idSet, std::set<PredicateInfo>& predSet) {
+// returns true, if there is a join predicate between one of the relations in its first argument
+// and one of the relations in its second
+/*
+bool JoinTree::connected(int relId, std::set<int>& idSet, std::set<PredicateInfo>& predSet) {
     for (auto p : predSet)
         for (auto s : idSet)
             if ((p.left.relId == relId && p.right.relId == s) && (p.left.relId == s && p.right.relId == relId))
@@ -86,23 +93,24 @@ bool PlanTree::connected(int relId, std::set<int>& idSet, std::set<PredicateInfo
 
     return false;
 }
+*/
 
 // Adds a relation to a join tree
-PlanTree* PlanTree::makePlanTree(PlanTree* left, int relId) {
+JoinTree* JoinTree::CreateJoinTree(JoinTree* left, int relId) {
     return NULL;
 }
 
 // execute the plan described by a Plan Tree
-void PlanTree::executePlan(PlanTree* planTreePtr) {}
+void JoinTree::execute(JoinTree* joinTreePtr) {}
 
 // Destoys a Plan Tree properly
-void PlanTree::freePlanTree(PlanTree* planTreePtr) {}
+void JoinTree::freeJoinTree(JoinTree* joinTreePtr) {}
 
 // Prints a Plan Tree -- for debugging
-void PlanTree::printPlanTree(PlanTree* planTreePtr) {}
+void JoinTree::printJoinTree(JoinTree* joinTreePtr) {}
 
 // Estimates the cost of a given Plan Tree */
-double PlanTree::cost(PlanTree* planTreePtr) {
+double JoinTree::cost(JoinTree* joinTreePtr) {
     return 1.0;
 }
 
