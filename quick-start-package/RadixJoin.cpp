@@ -53,18 +53,18 @@ int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const 
         /* matches += idx; */
     }
 
-    uint32_t         new_rids_index = result_table->size_of_row_ids;
+    uint64_t         new_rids_index = result_table->size_of_row_ids;
     const uint64_t * Rtuples;
     const uint32_t   numR  = size_right;
     uint32_t        index_r = column_right->binding;
     /* Disable the following loop for no-probe for the break-down experiments */
     /* PROBE- LOOP */
+    std::cerr<<"----------->WILL START THE REAL BROBINGGGGGGGGGGGGGGGGGG\n";
     for(uint32_t i=0; i < numR; i++ ){
         Rtuples = column_right->values + R[i][index_r];
         uint32_t idx = HASH_BIT_MODULO(*Rtuples, MASK, NUM_RADIX_BITS);
-
         for(int hit = bucket[idx]; hit > 0; hit = next[hit-1]){
-
+            
             Ltuples = column_left->values + L[hit-1][index_l];
 
             /* We have a match */
@@ -80,18 +80,23 @@ int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const 
 
                     result_table->allocated_size = size;
                 }
-
+                //std::cerr<<"@@@@@@@@@@@@@@@@@@@@WILL START THE LOOP TO GET SEG\n";
+                
                 /* Create new uint64_t array */
+                std::cerr<<"current size->"<<size<<"new_rids_index->"<<new_rids_index<<"\n";
                 matched_row_ids[new_rids_index] = (uint64_t *) malloc(sizeof(uint64_t *) * vector_size);
-
+                
+                //std::cerr<<"nooooooooo SEG in the loopppp@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n";f
+                //std::cerr<<"########BRO WILL GET THE SEGGGGGGGGGGGGGGGGGGGGGG\n";
                 /* Copy the vectors to the new ones */
                 memcpy(&matched_row_ids[new_rids_index][0], &L[hit-1][0], sizeof(uint64_t) * rel_num_left);
                 memcpy(&matched_row_ids[new_rids_index][rel_num_left], &R[i][0], sizeof(uint64_t) * rel_num_right);
-
+                //std::cerr<<"NOOOOOOOOOOOOOOOOOOOOOOOOO SEGGGGGGGGGGGGGGGGGGGGGG########\n";
                 new_rids_index++;
             }
         }
     }
+    std::cerr<<"WILL END THE REAL BROBINGGGGGGGGGGGGGGGGGG<-----------------\n";
     /* PROBE-LOOP END  */
 
     /* Update the size of the array */
@@ -156,7 +161,7 @@ void radix_cluster_nopadding(uint64_t ** out_rel_ids, uint64_t ** in_rel_ids, co
 }
 
 table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_right, column_t *column_right) {
-
+    std::cerr<<"RADIX STARTS*******************\n";
     uint64_t result = 0;
     uint32_t i;
     uint64_t **out_row_ids_left, **out_row_ids_right;
@@ -263,7 +268,7 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
 #ifdef time
     gettimeofday(&start, NULL);
 #endif
-
+    std::cerr<<"WILL START BUCKET CHAING HERE<----------------\n\n\n\n\n";
     /* build hashtable on inner */
     int l, r; /* start index of next clusters */
     l = r = 0;
@@ -278,9 +283,10 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
 
             tmp_right =  out_row_ids_right + r;
             r += R_count_per_cluster[i];
-
+            //std::cerr<<"------------->the real chaining starqt here \n";
             bucket_chaining_join(tmp_left, column_left, L_count_per_cluster[i], table_left->num_of_relations,
                                             tmp_right, column_right, R_count_per_cluster[i], table_right->num_of_relations, result_table);
+            //std::cerr<<"the real bucket chaining will exit here<--------------------\n";
         }
         else {
             l += L_count_per_cluster[i];
@@ -297,6 +303,8 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
     /* clean-up temporary buffers */
     free(L_count_per_cluster);
     free(R_count_per_cluster);
+    
 
+    std::cerr <<"RADIX JOIN WILL END\n";
     return result_table;
 }

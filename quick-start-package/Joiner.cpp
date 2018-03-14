@@ -324,7 +324,7 @@ table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
 
 //CHECK SUM FUNCTION
 uint64_t Joiner::check_sum(SelectInfo &sel_info, table_t *table) {
-
+    std::cerr<<"START CHECK SUM\n\n";
     /* to create the final cehcksum column */
     column_t * column = CreateColumn(sel_info);
     int   table_index = -1;
@@ -346,7 +346,8 @@ uint64_t Joiner::check_sum(SelectInfo &sel_info, table_t *table) {
     int     size = table->size_of_row_ids;
     for (uint64_t i = 0 ; i < size; i++)
         sum += values[row_ids[i][table_index]];
-
+    std::cerr << "will end check\n\n\n";
+    flush(std::cerr);
     return sum;
 }
 
@@ -388,7 +389,8 @@ table_t* Joiner::join(table_t *table_left, table_t *table_right, PredicateInfo *
 
     free(column_left);
     free(column_right);
-
+    std::cerr<<"ended of join out of the radikia anapodaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n";
+    flush(std::cerr);
     return res;
 }
 
@@ -451,7 +453,7 @@ int main(int argc, char* argv[]) {
 #define titina
 #ifdef titina
         // Parse the query
-        //std::cerr << q_counter  << ": " << line << '\n';
+        std::cerr << q_counter  << ": " << line << '\n';
         i.parseQuery(line);
         q_counter++;
 
@@ -471,7 +473,8 @@ int main(int argc, char* argv[]) {
         int *plan = NULL, plan_size = 0;
         //print_rec(jTreePtr, 0);
         table_t *result = jTreeMakePlan(jTreePtr, joiner, plan);
-
+        std::cerr<<"outttttttttttttttttttttttttttttttttttttttttttttttttt\n\n\n\n\n\n\n\n";
+        flush(std::cerr);
         // join
         //joiner.join(i);
 
