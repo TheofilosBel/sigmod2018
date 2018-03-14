@@ -51,7 +51,7 @@ int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const 
     uint32_t         new_rids_index = result_table->size_of_row_ids;
     const uint64_t * Rtuples;
     const uint32_t   numR  = size_right;
-    uint32_t       index_r = column_right->binding;
+    uint32_t        index_r = column_right->binding;
     /* Disable the following loop for no-probe for the break-down experiments */
     /* PROBE- LOOP */
     for(uint32_t i=0; i < numR; i++ ){
@@ -78,8 +78,9 @@ int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const 
                     std::cerr << "hit realloc thres in radix " << size << " " << new_rids_index<< '\n';
                     flush(std::cerr);
                     size = size << 1;
-                    matched_row_ids = (uint64_t **) realloc(matched_row_ids, size);
+                    matched_row_ids = (uint64_t **) realloc(matched_row_ids, size*sizeof(uint64_t*));
                     result_table->allocated_size = size;
+                    std::cerr<< "new size is ->"<<size<<'\n';
                 }
 
                 /* Create new uint64_t array */
@@ -106,9 +107,15 @@ int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const 
     result_table->size_of_row_ids = new_rids_index;
 
     /* clean up temp */
-    free(bucket);
-    free(next);
 
+    if(bucket != NULL) {
+        std::cerr << "WILLL GET SEG BUCKET\n";
+        free(bucket);
+    }
+    if(next != NULL) {
+        std::cerr << "WILL GET SEG next\n";
+        free(next);
+    }
     return matches;
 }
 
