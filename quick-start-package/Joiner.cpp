@@ -418,10 +418,10 @@ int main(int argc, char* argv[]) {
     #endif
 
     // Preparation phase (not timed)
-    QueryPlan queryPlan;
+    //QueryPlan queryPlan;
 
     // Get the needed info of every column
-    queryPlan.fillColumnInfo(joiner);
+    //queryPlan.fillColumnInfo(joiner);
 
     #ifdef time
     struct timeval end;
@@ -435,6 +435,7 @@ int main(int argc, char* argv[]) {
     while (getline(cin, line)) {
         if (line == "F") continue; // End of a batch
 
+#define titina
 #ifdef titina
         // Parse the query
         std::cerr << q_counter  << ": " << line << '\n';
@@ -447,8 +448,8 @@ int main(int argc, char* argv[]) {
 
         JTree *jTreePtr = treegen(&i);
         // Create the optimal join tree
-        JoinTree* optimalJoinTree = queryPlan.joinTreePtr->build(i.relationIds, i.predicates);
-        
+        //JoinTree* optimalJoinTree = queryPlan.joinTreePtr->build(i.relationIds, i.predicates);
+
         #ifdef time
         gettimeofday(&end, NULL);
         timeTreegen += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
@@ -489,8 +490,9 @@ int main(int argc, char* argv[]) {
 
         /* Print the result */
         std::cout << result_str << endl;
-#endif
+#else
         std::cout << "Implelemt JOIN " << '\n';
+#endif
     }
 
     #ifdef time

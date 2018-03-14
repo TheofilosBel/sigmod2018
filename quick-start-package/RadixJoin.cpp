@@ -88,33 +88,10 @@ int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const 
 
                 std::cerr << "--- 5 " <<  "  p: " << &matched_row_ids[new_rids_index] << endl;
                 flush(std::cerr);
-
-                /* Copy the vectors to the new ones */
-                //std::cerr << "--- A "<< "  p: " << &matched_row_ids[new_rids_index][0] << endl;
-                //flush(std::cerr);
-                if (size != 32)
-                    memcpy(matched_row_ids[new_rids_index], L[hit-1], sizeof(uint64_t) * rel_num_left);
-                //for (size_t j = 0; j < rel_num_left; j++) {
-                //    matched_row_ids[new_rids_index][j] = L[hit-1][j];
-                //}
-
-                //std::cerr << "--- B "<< "  p: " << &matched_row_ids[new_rids_index][rel_num_left] << endl;
-                //flush(std::cerr);
-                if (size != 32)
-                    memcpy(&matched_row_ids[new_rids_index][rel_num_left], R[i], sizeof(uint64_t) * rel_num_right);
-                //for (size_t j = 0; j < rel_num_right; j++) {
-                //    matched_row_ids[new_rids_index][j + rel_num_left] = R[hit-1][j];
-                //}
-
-                //std::cerr << "--- C "<< "  p: " << &matched_row_ids[new_rids_index][rel_num_left + rel_num_right] << endl;
-                //flush(std::cerr);
-
-                //std::cerr << "DID one copy: " << '\n';
-                //std::cerr << matched_row_ids[new_rids_index][index] << " = " << L[hit-1][index] << '\n';
-                //std::cerr << matched_row_ids[new_rids_index][index + rel_num_left] << " = " << R[i][index] << '\n';
-                //flush(std::cerr);
-
-                //matches += column_left->values[matched_row_ids[new_rids_index][index_l]];
+                
+                memcpy(matched_row_ids[new_rids_index], L[hit-1], sizeof(uint64_t) * rel_num_left);
+                memcpy(&matched_row_ids[new_rids_index][rel_num_left], R[i], sizeof(uint64_t) * rel_num_right);
+                
                 new_rids_index++;
 
                 std::cerr << "--- 7 " << next[hit-1] << " p: " << &next[0] <<  endl;
@@ -283,6 +260,9 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
     result_table->num_of_relations = table_left->num_of_relations + table_right->num_of_relations;
     result_table->size_of_row_ids  = 0;
     result_table->row_ids          = (uint64_t **) malloc(sizeof(uint64_t **) * result_table->allocated_size);
+
+
+    /* upload the bindings and the relations */
     result_table->relations_bindings.insert(result_table->relations_bindings.end(),table_left->relations_bindings.begin(), table_left->relations_bindings.end());
     result_table->relations_bindings.insert(result_table->relations_bindings.end(),table_right->relations_bindings.begin(), table_right->relations_bindings.end());
     result_table->relation_ids.insert(result_table->relation_ids.end(),table_left->relation_ids.begin(), table_left->relation_ids.end());
