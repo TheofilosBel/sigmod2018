@@ -35,6 +35,7 @@ class Joiner {
 
     table_t*  CreateTableTFromId(unsigned rel_id, unsigned rel_binding);
     column_t* CreateColumn(SelectInfo& sel_info);
+    void      construct(table_t *table, column_t *column);
     table_t*  low_join(table_t *table_r, column_t *c_r, table_t *table_s, column_t *c_s);
 
     // The select functions

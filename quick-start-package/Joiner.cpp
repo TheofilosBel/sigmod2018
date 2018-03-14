@@ -21,6 +21,7 @@ double timeCheckSum = 0;
 double timeRadixJoin = 0;
 double timePreparation = 0;
 double timeLowJoin = 0;
+double timeConstruct = 0;
 
 extern double timeBuildPhase;
 extern double timeProbePhase;
@@ -302,7 +303,7 @@ table_t* Joiner::low_join(table_t *table_r, column_t *column_r,  table_t *table_
             hash_entry hs;
             hs.row_id = h_rows[i][index_r];
             hs.index = i;
-            hash_c.insert({hash_col->values[h_rows[i][index_r]], hs});
+            hash_c.insert({hash_col->values[i], hs});
         }
 
 
@@ -327,7 +328,7 @@ table_t* Joiner::low_join(table_t *table_r, column_t *column_r,  table_t *table_
         for (uint64_t i = 0; i < iter_size; i++) {
             /* remember we may have multi vals in 1 key,if it isnt a primary key */
             /* vals->first = key ,vals->second = value */
-            auto range_vals = hash_c.equal_range(iter_col->values[i_rows[i][index_s]]);
+            auto range_vals = hash_c.equal_range(iter_col->values[i]);
             for(auto &vals = range_vals.first; vals != range_vals.second; vals++) {
                 /* store all the result then push it int the new row ids */
                 /* its faster than to push back 1 every time */
@@ -392,7 +393,7 @@ table_t* Joiner::low_join(table_t *table_r, column_t *column_r,  table_t *table_
             hash_entry hs;
             hs.row_id = h_rows[i][index_s];
             hs.index = i;
-            hash_c.insert({hash_col->values[h_rows[i][index_s]], hs});
+            hash_c.insert({hash_col->values[i], hs});
         }
 
 #ifdef time
@@ -416,7 +417,7 @@ table_t* Joiner::low_join(table_t *table_r, column_t *column_r,  table_t *table_
         for (uint64_t i = 0; i < iter_size; i++) {
             /* remember we may have multi vals in 1 key,if it isnt a primary key */
             /* vals->first = key ,vals->second = value */
-            auto range_vals = hash_c.equal_range(iter_col->values[i_rows[i][index_r]]);
+            auto range_vals = hash_c.equal_range(iter_col->values[i]);
             for(auto &vals = range_vals.first; vals != range_vals.second; vals++) {
                 /* store all the result then push it int the new row ids */
                 /* its faster than to push back 1 every time */
@@ -472,30 +473,28 @@ table_t* Joiner::low_join(table_t *table_r, column_t *column_r,  table_t *table_
     return updated_table_t;
 }
 
-void Joiner::construct(table_t *table) {
+void Joiner::construct(table_t *table,  column_t *column) {
 #ifdef time
     struct timeval start;
     gettimeofday(&start, NULL);
 #endif
 
     /* Innitilize helping variables */
-    column_t &column = *table->column_j;
-    const uint64_t *column_values = column.values;
-    const int       table_index   = column.table_index;
-    const uint64_t  column_size   = table->relations_row_ids->operator[](table_index).size();
-    std::vector<std::vector<int>> &row_ids = *table->relations_row_ids;
+    const uint64_t *column_values = column->values;
+    const int       binding       = column->binding;
+    const uint64_t  column_size   = table->size_of_row_ids;
+    uint64_t ** row_ids = table->row_ids;
 
     /* Create a new value's array  */
     uint64_t *const new_values  = new uint64_t[column_size];
 
     /* Pass the values of the old column to the new one, based on the row ids of the joiner */
     for (int i = 0; i < column_size; i++) {
-    	new_values[i] = column_values[row_ids[table_index][i]];
+    	new_values[i] = column_values[row_ids[binding][i]];
     }
 
     /* Update the column of the table */
-    column.values = new_values;
-    column.size   = column_size;
+    column->values = new_values;
 
 #ifdef time
     struct timeval end;
@@ -639,6 +638,9 @@ table_t* Joiner::join(table_t *table_left, table_t *table_right, PredicateInfo *
     column_t * column_left = CreateColumn(pred->left);
     column_t * column_right = CreateColumn(pred->right);
 
+    construct(table_left, column_left);
+    construct(table_right, column_right);
+
 #ifdef time
     struct timeval start;
     gettimeofday(&start, NULL);
@@ -780,6 +782,7 @@ int main(int argc, char* argv[]) {
     #ifdef time
     std::cerr << "timeSelectFilter: " << (long)(timeSelectFilter * 1000) << endl;
     std::cerr << "timeSelfJoin: " << (long)(timeSelfJoin * 1000) << endl;
+    std::cerr << "timeConstruct: " << (long)(timeConstruct * 1000) << endl;
     std::cerr << "timeRadixJoin: " << (long)(timeRadixJoin * 1000) << endl;
     std::cerr << "    timePartition: " << (long)(timePartition * 1000) << endl;
     std::cerr << "    timeBuildPhase: " << (long)(timeBuildPhase * 1000) << endl;
