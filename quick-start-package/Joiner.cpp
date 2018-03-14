@@ -386,6 +386,8 @@ table_t* Joiner::join(table_t *table_left, table_t *table_right, PredicateInfo *
     timeRadixJoin += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
 #endif
 
+    free(table_left->row_ids);
+    free(table_right->row_ids);
     free(column_left);
     free(column_right);
 
@@ -447,11 +449,10 @@ int main(int argc, char* argv[]) {
     int q_counter = 0;
     while (getline(cin, line)) {
         if (line == "F") continue; // End of a batch
-
 #define titina
 #ifdef titina
         // Parse the query
-        //std::cerr << q_counter  << ": " << line << '\n';
+        std::cerr << q_counter  << ": " << line << '\n';
         i.parseQuery(line);
         q_counter++;
 

@@ -72,7 +72,7 @@ int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const 
 
                 /* Reallocate in case of emergency */
                 if (new_rids_index == size) {
-                    size = size * 10;
+                    size = size * 2;
                     uint64_t** new_pointer = (uint64_t **) realloc(matched_row_ids, sizeof(uint64_t*) * size);
 
                     if (new_pointer == NULL) std::cerr << "Error in realloc " << '\n';
@@ -103,9 +103,6 @@ int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const 
     /* clean up temp */
     free(next);
     free(bucket);
-
-    //std::cerr << "END " <<  matched_row_ids[0][0] << '\n';
-    //flush(std::cerr);
 
     return matches;
 }
@@ -198,14 +195,19 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
     /* apply radix-clustering on relation R for pass-1 */
     radix_cluster_nopadding(out_row_ids_left, table_left->row_ids, column_left,
                             table_left->size_of_row_ids, 0, NUM_RADIX_BITS);
+
     free(table_left->row_ids);
     table_left->row_ids = out_row_ids_left;
 
     /* apply radix-clustering on relation S for pass-1 */
     radix_cluster_nopadding(out_row_ids_right, table_right->row_ids, column_right,
                                 table_right->size_of_row_ids, 0, NUM_RADIX_BITS);
+
     free(table_right->row_ids);
     table_right->row_ids = out_row_ids_right;
+
+    std::cerr << "END1" << '\n';
+    flush(std::cerr);
 
 #ifdef time
     struct timeval end;
@@ -237,6 +239,9 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
         uint64_t idx = (column_right->values[row_ids[i][index]]) & ((1<<NUM_RADIX_BITS)-1);
         R_count_per_cluster[idx] ++;
     }
+
+    std::cerr << "END2" << '\n';
+    flush(std::cerr);
 
     /* Create the result tables */
     table_t * result_table = new table_t;
@@ -287,6 +292,9 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
             r += R_count_per_cluster[i];
         }
     }
+
+    std::cerr << "END3" << '\n';
+    flush(std::cerr);
 
 #ifdef time
     gettimeofday(&end, NULL);
