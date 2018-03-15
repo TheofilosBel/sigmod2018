@@ -91,22 +91,22 @@ void radix_cluster_nopadding(matrix * out_rel_ids_ptr, table_t * table, int R, i
 
     int  relations_num = table->relations_bindings.size();
     int  table_index   = table->column_j->table_index;
-    uint32_t * dst;
+    uint64_t * dst;
     uint64_t * input;
     uint64_t * new_values;
-    uint32_t * tuples_per_cluster;
+    uint64_t * tuples_per_cluster;
     uint32_t   i;
     uint64_t   offset;
-    const uint32_t M = ((1 << D) - 1) << R;
-    const uint32_t fanOut = 1 << D;
+    const uint64_t M = ((1 << D) - 1) << R;
+    const uint64_t fanOut = 1 << D;
     const uint32_t ntuples = (*table->relations_row_ids)[0].size();
 
     matrix & row_ids = *table->relations_row_ids;
     matrix & out_rel_ids = *out_rel_ids_ptr;
 
-    tuples_per_cluster = (uint32_t*)calloc(fanOut, sizeof(uint32_t));
+    tuples_per_cluster = (uint64_t *)calloc(fanOut, sizeof(uint64_t));
     new_values = new uint64_t[ntuples];
-    dst        = (uint32_t *) malloc(sizeof(uint32_t *) * fanOut);
+    dst        = (uint64_t *) malloc(sizeof(uint64_t *) * fanOut);
 
     /* count tuples per cluster */
     input = table->column_j->values;
@@ -134,6 +134,21 @@ void radix_cluster_nopadding(matrix * out_rel_ids_ptr, table_t * table, int R, i
         ++dst[idx];
         input++;
     }
+
+    /* Check sum the 2 arrays */
+    uint64_t sum1 = 0 , sum2=0, sum3=0, sum4=0;
+    for (i=0 ; i < ntuples; i++) {
+        sum1 += out_rel_ids[0][i];
+        sum2 += row_ids[0][i];
+        sum3 += table->column_j->values[i];
+        sum4 += new_values[i];
+    }
+    std::cerr << "SUM 1 " << sum1  << " " << out_rel_ids[0][9] << '\n';
+    std::cerr << "SUM 2 " << sum2 <<  " " <<  row_ids[0][9]  <<'\n';
+    std::cerr << "SUM 3 " << sum3  << " " << out_rel_ids[0][9] << '\n';
+    std::cerr << "SUM 4 " << sum4 <<  " " <<  row_ids[0][9]  <<'\n';
+    std::cerr << "----------------" << '\n';
+
 
     /*TODO DELETE */
     (table->intermediate_res) ? (delete[] table->column_j->values) : ((void)0);
@@ -164,13 +179,11 @@ table_t* radix_join(table_t *table_left, table_t *table_right) {
 
     /* apply radix-clustering on relation R for pass-1 */
     radix_cluster_nopadding(out_row_ids_left, table_left, 0, NUM_RADIX_BITS);
-
     delete table_left->relations_row_ids;
     table_left->relations_row_ids = out_row_ids_left;
 
     /* apply radix-clustering on relation S for pass-1 */
     radix_cluster_nopadding(out_row_ids_right, table_right, 0, NUM_RADIX_BITS);
-
     delete table_right->relations_row_ids;
     table_right->relations_row_ids = out_row_ids_right;
 
@@ -203,37 +216,21 @@ table_t* radix_join(table_t *table_left, table_t *table_right) {
         R_count_per_cluster[idx]++;
     }
 
-
     /* Check sum */
     int sum1 = 0, sum2 = 0, poss = 0, sum_poss = 0;
     for (size_t i = 0; i < (1<<NUM_RADIX_BITS); i++) {
-      sum1 += L_count_per_cluster[i];
-      sum2 += R_count_per_cluster[i];
-      if(L_count_per_cluster[i] > 0 && R_count_per_cluster[i] > 0){
-          poss += (L_count_per_cluster[i] > R_count_per_cluster[i]) ? L_count_per_cluster[i] : R_count_per_cluster[i];
-          sum_poss++;
-      }
+        sum1 += L_count_per_cluster[i];
+        sum2 += R_count_per_cluster[i];
+        if(L_count_per_cluster[i] > 0 && R_count_per_cluster[i] > 0){
+            poss += (L_count_per_cluster[i] > R_count_per_cluster[i]) ? L_count_per_cluster[i] : R_count_per_cluster[i];
+            sum_poss++;
+        }
     }
     std::cerr << "LSum1 is " << sum1 << '\n';
     std::cerr << "RSum2 is " << sum2 << '\n';
     std::cerr << "Possible " << poss << '\n';
     std::cerr << "SUM Possible " << sum_poss << '\n';
 
-
-    /* Go for a for loop
-    uint64_t *v1 = table_left->column_j->values;
-    uint64_t *v2 = table_right->column_j->values;
-    uint64_t sum = 0;
-    for (size_t i = 0; i < size_l; i++) {
-        for (size_t j = 0; j < size_r; j++) {
-            if (v1[i] = v2[j])
-                sum++;
-        }
-    }
-    std::cerr << "BOLDY FACKING MATCHES " << sum << '\n';
-    */
-    //std::cerr << "END2" << '\n';
-    //flush(std::cerr);
 
     /* Create the result tables */
     table_t * result_table = new table_t;
@@ -275,28 +272,26 @@ table_t* radix_join(table_t *table_left, table_t *table_right) {
 
         if(L_count_per_cluster[i] > 0 && R_count_per_cluster[i] > 0){
 
-            /*bucket_chaining_join(table_left, L_count_per_cluster[i], tmp_left_idx,
+            /*  bucket_chaining_join(table_left, L_count_per_cluster[i], tmp_left_idx,
                                 table_right, R_count_per_cluster[i], tmp_right_idx, result_table);*/
 
 
             /* Do a nested loop */
-            matches = 0;
-            v1 = table_left->column_j->values + tmp_left_idx;
-            v2 = table_right->column_j->values + tmp_right_idx;
-            for (size_t i = 0; i < L_count_per_cluster[i]; i++) {
-                for (size_t j = 0; j < R_count_per_cluster[i]; j++) {
-                    if (v1[i] == v2[j]) {
-                        matches++;
-                    }
-                }
-            }
+             matches = 0;
+             v1 = table_left->column_j->values + tmp_left_idx;
+             v2 = table_right->column_j->values + tmp_right_idx;
+             for (size_t i = 0; i < L_count_per_cluster[i]; i++) {
+                 for (size_t j = 0; j < R_count_per_cluster[i]; j++) {
+                     if (v1[i] == v2[j]) {
+                         matches++;
+                     }
+                 }
+             }
 
-            if (matches > 0) {
-                sum += matches;
-                std::cerr << "One bach match is " << matches << '\n';
-            }
-
-            /*-----------------*/
+             if (matches > 0) {
+                 sum += matches;
+                 std::cerr << "One bach match is " << matches << '\n';
+             }
 
             tmp_left_idx  += L_count_per_cluster[i];
             tmp_right_idx += R_count_per_cluster[i];
@@ -307,7 +302,7 @@ table_t* radix_join(table_t *table_left, table_t *table_right) {
         }
     }
 
-    std::cerr << "SUm is " << sum << '\n';
+    std::cerr << "Sum is " << sum << '\n';
 
 #ifdef time
     gettimeofday(&end, NULL);
