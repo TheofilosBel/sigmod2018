@@ -210,7 +210,7 @@ table_t* radix_join(table_t *table_left, table_t *table_right) {
 
     /* Create the result tables */
     table_t * result_table = new table_t;
-    uint64_t  allocated_size = (size_l < size_r) ? ( (uint64_t)(size_l * size_l)) : (uint64_t)(size_r * size_r);
+    uint64_t  allocated_size = (size_l < size_r) ? ( (uint64_t)(size_l)) : (uint64_t)(size_r);
     std::cerr << "Allocated size " <<  allocated_size << '\n';
 
     /* update the bindings and the relations */
