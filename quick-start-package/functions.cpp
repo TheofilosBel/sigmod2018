@@ -224,9 +224,6 @@ table_t* jTreeMakePlan(JTree* jTreePtr, Joiner& joiner, int *depth) {
     table_t *res;
 
     if (left == NULL && right == NULL) {
-
-        std::cerr << "Creating New table" << '\n';
-        flush(std::cerr);
         return joiner.CreateTableTFromId(jTreePtr->node_id, jTreePtr->binding_id);
     }
 

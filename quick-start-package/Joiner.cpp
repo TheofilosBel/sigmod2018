@@ -67,10 +67,10 @@ void Joiner::SelectEqual(table_t *table, int filter) {
     int table_index         = table->column_j->table_index;
     const uint64_t rel_num  = table->relations_row_ids->size();
 
-    std::vector<std::vector<int>> &old_row_ids = *table->relations_row_ids;
-    std::vector<std::vector<int>> *new_row_ids = new std::vector<std::vector<int>>(rel_num, std::vector<int>());
-
-    const uint64_t size     = old_row_ids[table_index].size();
+    matrix & old_row_ids = *table->relations_row_ids;
+    const uint64_t size  = old_row_ids[table_index].size();
+    matrix * new_row_ids = new matrix(rel_num);
+    new_row_ids->at(0).reserve(size/2);
 
     /* Update the row ids of the table */
     for (size_t index = 0; index < size; index++) {
@@ -93,10 +93,10 @@ void Joiner::SelectGreater(table_t *table, int filter){
     int table_index         = table->column_j->table_index;
     const uint64_t rel_num  = table->relations_row_ids->size();
 
-    std::vector<std::vector<int>> &old_row_ids = *table->relations_row_ids;
-    std::vector<std::vector<int>> *new_row_ids = new std::vector<std::vector<int>>(rel_num, std::vector<int>());
-
-    const uint64_t size     = old_row_ids[table_index].size();
+    matrix & old_row_ids = *table->relations_row_ids;
+    const uint64_t size  = old_row_ids[table_index].size();
+    matrix * new_row_ids = new matrix(rel_num);
+    new_row_ids->at(0).reserve(size/2);
 
     /* Update the row ids of the table */
 
@@ -120,10 +120,10 @@ void Joiner::SelectLess(table_t *table, int filter){
     int table_index         = table->column_j->table_index;
     const uint64_t rel_num  = table->relations_row_ids->size();
 
-    std::vector<std::vector<int>> &old_row_ids = *table->relations_row_ids;
-    std::vector<std::vector<int>> *new_row_ids = new std::vector<std::vector<int>>(rel_num, std::vector<int>());
-
-    const uint64_t size     = old_row_ids[table_index].size();
+    matrix & old_row_ids = *table->relations_row_ids;
+    const uint64_t size  = old_row_ids[table_index].size();
+    matrix * new_row_ids = new matrix(rel_num);
+    new_row_ids->at(0).reserve(size/2);
 
     /* Update the row ids of the table */
     for (size_t index = 0; index < size; index++) {
@@ -168,10 +168,10 @@ void Joiner::AddColumnToTableT(SelectInfo &sel_info, table_t *table) {
         }
     }
 
+
     /* Error msg for debuging */
-    if (column.table_index == -1) {
+    if (column.table_index == -1)
         std::cerr << "At AddColumnToTableT, Id not matchin with intermediate result vectors" << '\n';
-    }
 
 #ifdef time
     struct timeval end;
@@ -188,25 +188,23 @@ table_t* Joiner::CreateTableTFromId(unsigned rel_id, unsigned rel_binding) {
     gettimeofday(&start, NULL);
 #endif
 
+    /* Get the relation */
+    Relation &rel  = getRelation(rel_id);
+
     /* Crate - Initialize a table_t */
     table_t *const table_t_ptr = new table_t;
     table_t_ptr->column_j = new column_t;
     table_t_ptr->intermediate_res = false;
-    table_t_ptr->relations_row_ids = new std::vector<std::vector<int>>;
-
-    std::vector<std::vector<int>> &rel_row_ids = *table_t_ptr->relations_row_ids;
-
-    /* Get the relation */
-    Relation &rel  = getRelation(rel_id);
+    table_t_ptr->relations_row_ids = new matrix(1, std::vector<int>(rel.size));
+    matrix & rel_row_ids = *table_t_ptr->relations_row_ids;
 
     /* Create the relations_row_ids and relation_ids vectors */
     uint64_t rel_size  = rel.size;
-    rel_row_ids.resize(1);
-    rel_row_ids[0].resize(rel_size);
     for (size_t i = 0; i < rel_size; i++) {
         rel_row_ids[0][i] = i;
     }
 
+    /* Keep a mapping with the rowids table and the relaito ids na bindings */
     table_t_ptr->relation_ids.push_back(rel_id);
     table_t_ptr->relations_bindings.push_back(rel_binding);
 
@@ -220,9 +218,11 @@ table_t* Joiner::CreateTableTFromId(unsigned rel_id, unsigned rel_binding) {
 }
 
 table_t* Joiner::join(table_t *table_r, table_t *table_s) {
+
     /* Construct the tables in case of intermediate results */
     (table_r->intermediate_res)? (construct(table_r)) : ((void)0);
     (table_s->intermediate_res)? (construct(table_s)) : ((void)0);
+
     /* Join the columns */
     //return low_join(table_r, table_s);
     return radix_join(table_r, table_s);

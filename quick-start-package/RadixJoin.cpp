@@ -67,11 +67,11 @@ int64_t bucket_chaining_join(table_t *table_left, const int size_left, int start
 
                 /* Add the left table's row Ids to the new table  */
                 for (uint32_t j = 0 ; j < relations_left; j++)
-                    matched_row_ids[j].push_back(row_ids_left[j][starting_idx_left + hit-1]);
+                    matched_row_ids[j].emplace_back(row_ids_left[j][starting_idx_left + hit-1]);
 
                 /* Add the right table's row Ids to the new table  */
                 for (uint32_t j = 0; j < relations_right; j++)
-                    matched_row_ids[j + relations_left].push_back(row_ids_right[j][starting_idx_right + i]);
+                    matched_row_ids[j + relations_left].emplace_back(row_ids_right[j][starting_idx_right + i]);
             }
         }
 
@@ -105,7 +105,6 @@ void radix_cluster_nopadding(matrix * out_rel_ids_ptr, table_t * table, int R, i
 
     matrix & row_ids = *table->relations_row_ids;
     matrix & out_rel_ids = *out_rel_ids_ptr;
-    std::cerr << "Touples " << ntuples << '\n';
 
     tuples_per_cluster = (uint32_t*)calloc(fanOut, sizeof(uint32_t));
     new_values = (uint64_t *) malloc(sizeof(uint64_t *) * ntuples);
@@ -139,20 +138,8 @@ void radix_cluster_nopadding(matrix * out_rel_ids_ptr, table_t * table, int R, i
     }
 
     /*TODO DELETE */
-    //(table->intermediate_res) ? (delete value)
+    (table->intermediate_res) ? (delete[] table->column_j->values) : ((void)0);
     table->column_j->values = new_values;
-
-
-    /* Check sum the 2 arrays
-    int sum1 = 0 , sum2=0;
-    for (i=0 ; i < ntuples; i++) {
-        sum1 += out_rel_ids[0][i];
-        sum2 += row_ids[0][i];
-    }
-    std::cerr << "SUM 1 " << sum1  << " " << out_rel_ids[0][9] << '\n';
-    std::cerr << "SUM 2 " << sum2 <<  " " <<  row_ids[0][9]  <<'\n';
-    */
-
 
     /* clean up temp */
     free(dst);
@@ -161,7 +148,6 @@ void radix_cluster_nopadding(matrix * out_rel_ids_ptr, table_t * table, int R, i
 
 table_t* radix_join(table_t *table_left, table_t *table_right) {
 
-    uint64_t result = 0;
     uint32_t i;
     matrix * out_row_ids_left, * out_row_ids_right;
     matrix & in_row_ids_left  = *table_left->relations_row_ids;
@@ -190,25 +176,24 @@ table_t* radix_join(table_t *table_left, table_t *table_right) {
     delete table_right->relations_row_ids;
     table_right->relations_row_ids = out_row_ids_right;
 
-    std::cerr << "END1" << '\n';
-    flush(std::cerr);
+    //std::cerr << "END1" << '\n';
+    //flush(std::cerr);
 
 #ifdef time
     struct timeval end;
     gettimeofday(&end, NULL);
     timePartition += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
 #endif
-
 #ifdef time
     gettimeofday(&start, NULL);
 #endif
 
-    /* Why re compute */
+    /* Create 2^NUM_RADIX_BITS seperate batches to compute their join */
     int * L_count_per_cluster = (int*)calloc((1<<NUM_RADIX_BITS), sizeof(int));
     int * R_count_per_cluster = (int*)calloc((1<<NUM_RADIX_BITS), sizeof(int));
 
     /* compute number of tuples per cluster */
-    unsigned   size_l =  table_left->column_j->size;
+    unsigned size_l = table_left->column_j->size;
     for( i=0; i < size_l; i++ ) {
         uint64_t idx = (table_left->column_j->values[i]) & ((1<<NUM_RADIX_BITS)-1);
         L_count_per_cluster[idx] ++;
@@ -220,30 +205,17 @@ table_t* radix_join(table_t *table_left, table_t *table_right) {
         R_count_per_cluster[idx]++;
     }
 
-    /* Check sum
-    int sum1 = 0, sum2 = 0, poss = 0, sum_poss = 0;
-    for (size_t i = 0; i < (1<<NUM_RADIX_BITS); i++) {
-        sum1 += L_count_per_cluster[i];
-        sum2 += R_count_per_cluster[i];
-        if(L_count_per_cluster[i] > 0 && R_count_per_cluster[i] > 0){
-            poss += (L_count_per_cluster[i] > R_count_per_cluster[i]) ? L_count_per_cluster[i] : R_count_per_cluster[i];
-            sum_poss++;
-        }
-    }
-    std::cerr << "LSum1 is " << sum1 << '\n';
-    std::cerr << "RSum2 is " << sum2 << '\n';
-    std::cerr << "Possible " << poss << '\n';
-    std::cerr << "SUM Possible " << sum_poss << '\n';
-    */
-
-    std::cerr << "END2" << '\n';
-    flush(std::cerr);
+    //std::cerr << "END2" << '\n';
+    //flush(std::cerr);
 
     /* Create the result tables */
     table_t * result_table = new table_t;
-    uint64_t  allocated_size  = size_l;
+    uint64_t  allocated_size = (size_l < size_r) ? ( (uint64_t)(size_l * size_l)) : (uint64_t)(size_r * size_r);
+    std::cerr << "Allocated size " <<  allocated_size << '\n';
 
     /* update the bindings and the relations */
+    result_table->column_j = new column_t;
+
     result_table->relations_bindings.insert(result_table->relations_bindings.end(),table_left->relations_bindings.begin(), table_left->relations_bindings.end());
     result_table->relations_bindings.insert(result_table->relations_bindings.end(),table_right->relations_bindings.begin(), table_right->relations_bindings.end());
 
@@ -262,15 +234,11 @@ table_t* radix_join(table_t *table_left, table_t *table_right) {
     gettimeofday(&end, NULL);
     timeBuildPhase += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
 #endif
-
 #ifdef time
     gettimeofday(&start, NULL);
 #endif
 
     /* build hashtable on inner */
-    int l, r; /* start index of next clusters */
-    l = r = 0;
-
     unsigned tmp_left_idx  = 0;
     unsigned tmp_right_idx = 0;
     for( i=0; i < (1<<NUM_RADIX_BITS); i++ ){
@@ -288,9 +256,6 @@ table_t* radix_join(table_t *table_left, table_t *table_right) {
             tmp_right_idx += R_count_per_cluster[i];
         }
     }
-
-    std::cerr << "END3" << '\n';
-    flush(std::cerr);
 
 #ifdef time
     gettimeofday(&end, NULL);
