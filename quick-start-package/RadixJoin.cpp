@@ -214,10 +214,10 @@ table_t* radix_join(table_t *table_left, table_t *table_right) {
           sum_poss++;
       }
     }
-    //std::cerr << "LSum1 is " << sum1 << '\n';
-    //std::cerr << "RSum2 is " << sum2 << '\n';
-    //std::cerr << "Possible " << poss << '\n';
-    //std::cerr << "SUM Possible " << sum_poss << '\n';
+    std::cerr << "LSum1 is " << sum1 << '\n';
+    std::cerr << "RSum2 is " << sum2 << '\n';
+    std::cerr << "Possible " << poss << '\n';
+    std::cerr << "SUM Possible " << sum_poss << '\n';
 
 
     /* Go for a for loop
@@ -268,12 +268,35 @@ table_t* radix_join(table_t *table_left, table_t *table_right) {
     /* build hashtable on inner */
     uint32_t tmp_left_idx  = 0;
     uint32_t tmp_right_idx = 0;
+    uint64_t *v1 = table_left->column_j->values;
+    uint64_t *v2 = table_right->column_j->values;
+    uint64_t matches, sum = 0;
     for( i=0; i < (1<<NUM_RADIX_BITS); i++ ){
 
         if(L_count_per_cluster[i] > 0 && R_count_per_cluster[i] > 0){
 
-            bucket_chaining_join(table_left, L_count_per_cluster[i], tmp_left_idx,
-                                table_right, R_count_per_cluster[i], tmp_right_idx, result_table);
+            /*bucket_chaining_join(table_left, L_count_per_cluster[i], tmp_left_idx,
+                                table_right, R_count_per_cluster[i], tmp_right_idx, result_table);*/
+
+
+            /* Do a nested loop */
+            matches = 0;
+            v1 = table_left->column_j->values + tmp_left_idx;
+            v2 = table_right->column_j->values + tmp_right_idx;
+            for (size_t i = 0; i < L_count_per_cluster[i]; i++) {
+                for (size_t j = 0; j < R_count_per_cluster[i]; j++) {
+                    if (v1[i] == v2[j]) {
+                        matches++;
+                    }
+                }
+            }
+
+            if (matches > 0) {
+                sum += matches;
+                std::cerr << "One bach match is " << matches << '\n';
+            }
+
+            /*-----------------*/
 
             tmp_left_idx  += L_count_per_cluster[i];
             tmp_right_idx += R_count_per_cluster[i];
@@ -283,6 +306,8 @@ table_t* radix_join(table_t *table_left, table_t *table_right) {
             tmp_right_idx += R_count_per_cluster[i];
         }
     }
+
+    std::cerr << "SUm is " << sum << '\n';
 
 #ifdef time
     gettimeofday(&end, NULL);
