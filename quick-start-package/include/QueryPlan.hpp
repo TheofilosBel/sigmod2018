@@ -27,15 +27,24 @@ struct JoinTreeNode {
 
     PredicateInfo* predicatePtr;
     FilterInfo* filterPtr;
-    ColumnInfo intermediateColumnInfoPtr;
+
+    // column info for the node's relation
+    ColumnInfo* intermediateColumnInfoPtr;
+
+    // Estimates the cost of a given Join Tree node
+    double cost();
 };
 
 // Join Tree data structure
 struct JoinTree {
+    // Keeps the info of every column of every relation
+    // Every row represents a relation
+    // Every item of a row represents a column of the relation
+    ColumnInfo** columnInfos;
     JoinTreeNode* root;
 
     // Constructs a Join tree from a set of relations id's
-    JoinTree* build(QueryInfo& queryInfoPtr);
+    JoinTree* build(QueryInfo& queryInfoPtr, ColumnInfo** columnInfos);
 
     // returns true, if there is a join predicate between one of the relations in its first argument
     //and one of the relations in its second
@@ -68,6 +77,9 @@ struct QueryPlan {
 
     // Build a query plan with the given info
     void build(QueryInfo& queryInfoPtr);
+
+    // Execute a query plan with the given info
+    void execute(QueryInfo& queryInfoPtr);
 
     // Fills the columnInfo matrix with the data of every column
     void fillColumnInfo(Joiner& joiner);

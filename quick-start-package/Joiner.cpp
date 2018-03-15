@@ -463,7 +463,7 @@ int main(int argc, char* argv[]) {
 
         JTree *jTreePtr = treegen(&i);
         // Create the optimal join tree
-        JoinTree* optimalJoinTree = queryPlan.joinTreePtr->build(i);
+        JoinTree* optimalJoinTree = queryPlan.joinTreePtr->build(i, queryPlan.columnInfos);
 
         #ifdef time
         gettimeofday(&end, NULL);
