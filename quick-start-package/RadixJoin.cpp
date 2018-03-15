@@ -19,10 +19,10 @@ double timePartition  = 0;
  *
  * @return number of result tuples
  */
-int64_t bucket_chaining_join(table_t *table_left, const int size_left, int starting_idx_left,
-                             table_t *table_right, const int size_right, int starting_idx_right,
+int64_t bucket_chaining_join(table_t *table_left, const int size_left, uint32_t starting_idx_left,
+                             table_t *table_right, const int size_right, uint32_t starting_idx_right,
                              table_t * result_table) {
-    int * next, * bucket;
+    uint32_t * next, * bucket;
     const uint32_t numL = size_left;
     uint32_t N = numL;
     uint64_t matches = 0;
@@ -40,13 +40,13 @@ int64_t bucket_chaining_join(table_t *table_left, const int size_left, int start
     NEXT_POW_2(N);
 
     const uint64_t MASK = (N-1) << (NUM_RADIX_BITS);
-    next   = (int*) malloc(sizeof(int) * numL);
+    next   = (uint32_t *) malloc(sizeof(uint32_t) * numL);
     /* posix_memalign((void**)&next, CACHE_LINE_SIZE, numR * sizeof(int)); */
-    bucket = (int*) calloc(N, sizeof(int));
+    bucket = (uint32_t *) calloc(N, sizeof(uint32_t));
 
     const uint64_t * Ltuples = table_left->column_j->values + starting_idx_left;
     for(uint32_t i=0; i < numL; ){
-        uint32_t idx = HASH_BIT_MODULO(*Ltuples, MASK, NUM_RADIX_BITS);
+        uint64_t idx = HASH_BIT_MODULO(*Ltuples, MASK, NUM_RADIX_BITS);
         next[i]      = bucket[idx];
         bucket[idx]  = ++i;     /* we start pos's from 1 instead of 0 */
         Ltuples++;
@@ -59,7 +59,7 @@ int64_t bucket_chaining_join(table_t *table_left, const int size_left, int start
     for(uint32_t i=0; i < numR; i++ ){
 
         Ltuples =  table_left->column_j->values  + starting_idx_left;
-        uint32_t idx = HASH_BIT_MODULO(*Rtuples, MASK, NUM_RADIX_BITS);
+        uint64_t idx = HASH_BIT_MODULO(*Rtuples, MASK, NUM_RADIX_BITS);
         for(int hit = bucket[idx]; hit > 0; hit = next[hit-1]){
 
             /* We have a match */
@@ -74,8 +74,6 @@ int64_t bucket_chaining_join(table_t *table_left, const int size_left, int start
                     matched_row_ids[j + relations_left].emplace_back(row_ids_right[j][starting_idx_right + i]);
             }
         }
-
-        //Rtuples++;
     }
     /* PROBE-LOOP END  */
 
@@ -107,7 +105,7 @@ void radix_cluster_nopadding(matrix * out_rel_ids_ptr, table_t * table, int R, i
     matrix & out_rel_ids = *out_rel_ids_ptr;
 
     tuples_per_cluster = (uint32_t*)calloc(fanOut, sizeof(uint32_t));
-    new_values = (uint64_t *) malloc(sizeof(uint64_t *) * ntuples);
+    new_values = new uint64_t[ntuples];
     dst        = (uint32_t *) malloc(sizeof(uint32_t *) * fanOut);
 
     /* count tuples per cluster */
@@ -154,8 +152,8 @@ table_t* radix_join(table_t *table_left, table_t *table_right) {
     matrix & in_row_ids_right = *table_right->relations_row_ids;
 
     /* Create 2 new matrixes to use after the pratition phase */
-    out_row_ids_left  = new matrix(in_row_ids_left.size(), std::vector<int>(in_row_ids_left[0].size()));
-    out_row_ids_right = new matrix(in_row_ids_right.size(), std::vector<int>(in_row_ids_right[0].size()));
+    out_row_ids_left  = new matrix(in_row_ids_left.size(), j_vector(in_row_ids_left[0].size()));
+    out_row_ids_right = new matrix(in_row_ids_right.size(), j_vector(in_row_ids_right[0].size()));
 
 #ifdef time
     struct timeval start;
@@ -205,6 +203,35 @@ table_t* radix_join(table_t *table_left, table_t *table_right) {
         R_count_per_cluster[idx]++;
     }
 
+
+    /* Check sum */
+    int sum1 = 0, sum2 = 0, poss = 0, sum_poss = 0;
+    for (size_t i = 0; i < (1<<NUM_RADIX_BITS); i++) {
+      sum1 += L_count_per_cluster[i];
+      sum2 += R_count_per_cluster[i];
+      if(L_count_per_cluster[i] > 0 && R_count_per_cluster[i] > 0){
+          poss += (L_count_per_cluster[i] > R_count_per_cluster[i]) ? L_count_per_cluster[i] : R_count_per_cluster[i];
+          sum_poss++;
+      }
+    }
+    //std::cerr << "LSum1 is " << sum1 << '\n';
+    //std::cerr << "RSum2 is " << sum2 << '\n';
+    //std::cerr << "Possible " << poss << '\n';
+    //std::cerr << "SUM Possible " << sum_poss << '\n';
+
+
+    /* Go for a for loop
+    uint64_t *v1 = table_left->column_j->values;
+    uint64_t *v2 = table_right->column_j->values;
+    uint64_t sum = 0;
+    for (size_t i = 0; i < size_l; i++) {
+        for (size_t j = 0; j < size_r; j++) {
+            if (v1[i] = v2[j])
+                sum++;
+        }
+    }
+    std::cerr << "BOLDY FACKING MATCHES " << sum << '\n';
+    */
     //std::cerr << "END2" << '\n';
     //flush(std::cerr);
 
@@ -239,8 +266,8 @@ table_t* radix_join(table_t *table_left, table_t *table_right) {
 #endif
 
     /* build hashtable on inner */
-    unsigned tmp_left_idx  = 0;
-    unsigned tmp_right_idx = 0;
+    uint32_t tmp_left_idx  = 0;
+    uint32_t tmp_right_idx = 0;
     for( i=0; i < (1<<NUM_RADIX_BITS); i++ ){
 
         if(L_count_per_cluster[i] > 0 && R_count_per_cluster[i] > 0){

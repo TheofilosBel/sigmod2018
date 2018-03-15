@@ -239,7 +239,7 @@ table_t* jTreeMakePlan(JTree* jTreePtr, Joiner& joiner, int *depth) {
         joiner.AddColumnToTableT(jTreePtr->predPtr->right, table_r);
 
 
-        //td::cerr << "++++JOIN Predicates: " <<  '\n';
+        //std::cerr << "++++JOIN Predicates: " <<  '\n';
         //std::cerr << "Left: "  << jTreePtr->predPtr->left.relId << "." << jTreePtr->predPtr->left.colId;
         //std::cerr << " Size " << table_l->relations_row_ids->operator[](0).size() << '\n';
         //std::cerr << "Right: " << jTreePtr->predPtr->right.relId << "." << jTreePtr->predPtr->right.colId;

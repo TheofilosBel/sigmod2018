@@ -195,7 +195,7 @@ table_t* Joiner::CreateTableTFromId(unsigned rel_id, unsigned rel_binding) {
     table_t *const table_t_ptr = new table_t;
     table_t_ptr->column_j = new column_t;
     table_t_ptr->intermediate_res = false;
-    table_t_ptr->relations_row_ids = new matrix(1, std::vector<int>(rel.size));
+    table_t_ptr->relations_row_ids = new matrix(1, j_vector(rel.size));
     matrix & rel_row_ids = *table_t_ptr->relations_row_ids;
 
     /* Create the relations_row_ids and relation_ids vectors */
@@ -228,20 +228,20 @@ table_t* Joiner::join(table_t *table_r, table_t *table_s) {
     //flush(cerr);
 
     /* Join the columns */
-    table_t * intermediate_result  = low_join(table_r, table_s);
-    //table_t * intermediate_result =  radix_join(table_r, table_s);
+    //table_t * intermediate_result  = low_join(table_r, table_s);
+    table_t * intermediate_result =  radix_join(table_r, table_s);
 
     //std::cerr << "HERE 2" << '\n';
     //flush(cerr);
 
     /* Free some results */
-    //(table_r->intermediate_res)? (delete table_r->column_j->values) : ((void)0);
-    //delete table_r->relations_row_ids;
-    //delete table_r;
+    (table_r->intermediate_res)? (delete table_r->column_j->values) : ((void)0);
+    delete table_r->relations_row_ids;
+    delete table_r;
 
-    //(table_s->intermediate_res)? (delete table_s->column_j->values) : ((void)0);
-    //delete table_s->relations_row_ids;
-    //delete table_s;
+    (table_s->intermediate_res)? (delete table_s->column_j->values) : ((void)0);
+    delete table_s->relations_row_ids;
+    delete table_s;
 
     //std::cerr << "HERE 2" << '\n';
     //flush(cerr);
@@ -259,9 +259,9 @@ table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
 
     /* Create - Initialize a new table */
     table_t *new_table            = new table_t;
-    new_table->relation_ids       = std::vector<int>(table->relation_ids);
+    new_table->relation_ids       = std::vector<unsigned>(table->relation_ids);
     new_table->relations_bindings = std::vector<unsigned>(table->relations_bindings);
-    new_table->relations_row_ids  = new std::vector<std::vector<int>>;
+    new_table->relations_row_ids  = new matrix;
     new_table->intermediate_res   = true;
     new_table->column_j           = new column_t;
 
@@ -296,7 +296,7 @@ table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
         }
 
         /* Initialize the new matrix */
-        new_row_ids_matrix.push_back(std::vector<int>());
+        new_row_ids_matrix.push_back(j_vector());
     }
 
 #ifdef com
@@ -360,11 +360,11 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
     if (table_r->column_j->size <= table_s->column_j->size) {
         hash_size = table_r->column_j->size;
         hash_col = table_r->column_j;
-        std::vector<std::vector<int>> &h_rows = *table_r->relations_row_ids;
+        matrix &h_rows = *table_r->relations_row_ids;
 
         iter_size = table_s->column_j->size;
         iter_col = table_s->column_j;
-        std::vector<std::vector<int>> &i_rows = *table_s->relations_row_ids;
+        matrix &i_rows = *table_s->relations_row_ids;
 
 #ifdef time
         struct timeval start_build;
@@ -390,12 +390,12 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
         gettimeofday(&start_probe, NULL);
 #endif
         /* create the updated relations_row_ids, merge the sizes*/
-        updated_table_t->relations_row_ids = new std::vector<std::vector<int>>(h_rows.size()+i_rows.size());
+        updated_table_t->relations_row_ids = new matrix(h_rows.size()+i_rows.size());
         uint64_t  allocated_size = (hash_size < iter_size ) ? (uint64_t)(hash_size) : (uint64_t)(iter_size);
         for (size_t relation = 0; relation < h_rows.size()+i_rows.size(); relation++) {
                 updated_table_t->relations_row_ids->operator[](relation).reserve(allocated_size);
         }
-        std::vector<std::vector<int>> &update_row_ids = *updated_table_t->relations_row_ids;
+        matrix &update_row_ids = *updated_table_t->relations_row_ids;
 
         /* now the phase of hashing */
         for (uint64_t i = 0; i < iter_size; i++) {
@@ -437,11 +437,11 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
 #endif
         hash_size = table_s->column_j->size;
         hash_col = table_s->column_j;
-        std::vector<std::vector<int>> &h_rows = *table_s->relations_row_ids;
+        matrix &h_rows = *table_s->relations_row_ids;
 
         iter_size = table_r->column_j->size;
         iter_col = table_r->column_j;
-        std::vector<std::vector<int>> &i_rows = *table_r->relations_row_ids;
+        matrix &i_rows = *table_r->relations_row_ids;
 
         /* now put the values of the column_r in the hash_table(construction phase) */
         for (uint64_t i = 0; i < hash_size; i++) {
@@ -460,13 +460,13 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
         gettimeofday(&start_probe, NULL);
 #endif
         /* create the updated relations_row_ids, merge the sizes*/
-        updated_table_t->relations_row_ids = new std::vector<std::vector<int>>(h_rows.size()+i_rows.size());
+        updated_table_t->relations_row_ids = new matrix(h_rows.size()+i_rows.size());
         uint64_t  allocated_size = (hash_size < iter_size ) ? (uint64_t)(hash_size) : (uint64_t)(iter_size);
         for (size_t relation = 0; relation < h_rows.size()+i_rows.size(); relation++) {
                 updated_table_t->relations_row_ids->operator[](relation).reserve(allocated_size);
         }
-        //updated_table_t->relations_row_ids->resize(h_rows.size()+i_rows.size(), std::vector<int>());
-        std::vector<std::vector<int>> &update_row_ids = *updated_table_t->relations_row_ids;
+        //updated_table_t->relations_row_ids->resize(h_rows.size()+i_rows.size(), std::vector<uint64_t>());
+        matrix &update_row_ids = *updated_table_t->relations_row_ids;
 
         /* now the phase of hashing */
         for (uint64_t i = 0; i < iter_size; i++) {
@@ -528,7 +528,7 @@ void Joiner::construct(table_t *table) {
     const uint64_t *column_values = column.values;
     const int       table_index   = column.table_index;
     const uint64_t  column_size   = table->relations_row_ids->operator[](table_index).size();
-    std::vector<std::vector<int>> &row_ids = *table->relations_row_ids;
+    matrix &row_ids = *table->relations_row_ids;
 
     /* Create a new value's array  */
     uint64_t *const new_values  = new uint64_t[column_size];
@@ -627,7 +627,7 @@ int main(int argc, char* argv[]) {
         if (line == "F") continue; // End of a batch
 
         // Parse the query
-        //std::cerr << q_counter  << ": " << line << '\n';
+        std::cerr << q_counter  << ": " << line << '\n';
         i.parseQuery(line);
         q_counter++;
 

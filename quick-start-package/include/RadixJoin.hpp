@@ -34,8 +34,8 @@
 
 #define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
 
-int64_t bucket_chaining_join(table_t *table_left, const int size_left, int starting_idx_left,
-                             table_t *table_right, const int size_right, int starting_idx_right,
+int64_t bucket_chaining_join(table_t *table_left, const int size_left, uint32_t starting_idx_left,
+                             table_t *table_right, const int size_right, uint32_t starting_idx_right,
                              table_t * result_table);
 
 void radix_cluster_nopadding(matrix * out_rel_ids, table_t *table, int R, int D);
