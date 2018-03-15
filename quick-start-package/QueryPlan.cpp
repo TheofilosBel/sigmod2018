@@ -179,7 +179,7 @@ JoinTree* JoinTree::build(QueryInfo& queryInfo, ColumnInfo** columnInfos) {
                     if (BestTree[s1] == NULL || cost(BestTree[s1]) > cost(currTree)) {
                         BestTree[s1] = currTree;
                     }
-                    
+
                 }
             }
         }
@@ -232,7 +232,43 @@ JoinTree* JoinTree::CreateJoinTree(JoinTree* leftTree, JoinTree* rightTree) {
 }
 
 // execute the plan described by a Plan Tree
-void JoinTree::execute(JoinTree* joinTreePtr) {}
+table_t* JoinTree::execute(JoinTree* joinTreePtr, Joiner& joiner, int *depth) {
+    /* initialize variables */
+    JoinTree *left = joinTreePtr->left, *right = joinTreePtr->right;
+    table_t *table_l, *table_r, *res;
+
+    if (left == NULL && right == NULL) {
+        return joiner.CreateTableTFromId(joinTreePtr->node_id, joinTreePtr->binding_id);
+    }
+
+    table_l = execute(left, joiner, depth);
+
+    /* Its join for sure */
+    if (right != NULL) {
+        table_r = execute(right, joiner, depth);
+
+        /* Filter on right ? */
+        std::cerr<<"IN TREE PLAN EXEC JOIN\n";
+        flush(std::cerr);
+        res = joiner.radix_join(table_l, table_r, joinTreePtr->predPtr);
+        std::cerr<<"WILL EXIT JTREEMAKEPLAN\n";
+        flush(std::cerr);
+        return res;
+
+    }
+    /* Fiter or predicate to the same table (simple constrain )*/
+    else {
+        if (joinTreePtr->filterPtr == NULL) {
+            res = joiner.SelfJoin(table_l, joinTreePtr->predPtr);
+            return res;
+        }
+        else {
+            FilterInfo &filter = *(joinTreePtr->filterPtr);
+            joiner.Select(filter, table_l);
+            return table_l;
+        }
+    }
+}
 
 // Destoys a Plan Tree properly
 void JoinTree::freeJoinTree(JoinTree* joinTreePtr) {}
@@ -284,11 +320,6 @@ double JoinTree::cost(JoinTree* joinTreePtr) {
     }
 
     return total_cost;
-}
-
-// Estimates the cost of a given Join Tree node
-double JoinTreeNode::cost() {
-    return 1.0;
 }
 
 // Builds a query plan with the given info
@@ -385,4 +416,16 @@ void QueryPlan::fillColumnInfo(Joiner& joiner) {
             columnInfos[rel][col].spread = floor((maximum - minimum + 1) / (columnInfos[rel][col].distinct));
         }
     }
+}
+
+// QueryPlan destructor
+QueryPlan::~QueryPlan(Joiner& joiner) {
+    int relationsCount = joiner.getRelationsCount(); // Get the number of relations
+
+    // For every relation get its column statistics
+    for (int rel = 0; rel < relationsCount; rel++)
+        // Allocate memory for the columns
+        free(columnInfos[rel]);
+
+    free(columnInfos)
 }
