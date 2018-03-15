@@ -19,8 +19,8 @@ double timePartition  = 0;
  *
  * @return number of result tuples
  */
-int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const int size_left, int rel_num_left,
-                             uint64_t ** R, const column_t * column_right, const int size_right, int rel_num_right,
+int64_t bucket_chaining_join(table_t *table_left, const int size_left, int starting_idx_left,
+                             table_t *table_right, const int size_right, int starting_idx_right,
                              table_t * result_table) {
     int * next, * bucket;
     const uint32_t numL = size_left;
@@ -28,76 +28,57 @@ int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const 
     uint64_t matches = 0;
 
     /* The resulting row ids */
-    ssize_t     size = result_table->allocated_size;
-    ssize_t     vector_size = result_table->num_of_relations;
-    uint64_t ** matched_row_ids = result_table->row_ids;
+    ssize_t  relations_num   = result_table->relations_bindings.size();
+    ssize_t  relations_left  = table_left->relations_bindings.size();
+    ssize_t  relations_right = table_right->relations_bindings.size();
+
+    matrix & matched_row_ids = *result_table->relations_row_ids;
+    matrix & row_ids_left    = *table_left->relations_row_ids;
+    matrix & row_ids_right   = *table_right->relations_row_ids;
+
 
     NEXT_POW_2(N);
-    std::cerr << "N is " << N << '\n';
-    /* N <<= 1; */
-    const uint64_t MASK = (N-1) << (NUM_RADIX_BITS);
 
+    const uint64_t MASK = (N-1) << (NUM_RADIX_BITS);
     next   = (int*) malloc(sizeof(int) * numL);
     /* posix_memalign((void**)&next, CACHE_LINE_SIZE, numR * sizeof(int)); */
     bucket = (int*) calloc(N, sizeof(int));
 
-    const uint64_t * Ltuples;
-    uint32_t         index_l = column_left->binding;
+    const uint64_t * Ltuples = table_left->column_j->values + starting_idx_left;
     for(uint32_t i=0; i < numL; ){
-        Ltuples = column_left->values + L[i][index_l];
         uint32_t idx = HASH_BIT_MODULO(*Ltuples, MASK, NUM_RADIX_BITS);
         next[i]      = bucket[idx];
         bucket[idx]  = ++i;     /* we start pos's from 1 instead of 0 */
-
-        /* Enable the following tO avoid the code elimination
-           when running probe only for the time break-down experiment */
-        /* matches += idx; */
+        Ltuples++;
     }
 
-    uint32_t         new_rids_index = result_table->size_of_row_ids;
-    const uint64_t * Rtuples;
+    const uint64_t * Rtuples = table_right->column_j->values + starting_idx_right;
     const uint32_t   numR  = size_right;
-    uint32_t        index_r = column_right->binding;
     /* Disable the following loop for no-probe for the break-down experiments */
     /* PROBE- LOOP */
     for(uint32_t i=0; i < numR; i++ ){
-        Rtuples = column_right->values + R[i][index_r];
-        uint32_t idx = HASH_BIT_MODULO(*Rtuples, MASK, NUM_RADIX_BITS);
 
+        Ltuples =  table_left->column_j->values  + starting_idx_left;
+        uint32_t idx = HASH_BIT_MODULO(*Rtuples, MASK, NUM_RADIX_BITS);
         for(int hit = bucket[idx]; hit > 0; hit = next[hit-1]){
 
-            Ltuples = column_left->values + L[hit-1][index_l];
-
             /* We have a match */
-            if(*Rtuples == *Ltuples){
+            if(Rtuples[i] == Ltuples[hit-1]){
 
-                /* Reallocate in case of emergency */
-                if (new_rids_index == size) {
-                    size = size * 2;
-                    uint64_t** new_pointer = (uint64_t **) realloc(matched_row_ids, sizeof(uint64_t*) * size);
+                /* Add the left table's row Ids to the new table  */
+                for (uint32_t j = 0 ; j < relations_left; j++)
+                    matched_row_ids[j].push_back(row_ids_left[j][starting_idx_left + hit-1]);
 
-                    if (new_pointer == NULL) std::cerr << "Error in realloc " << '\n';
-                    matched_row_ids = new_pointer;
-
-                    result_table->allocated_size = size;
-                }
-
-                /* Create new uint64_t array */
-                matched_row_ids[new_rids_index] = (uint64_t *) malloc(sizeof(uint64_t *) * vector_size);
-
-                /* Copy the vectors to the new ones */
-                memcpy(&matched_row_ids[new_rids_index][0], &L[hit-1][0], sizeof(uint64_t) * rel_num_left);
-                memcpy(&matched_row_ids[new_rids_index][rel_num_left], &R[i][0], sizeof(uint64_t) * rel_num_right);
-
-                new_rids_index++;
+                /* Add the right table's row Ids to the new table  */
+                for (uint32_t j = 0; j < relations_right; j++)
+                    matched_row_ids[j + relations_left].push_back(row_ids_right[j][starting_idx_right + i]);
             }
         }
+
+        //Rtuples++;
     }
     /* PROBE-LOOP END  */
 
-    /* Update the size of the array */
-    result_table->size_of_row_ids = new_rids_index;
-    result_table->row_ids = matched_row_ids;
     //std::cerr << "END" << '\n';
     //flush(std::cerr);
 
@@ -108,103 +89,106 @@ int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const 
     return matches;
 }
 
-void radix_cluster_nopadding(uint64_t ** out_rel_ids, uint64_t ** in_rel_ids, column_t *column, int row_ids_size, int R, int D) {
+void radix_cluster_nopadding(matrix * out_rel_ids_ptr, table_t * table, int R, int D) {
 
-    uint64_t *** dst;
-    uint64_t   * input;
-    uint32_t   * tuples_per_cluster;
-    uint32_t     i;
-    uint64_t     offset;
+    int  relations_num = table->relations_bindings.size();
+    int  table_index   = table->column_j->table_index;
+    uint32_t * dst;
+    uint64_t * input;
+    uint64_t * new_values;
+    uint32_t * tuples_per_cluster;
+    uint32_t   i;
+    uint64_t   offset;
     const uint32_t M = ((1 << D) - 1) << R;
     const uint32_t fanOut = 1 << D;
-    const uint32_t ntuples = row_ids_size;
+    const uint32_t ntuples = (*table->relations_row_ids)[0].size();
+
+    matrix & row_ids = *table->relations_row_ids;
+    matrix & out_rel_ids = *out_rel_ids_ptr;
+    std::cerr << "Touples " << ntuples << '\n';
 
     tuples_per_cluster = (uint32_t*)calloc(fanOut, sizeof(uint32_t));
-    /* the following are fixed size when D is same for all the passes,
-       and can be re-used from call to call. Allocating in this function
-       just in case D differs from call to call. */
-    dst     = (uint64_t ***)malloc(sizeof(uint64_t **) * fanOut);
+    new_values = (uint64_t *) malloc(sizeof(uint64_t *) * ntuples);
+    dst        = (uint32_t *) malloc(sizeof(uint32_t *) * fanOut);
 
     /* count tuples per cluster */
+    input = table->column_j->values;
     for(i = 0; i < ntuples; i++){
-        input = column->values + in_rel_ids[i][column->binding];
         uint64_t idx = (uint64_t)(HASH_BIT_MODULO(*input, M, R));
         tuples_per_cluster[idx]++;
+        input++;
     }
 
     offset = 0;
     /* determine the start and end of each cluster depending on the counts. */
     for (i = 0; i < fanOut; i++) {
-        dst[i]  = out_rel_ids + offset;
+        dst[i]  = offset;
         offset += tuples_per_cluster[i];
     }
 
     /* copy tuples to their corresponding clusters at appropriate offsets */
+    input = table->column_j->values;
     for( i=0; i < ntuples; i++ ){
-        input = column->values + in_rel_ids[i][column->binding];
         uint64_t idx   = (uint64_t)(HASH_BIT_MODULO(*input, M, R));
-        *dst[idx] = in_rel_ids[i];
+        for (size_t rel = 0; rel < relations_num ; rel++) {
+            out_rel_ids[rel][dst[idx]] = row_ids[rel][i];
+            new_values[dst[idx]]  =  *input;
+        }
         ++dst[idx];
+        input++;
     }
+
+    /*TODO DELETE */
+    //(table->intermediate_res) ? (delete value)
+    table->column_j->values = new_values;
+
+
+    /* Check sum the 2 arrays
+    int sum1 = 0 , sum2=0;
+    for (i=0 ; i < ntuples; i++) {
+        sum1 += out_rel_ids[0][i];
+        sum2 += row_ids[0][i];
+    }
+    std::cerr << "SUM 1 " << sum1  << " " << out_rel_ids[0][9] << '\n';
+    std::cerr << "SUM 2 " << sum2 <<  " " <<  row_ids[0][9]  <<'\n';
+    */
+
 
     /* clean up temp */
     free(dst);
     free(tuples_per_cluster);
 }
 
-table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_right, column_t *column_right) {
+table_t* radix_join(table_t *table_left, table_t *table_right) {
 
     uint64_t result = 0;
     uint32_t i;
-    uint64_t **out_row_ids_left, **out_row_ids_right;
+    matrix * out_row_ids_left, * out_row_ids_right;
+    matrix & in_row_ids_left  = *table_left->relations_row_ids;
+    matrix & in_row_ids_right = *table_right->relations_row_ids;
 
-
-
-    out_row_ids_left  = (uint64_t **) malloc(sizeof(uint64_t **) * table_left->size_of_row_ids);
-    out_row_ids_right = (uint64_t **) malloc(sizeof(uint64_t **) * table_right->size_of_row_ids);
+    /* Create 2 new matrixes to use after the pratition phase */
+    out_row_ids_left  = new matrix(in_row_ids_left.size(), std::vector<int>(in_row_ids_left[0].size()));
+    out_row_ids_right = new matrix(in_row_ids_right.size(), std::vector<int>(in_row_ids_right[0].size()));
 
 #ifdef time
     struct timeval start;
     gettimeofday(&start, NULL);
 #endif
 
-    /* Fix the columns */
-    //std::cerr << "Left binding before " << column_left->binding << '\n';
-    //std::cerr << "Right binding before " << column_right->binding << '\n';
-    int index_l = -1;
-    int index_r = -1;
-    for (ssize_t index = 0; index < table_left->num_of_relations ; index++) {
-        if (column_left->binding == table_left->relations_bindings[index]){
-            index_l = index;
-            break;
-        }
-    }
-    for (ssize_t index = 0; index < table_right->num_of_relations ; index++) {
-        if (column_right->binding == table_right->relations_bindings[index]){
-            index_r = index;
-            break;
-        }
-    }
-
-    if (index_l == -1 || index_r == -1 ) std::cerr << "Error in radix : No relation mapping" << '\n';
-    column_left->binding = index_l;
-    column_right->binding = index_r;
-
     /***** do the multi-pass partitioning *****/
 
     /* apply radix-clustering on relation R for pass-1 */
-    radix_cluster_nopadding(out_row_ids_left, table_left->row_ids, column_left,
-                            table_left->size_of_row_ids, 0, NUM_RADIX_BITS);
+    radix_cluster_nopadding(out_row_ids_left, table_left, 0, NUM_RADIX_BITS);
 
-    free(table_left->row_ids);
-    table_left->row_ids = out_row_ids_left;
+    delete table_left->relations_row_ids;
+    table_left->relations_row_ids = out_row_ids_left;
 
     /* apply radix-clustering on relation S for pass-1 */
-    radix_cluster_nopadding(out_row_ids_right, table_right->row_ids, column_right,
-                                table_right->size_of_row_ids, 0, NUM_RADIX_BITS);
+    radix_cluster_nopadding(out_row_ids_right, table_right, 0, NUM_RADIX_BITS);
 
-    free(table_right->row_ids);
-    table_right->row_ids = out_row_ids_right;
+    delete table_right->relations_row_ids;
+    table_right->relations_row_ids = out_row_ids_right;
 
     std::cerr << "END1" << '\n';
     flush(std::cerr);
@@ -224,41 +208,55 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
     int * R_count_per_cluster = (int*)calloc((1<<NUM_RADIX_BITS), sizeof(int));
 
     /* compute number of tuples per cluster */
-    uint64_t **row_ids = table_left->row_ids;
-    unsigned   index   = column_left->binding;
-
-    for( i=0; i < table_left->size_of_row_ids; i++ ) {
-        uint64_t idx = (column_left->values[row_ids[i][index]]) & ((1<<NUM_RADIX_BITS)-1);
+    unsigned   size_l =  table_left->column_j->size;
+    for( i=0; i < size_l; i++ ) {
+        uint64_t idx = (table_left->column_j->values[i]) & ((1<<NUM_RADIX_BITS)-1);
         L_count_per_cluster[idx] ++;
     }
 
-    row_ids = table_right->row_ids;
-    index   = column_right->binding;
-
-    for( i=0; i < table_right->size_of_row_ids; i++ ){
-        uint64_t idx = (column_right->values[row_ids[i][index]]) & ((1<<NUM_RADIX_BITS)-1);
-        R_count_per_cluster[idx] ++;
+    unsigned size_r =  table_right->column_j->size;;
+    for( i=0; i < size_r; i++ ){
+        uint64_t idx = (table_right->column_j->values[i]) & ((1<<NUM_RADIX_BITS)-1);
+        R_count_per_cluster[idx]++;
     }
+
+    /* Check sum
+    int sum1 = 0, sum2 = 0, poss = 0, sum_poss = 0;
+    for (size_t i = 0; i < (1<<NUM_RADIX_BITS); i++) {
+        sum1 += L_count_per_cluster[i];
+        sum2 += R_count_per_cluster[i];
+        if(L_count_per_cluster[i] > 0 && R_count_per_cluster[i] > 0){
+            poss += (L_count_per_cluster[i] > R_count_per_cluster[i]) ? L_count_per_cluster[i] : R_count_per_cluster[i];
+            sum_poss++;
+        }
+    }
+    std::cerr << "LSum1 is " << sum1 << '\n';
+    std::cerr << "RSum2 is " << sum2 << '\n';
+    std::cerr << "Possible " << poss << '\n';
+    std::cerr << "SUM Possible " << sum_poss << '\n';
+    */
 
     std::cerr << "END2" << '\n';
     flush(std::cerr);
 
     /* Create the result tables */
     table_t * result_table = new table_t;
-    result_table->allocated_size  = (table_left->size_of_row_ids < table_right->size_of_row_ids) ?
-                                            (table_left->size_of_row_ids * table_left->size_of_row_ids)   :
-                                            (table_right->size_of_row_ids * table_right->size_of_row_ids) ;
-    result_table->num_of_relations = table_left->num_of_relations + table_right->num_of_relations;
-    result_table->size_of_row_ids  = 0;
-    result_table->row_ids          = (uint64_t **) malloc(sizeof(uint64_t **) * result_table->allocated_size);
+    uint64_t  allocated_size  = size_l;
 
-
-    /* upload the bindings and the relations */
+    /* update the bindings and the relations */
     result_table->relations_bindings.insert(result_table->relations_bindings.end(),table_left->relations_bindings.begin(), table_left->relations_bindings.end());
     result_table->relations_bindings.insert(result_table->relations_bindings.end(),table_right->relations_bindings.begin(), table_right->relations_bindings.end());
+
     result_table->relation_ids.insert(result_table->relation_ids.end(),table_left->relation_ids.begin(), table_left->relation_ids.end());
     result_table->relation_ids.insert(result_table->relation_ids.end(),table_right->relation_ids.begin(), table_right->relation_ids.end());
 
+    /* Create a new rowids table */
+    int  relations_num = result_table->relations_bindings.size();
+    result_table->relations_row_ids = new matrix(relations_num);
+    for (size_t relation = 0; relation < relations_num; relation++) {
+        result_table->relations_row_ids->operator[](relation).reserve(allocated_size);
+    }
+    result_table->intermediate_res = true;
 
 #ifdef time
     gettimeofday(&end, NULL);
@@ -272,24 +270,22 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
     /* build hashtable on inner */
     int l, r; /* start index of next clusters */
     l = r = 0;
+
+    unsigned tmp_left_idx  = 0;
+    unsigned tmp_right_idx = 0;
     for( i=0; i < (1<<NUM_RADIX_BITS); i++ ){
-        uint64_t ** tmp_left;
-        uint64_t ** tmp_right;
 
         if(L_count_per_cluster[i] > 0 && R_count_per_cluster[i] > 0){
 
-            tmp_left =  out_row_ids_left + l;
-            l += L_count_per_cluster[i];
+            bucket_chaining_join(table_left, L_count_per_cluster[i], tmp_left_idx,
+                                table_right, R_count_per_cluster[i], tmp_right_idx, result_table);
 
-            tmp_right =  out_row_ids_right + r;
-            r += R_count_per_cluster[i];
-
-            bucket_chaining_join(tmp_left, column_left, L_count_per_cluster[i], table_left->num_of_relations,
-                                            tmp_right, column_right, R_count_per_cluster[i], table_right->num_of_relations, result_table);
+            tmp_left_idx  += L_count_per_cluster[i];
+            tmp_right_idx += R_count_per_cluster[i];
         }
         else {
-            l += L_count_per_cluster[i];
-            r += R_count_per_cluster[i];
+            tmp_left_idx  += L_count_per_cluster[i];
+            tmp_right_idx += R_count_per_cluster[i];
         }
     }
 
@@ -305,6 +301,7 @@ table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_r
     /* clean-up temporary buffers */
     free(L_count_per_cluster);
     free(R_count_per_cluster);
+
 
     return result_table;
 }

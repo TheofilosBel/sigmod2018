@@ -224,6 +224,9 @@ table_t* jTreeMakePlan(JTree* jTreePtr, Joiner& joiner, int *depth) {
     table_t *res;
 
     if (left == NULL && right == NULL) {
+
+        std::cerr << "Creating New table" << '\n';
+        flush(std::cerr);
         return joiner.CreateTableTFromId(jTreePtr->node_id, jTreePtr->binding_id);
     }
 
@@ -239,12 +242,12 @@ table_t* jTreeMakePlan(JTree* jTreePtr, Joiner& joiner, int *depth) {
         joiner.AddColumnToTableT(jTreePtr->predPtr->right, table_r);
 
 
-        //std::cerr << "++++JOIN Predicates: " <<  '\n';
-        //std::cerr << "Left: "  << jTreePtr->predPtr->left.relId << "." << jTreePtr->predPtr->left.colId << '\n';
-        //std::cerr << "Right: " << jTreePtr->predPtr->right.relId << "." << jTreePtr->predPtr->right.colId << '\n';
+        std::cerr << "++++JOIN Predicates: " <<  '\n';
+        std::cerr << "Left: "  << jTreePtr->predPtr->left.relId << "." << jTreePtr->predPtr->left.colId << '\n';
+        std::cerr << "Right: " << jTreePtr->predPtr->right.relId << "." << jTreePtr->predPtr->right.colId << '\n';
         res = joiner.join(table_l, table_r);
-        //std::cerr << "Intermediate rows: " << res->relations_row_ids->operator[](0).size()  << '\n';
-        //std::cerr << "-------" << '\n';
+        std::cerr << "Intermediate rows: " << res->relations_row_ids->operator[](0).size()  << '\n';
+        std::cerr << "-------" << '\n';
         return res;
 
     }
@@ -253,23 +256,23 @@ table_t* jTreeMakePlan(JTree* jTreePtr, Joiner& joiner, int *depth) {
 
         if (jTreePtr->filterPtr == NULL) {
 
-            //std::cerr << "====Self JOIN Predicates: " <<  '\n';
-            //std::cerr << "Left: "  << jTreePtr->predPtr->left.relId << "." << jTreePtr->predPtr->left.colId << '\n';
-            //std::cerr << "Right: " << jTreePtr->predPtr->right.relId << "." << jTreePtr->predPtr->right.colId << '\n';
+            std::cerr << "====Self JOIN Predicates: " <<  '\n';
+            std::cerr << "Left: "  << jTreePtr->predPtr->left.relId << "." << jTreePtr->predPtr->left.colId << '\n';
+            std::cerr << "Right: " << jTreePtr->predPtr->right.relId << "." << jTreePtr->predPtr->right.colId << '\n';
             res = joiner.SelfJoin(table_l, jTreePtr->predPtr);
-            //std::cerr << "Intermediate rows: " << res->relations_row_ids->operator[](0).size()  << '\n';
-            //std::cerr << "-------" << '\n';
+            std::cerr << "Intermediate rows: " << res->relations_row_ids->operator[](0).size()  << '\n';
+            std::cerr << "-------" << '\n';
             return res;
         }
         else {
             FilterInfo &filter = *(jTreePtr->filterPtr);
             joiner.AddColumnToTableT(jTreePtr->filterPtr->filterColumn, table_l);
             joiner.Select(filter, table_l);
-            //std::cerr << "----Filter Predicates: " <<  '\n';
-            //std::cerr << "Relation.column: "  << filter.filterColumn.relId << "." << filter.filterColumn.colId << '\n';
-            //std::cerr << "Constant: " << filter.constant << '\n';
-            //std::cerr << "Intermediate rows: " << table_l->relations_row_ids->operator[](0).size()  << '\n';
-            //std::cerr << "-------" << '\n';
+            std::cerr << "----Filter Predicates: " <<  '\n';
+            std::cerr << "Relation.column: "  << filter.filterColumn.relId << "." << filter.filterColumn.colId << '\n';
+            std::cerr << "Constant: " << filter.constant << '\n';
+            std::cerr << "Intermediate rows: " << table_l->relations_row_ids->operator[](0).size()  << '\n';
+            std::cerr << "-------" << '\n';
             return table_l;
         }
     }

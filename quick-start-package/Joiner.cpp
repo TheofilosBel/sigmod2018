@@ -8,6 +8,7 @@
 #include "Parser.hpp"
 #include "QueryPlan.hpp"
 #include "header.hpp"
+#include "RadixJoin.hpp"
 
 // #define time
 
@@ -22,8 +23,10 @@ double timeAddColumn = 0;
 double timeTreegen = 0;
 double timeCheckSum = 0;
 double timeConstruct = 0;
-double timeBuildPhase = 0;
-double timeProbePhase = 0;
+
+extern double timePartition;
+extern double timeBuildPhase;
+extern double timeProbePhase;
 
 /* +---------------------+
    |The joiner functions |
@@ -156,6 +159,7 @@ void Joiner::AddColumnToTableT(SelectInfo &sel_info, table_t *table) {
     column.table_index = -1;
     unsigned relation_binding = sel_info.binding;
 
+
     /* Get the right index from the relation id table */
     for (size_t index = 0; index < relation_mapping.size(); index++) {
         if (relation_mapping[index] == relation_binding){
@@ -220,7 +224,8 @@ table_t* Joiner::join(table_t *table_r, table_t *table_s) {
     (table_r->intermediate_res)? (construct(table_r)) : ((void)0);
     (table_s->intermediate_res)? (construct(table_s)) : ((void)0);
     /* Join the columns */
-    return low_join(table_r, table_s);
+    //return low_join(table_r, table_s);
+    return radix_join(table_r, table_s);
 }
 
 /* The self Join Function */
@@ -600,7 +605,7 @@ int main(int argc, char* argv[]) {
         if (line == "F") continue; // End of a batch
 
         // Parse the query
-        //std::cerr << q_counter  << ": " << line << '\n';
+        std::cerr << q_counter  << ": " << line << '\n';
         i.parseQuery(line);
         q_counter++;
 

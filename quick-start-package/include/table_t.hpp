@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 typedef std::vector<std::vector<int>> matrix;
 typedef struct table_t table_t;
 typedef struct column_t column_t;

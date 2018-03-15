@@ -34,10 +34,10 @@
 
 #define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
 
-int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const int size_left, int rel_num_left,
-                             uint64_t ** R, const column_t * column_right, const int size_right, int rel_num_right, table_t * result_table);
+int64_t bucket_chaining_join(table_t *table_left, const int size_left, int starting_idx_left,
+                             table_t *table_right, const int size_right, int starting_idx_right,
+                             table_t * result_table);
 
-void radix_cluster_nopadding(uint64_t ** out_rel_ids, uint64_t ** in_rel_ids, column_t *column, int row_ids_size, int R, int D);
+void radix_cluster_nopadding(matrix * out_rel_ids, table_t *table, int R, int D);
 
-
-table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_right, column_t *column_right);
+table_t* radix_join(table_t *table_left, table_t *table_right);
