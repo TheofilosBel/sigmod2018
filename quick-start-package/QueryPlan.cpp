@@ -83,7 +83,7 @@ JoinTree* JoinTree::build(QueryInfo& queryInfo, ColumnInfo** columnInfos) {
         // Allocate memory
         JoinTree* joinTreePtr = (JoinTree*) malloc(sizeof(JoinTree));
         JoinTreeNode* joinTreeNodePtr = (JoinTreeNode*) malloc(sizeof(JoinTreeNode));
-        
+
         // Initialise JoinTreeNode
         joinTreeNodePtr->nodeId = queryInfo.relationIds[i]; // The true id of the relation
         joinTreeNodePtr->left = NULL;
@@ -94,6 +94,7 @@ JoinTree* JoinTree::build(QueryInfo& queryInfo, ColumnInfo** columnInfos) {
 
         // Initialise JoinTree
         joinTreePtr->root = joinTreeNodePtr;
+        joinTreePtr->columnInfos = columnInfos;
 
         // Insert into the BestTree
         vector<bool> relationToVector(relationsCount, false);
@@ -118,7 +119,7 @@ JoinTree* JoinTree::build(QueryInfo& queryInfo, ColumnInfo** columnInfos) {
                 tempVec[j] = true;
                 setSize++;
             }
-        
+
             // Save all sets of a certain size
             powerSetMap[setSize].insert(tempVec);
         }
@@ -175,7 +176,7 @@ JoinTree* JoinTree::build(QueryInfo& queryInfo, ColumnInfo** columnInfos) {
                     // Create the bit vector representation of the relation j
                     vector<bool> relationToVector(relationsCount, false);
                     relationToVector[j] = true;
-                    
+
                     // Merge the two trees
                     JoinTree* currTree = CreateJoinTree(BestTree[s], BestTree[relationToVector]);
 
@@ -248,6 +249,52 @@ void JoinTree::printJoinTree(JoinTree* joinTreePtr) {}
 
 // Estimates the cost of a given Plan Tree */
 double JoinTree::cost(JoinTree* joinTreePtr) {
+    /* traverse join-tree in a DFS fassion and estimate a cost for every node,
+        then sum up this cost and return it */
+    int total_cost = 0;
+    JoinTreeNode *currNodePtr = joinTreePtr->root;
+    bool from_left = true, went_left = false, went_right = false;
+
+    while(currNodePtr) {
+        /* if you can go to the left children */
+        if (!went_left && currNodePtr->left) {
+            currNodePtr = currNodePtr->left;
+            from_left = true;
+            /* you may now go left or right again */
+            went_left = false;
+            went_right = false;
+        }
+        /* if you can go to the right children */
+        else if (!went_right && currNodePtr->right) {
+            currNodePtr = currNodePtr->right;
+            from_left = false;
+            /* you may now go left or right again */
+            went_left = false;
+            went_right = false;
+        }
+        /* if you can't go to the left or to the right children */
+        else {
+            /* print node ID */
+            total_cost += currNodePtr->cost();
+            /* go to the parent */
+            currNodePtr = currNodePtr->parent;
+            /* deside liberty of transitions */
+            if (from_left) {
+                went_left = true;
+                went_right = false;
+            }
+            else {
+                went_left = true;
+                went_right = true;
+            }
+        }
+    }
+
+    return total_cost;
+}
+
+// Estimates the cost of a given Join Tree node
+double JoinTreeNode::cost() {
     return 1.0;
 }
 
@@ -297,6 +344,11 @@ void QueryPlan::build(QueryInfo& queryInfo) {
 
     /* merge all Join Trees to one final Join Tree */
 #endif
+}
+
+// Executes a query plan with the given info
+void QueryPlan::execute(QueryInfo& queryInfoPtr) {
+
 }
 
 // Fills the columnInfo matrix with the data of every column
