@@ -210,8 +210,8 @@ table_t* radix_join(table_t *table_left, table_t *table_right) {
 
     /* Create the result tables */
     table_t * result_table = new table_t;
-    uint64_t  allocated_size = (size_l < size_r) ? ( (uint64_t)(size_l * size_l)) : (uint64_t)(size_r * size_r);
-    std::cerr << "Allocated size " <<  allocated_size << '\n';
+    uint64_t  allocated_size = (size_l < size_r) ? (uint64_t)(size_l) : (uint64_t)(size_r);
+    //std::cerr << "Allocated size " <<  allocated_size << " Size l " << size_l << " Size r " << size_r <<  '\n';
 
     /* update the bindings and the relations */
     result_table->column_j = new column_t;
@@ -261,7 +261,6 @@ table_t* radix_join(table_t *table_left, table_t *table_right) {
     gettimeofday(&end, NULL);
     timeProbePhase += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
 #endif
-    //std::cerr << "Check sum (left)" << result << '\n';
 
     /* clean-up temporary buffers */
     free(L_count_per_cluster);

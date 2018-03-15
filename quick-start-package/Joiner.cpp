@@ -220,12 +220,33 @@ table_t* Joiner::CreateTableTFromId(unsigned rel_id, unsigned rel_binding) {
 table_t* Joiner::join(table_t *table_r, table_t *table_s) {
 
     /* Construct the tables in case of intermediate results */
+    //std::cerr << "HERE 1" << '\n';
+    //flush(cerr);
     (table_r->intermediate_res)? (construct(table_r)) : ((void)0);
     (table_s->intermediate_res)? (construct(table_s)) : ((void)0);
+    //std::cerr << "HERE 1" << '\n';
+    //flush(cerr);
 
     /* Join the columns */
     //return low_join(table_r, table_s);
-    return radix_join(table_r, table_s);
+    table_t * intermediate_result =  radix_join(table_r, table_s);
+
+    //std::cerr << "HERE 2" << '\n';
+    //flush(cerr);
+
+    /* Free some results */
+    (table_r->intermediate_res)? (delete table_r->column_j->values) : ((void)0);
+    delete table_r->relations_row_ids;
+    delete table_r;
+
+    (table_s->intermediate_res)? (delete table_s->column_j->values) : ((void)0);
+    delete table_s->relations_row_ids;
+    delete table_s;
+
+    //std::cerr << "HERE 2" << '\n';
+    //flush(cerr);
+
+    return intermediate_result;
 }
 
 /* The self Join Function */
@@ -241,6 +262,7 @@ table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
     new_table->relation_ids       = std::vector<int>(table->relation_ids);
     new_table->relations_bindings = std::vector<unsigned>(table->relations_bindings);
     new_table->relations_row_ids  = new std::vector<std::vector<int>>;
+    new_table->intermediate_res   = true;
     new_table->column_j           = new column_t;
 
     /* Get the 2 relation rows ids vectors in referances */
@@ -605,7 +627,7 @@ int main(int argc, char* argv[]) {
         if (line == "F") continue; // End of a batch
 
         // Parse the query
-        std::cerr << q_counter  << ": " << line << '\n';
+        //std::cerr << q_counter  << ": " << line << '\n';
         i.parseQuery(line);
         q_counter++;
 
