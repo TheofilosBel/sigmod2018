@@ -4,13 +4,14 @@
 
 using namespace std;
 
-// Construct plan tree from set of relations IDs
+// Construct a plan tree from set of relations IDs
 JoinTree* JoinTree::build(vector<RelationId>& relationIds, vector<PredicateInfo>& predicates) {
     // Maps every possible set of relations to its respective best plan tree
     unordered_map< vector<bool>, JoinTree* > BestTree;
     int relationsCount = relationIds.size();
 
-    // Initialise the BestTree structure
+    // Initialise the BestTree structure with nodes
+    // for every single relation in the input
     for (int i = 0; i < relationsCount; i++) {
         // Allocate memory
         JoinTree* joinTreePtr = (JoinTree*) malloc(sizeof(JoinTree));
@@ -31,31 +32,34 @@ JoinTree* JoinTree::build(vector<RelationId>& relationIds, vector<PredicateInfo>
         joinTreePtr->isLeftDeepOnly = true;
 
         // Insert into the BestTree
-        vector<bool> tempVec(relationsCount, false);
-        tempVec[i] = true;
-        BestTree[tempVec] = joinTreePtr;
+        vector<bool> relationToVector(relationsCount, false);
+        relationToVector[i] = true;
+        BestTree[relationToVector] = joinTreePtr;
     }
 
     // Maps all sets of a certain size to their size
-    map< int, set< set<int> > > powerSetMap;
+    // Sets are represented as vector<bool>
+    map< int, set< vector<bool> > > powerSetMap;
 
     // Generate power-set of the given set of relations
     // source: www.geeksforgeeks.org/power-set/
     unsigned int powerSetSize = pow(2, relationsCount);
 
     for (int counter = 0; counter < powerSetSize; counter++) {
-        set<int> tempSet;
+        vector<bool> tempVec(relationsCount, false);
+        int setSize = 0;
+
         for (int j = 0; j < relationsCount; j++) {
             if (counter & (1 << j)) {
-                tempSet.insert(relationIds[j]);
+                tempVec[j] = true;
+                setSize++;
             }
         
             // Save all sets of a certain size
-            powerSetMap[tempSet.size()].insert(tempSet);
+            powerSetMap[setSize].insert(tempVec);
         }
     }
-
-    /*
+/*
     // Print the power set
     fprintf(stderr, "\nrelations = ");
     for (int i = 0; i < relationsCount; i++) fprintf(stderr, "%d ", relationIds[i]);
@@ -65,44 +69,45 @@ JoinTree* JoinTree::build(vector<RelationId>& relationIds, vector<PredicateInfo>
         fprintf(stderr, "set size = %d contains sets = {", i);
         for (auto s : powerSetMap[i]) {
             fprintf(stderr, "{");
-            for (auto i : s) {
-                fprintf(stderr, " %d ", i);
+            for (int j = 0; j < relationsCount; j++) {
+                if (s[j] == true) {
+                    fprintf(stderr, " %d ", relationIds[j]);
+                }
             }
             fprintf(stderr, "}");
         }
         fprintf(stderr, "}\n");
     }
-    */
+*/
 
-#ifdef k
     // Dynamic programming algorithm
     for (int i = 1; i <= relationsCount; i++) {
         for (auto s : powerSetMap[i]) {
             for (int j = 0; j < relationsCount; j++) {
                 // If j is not in the set
-                if (s.find(j) == s.end()) {
+                if (s[j] == false) {
                     //if (!connected(j, s, predicates))
                     //    continue;
 
-                    // Create the bit vector representation of the set
-                    vector<bool> setToVector(relationsCount, false);
-                    for (auto i : s) setToVector[i] = true;
-                    JoinTree* currTree = CreateJoinTree(BestTree[setToVector], j);
-
-                    set<int> s1 = s;
-                    s1.insert(j);
-                    vector<bool> tempVecS1(relationsCount, false);
-                    for (auto i : s1) tempVecS1[i] = true;
-                    if (BestTree.at(tempVecS1) == NULL || cost(BestTree.at(tempVecS1)) > cost(currTree))
-                        BestTree.at(tempVecS1) = currTree;
+                    // Create the bit vector representation of the relation j
+                    vector<bool> relationToVector(relationsCount, false);
+                    relationToVector[j] = true;
+                    
+                    // Merge the two trees
+                    JoinTree* currTree = CreateJoinTree(BestTree[s], BestTree[relationToVector]);
+                    /*
+                    vector<bool> s1 = s;
+                    s1[j] = true;
+                    if (BestTree.at(s1) == NULL || cost(BestTree.at(s1)) > cost(currTree))
+                        BestTree.at(s1) = currTree;
+                    */
                 }
             }
         }
     }
 
-    vector<bool> setToVector(relationsCount, true);
-    return BestTree.at(setToVector);
-# endif
+//    vector<bool> setToVector(relationsCount, true);
+//    return BestTree.at(setToVector);
 
     return NULL;
 }
@@ -120,8 +125,8 @@ bool JoinTree::connected(int relId, set<int>& idSet, set<PredicateInfo>& predSet
 }
 */
 
-// Adds a relation to a join tree
-JoinTree* JoinTree::CreateJoinTree(JoinTree* left, int relId) {
+// Merges two join trees
+JoinTree* JoinTree::CreateJoinTree(JoinTree* leftTree, JoinTree* rightTree) {
     return NULL;
 }
 

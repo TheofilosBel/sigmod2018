@@ -44,10 +44,10 @@ struct JoinTree {
     //and one of the relations in its second
     //bool connected(int relId, std::set<int>& idSet, std::set<PredicateInfo>& predSet);
 
-    // Adds a relation to a join tree
-    JoinTree* CreateJoinTree(JoinTree* left, int relId);
+    // Merges two join trees
+    JoinTree* CreateJoinTree(JoinTree* leftTree, JoinTree* rightTree);
 
-    // execute the Join described by a Join Tree
+    // Execute a Join Tree
     void execute(JoinTree* joinTreePtr);
 
     // Destoys a Join Tree properly
