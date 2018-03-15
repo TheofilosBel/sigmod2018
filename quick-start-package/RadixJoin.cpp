@@ -59,7 +59,7 @@ int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const 
     uint32_t        index_r = column_right->binding;
     /* Disable the following loop for no-probe for the break-down experiments */
     /* PROBE- LOOP */
-    std::cerr<<"----------->WILL START THE REAL BROBINGGGGGGGGGGGGGGGGGG\n";
+    //std::cerr<<"----------->WILL START THE REAL BROBINGGGGGGGGGGGGGGGGGG\n";
     for(uint32_t i=0; i < numR; i++ ){
         Rtuples = column_right->values + R[i][index_r];
         uint32_t idx = HASH_BIT_MODULO(*Rtuples, MASK, NUM_RADIX_BITS);
@@ -83,7 +83,7 @@ int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const 
                 //std::cerr<<"@@@@@@@@@@@@@@@@@@@@WILL START THE LOOP TO GET SEG\n";
                 
                 /* Create new uint64_t array */
-                std::cerr<<"current size->"<<size<<"new_rids_index->"<<new_rids_index<<"\n";
+                //std::cerr<<"current size->"<<size<<"new_rids_index->"<<new_rids_index<<"\n";
                 matched_row_ids[new_rids_index] = (uint64_t *) malloc(sizeof(uint64_t *) * vector_size);
                 
                 //std::cerr<<"nooooooooo SEG in the loopppp@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n";f
@@ -96,7 +96,7 @@ int64_t bucket_chaining_join(uint64_t ** L, const column_t * column_left, const 
             }
         }
     }
-    std::cerr<<"WILL END THE REAL BROBINGGGGGGGGGGGGGGGGGG<-----------------\n";
+    //std::cerr<<"WILL END THE REAL BROBINGGGGGGGGGGGGGGGGGG<-----------------\n";
     /* PROBE-LOOP END  */
 
     /* Update the size of the array */

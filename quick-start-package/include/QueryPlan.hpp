@@ -25,20 +25,17 @@ struct JoinTreeNode {
     JoinTreeNode* right;
     JoinTreeNode* parent;
 
-    PredicateInfo* predicateInfoPtr;
-    FilterInfo* filterInfoPtr;
-    ColumnInfo* intermediateColumnInfoPtr; // The info of the result of a join
+    PredicateInfo* predicatePtr;
+    FilterInfo* filterPtr;
+    ColumnInfo intermediateColumnInfoPtr;
 };
 
 // Join Tree data structure
 struct JoinTree {
     JoinTreeNode* root;
 
-    bool isRightDeepOnly;
-    bool isLeftDeepOnly;
-
     // Constructs a Join tree from a set of relations id's
-    JoinTree* build(std::vector<RelationId>& relationIds, std::vector<PredicateInfo>& predicates);
+    JoinTree* build(QueryInfo& queryInfoPtr);
 
     // returns true, if there is a join predicate between one of the relations in its first argument
     //and one of the relations in its second

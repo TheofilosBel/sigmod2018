@@ -5,10 +5,10 @@
 using namespace std;
 
 // Construct a plan tree from set of relations IDs
-JoinTree* JoinTree::build(vector<RelationId>& relationIds, vector<PredicateInfo>& predicates) {
+JoinTree* JoinTree::build(QueryInfo& queryInfoPtr) {
     // Maps every possible set of relations to its respective best plan tree
     unordered_map< vector<bool>, JoinTree* > BestTree;
-    int relationsCount = relationIds.size();
+    int relationsCount = queryInfoPtr.relationIds.size();
 
     // Initialise the BestTree structure with nodes
     // for every single relation in the input
@@ -18,18 +18,15 @@ JoinTree* JoinTree::build(vector<RelationId>& relationIds, vector<PredicateInfo>
         JoinTreeNode* joinTreeNodePtr = (JoinTreeNode*) malloc(sizeof(JoinTreeNode));
         
         // Initialise JoinTreeNode
-        joinTreeNodePtr->nodeId = relationIds[i]; // The true id of the relation
+        joinTreeNodePtr->nodeId = queryInfoPtr.relationIds[i]; // The true id of the relation
         joinTreeNodePtr->left = NULL;
         joinTreeNodePtr->right = NULL;
         joinTreeNodePtr->parent = NULL;
-        joinTreeNodePtr->predicateInfoPtr = NULL;
-        joinTreeNodePtr->filterInfoPtr = NULL;
-        joinTreeNodePtr->intermediateColumnInfoPtr = NULL;
+        joinTreeNodePtr->predicatePtr = NULL;
+        joinTreeNodePtr->filterPtr = NULL;
 
         // Initialise JoinTree
         joinTreePtr->root = joinTreeNodePtr;
-        joinTreePtr->isRightDeepOnly = false;
-        joinTreePtr->isLeftDeepOnly = true;
 
         // Insert into the BestTree
         vector<bool> relationToVector(relationsCount, false);
@@ -79,6 +76,15 @@ JoinTree* JoinTree::build(vector<RelationId>& relationIds, vector<PredicateInfo>
         fprintf(stderr, "}\n");
     }
 */
+    
+    // Apply all the filters first
+    for (int i=0; i < queryInfoPtr.filters.size(); i++) {
+        // Update the tree (containing a single node)
+        // of the relation whose column will be filtered
+        vector<bool> relationToVector(relationsCount, false);
+        relationToVector[queryInfoPtr.filters[i].filterColumn.relId] = true;
+        BestTree[relationToVector]->root->filterPtr = &(queryInfoPtr.filters[i]);
+    }
 
     // Dynamic programming algorithm
     for (int i = 1; i <= relationsCount; i++) {
@@ -86,30 +92,27 @@ JoinTree* JoinTree::build(vector<RelationId>& relationIds, vector<PredicateInfo>
             for (int j = 0; j < relationsCount; j++) {
                 // If j is not in the set
                 if (s[j] == false) {
-                    //if (!connected(j, s, predicates))
-                    //    continue;
-
                     // Create the bit vector representation of the relation j
                     vector<bool> relationToVector(relationsCount, false);
                     relationToVector[j] = true;
                     
                     // Merge the two trees
                     JoinTree* currTree = CreateJoinTree(BestTree[s], BestTree[relationToVector]);
-                    /*
+                    
+                    // Save the new merged tree
                     vector<bool> s1 = s;
                     s1[j] = true;
-                    if (BestTree.at(s1) == NULL || cost(BestTree.at(s1)) > cost(currTree))
-                        BestTree.at(s1) = currTree;
-                    */
+                    if (BestTree[s1] == NULL || cost(BestTree[s1]) > cost(currTree)) {
+                        BestTree[s1] = currTree;
+                    }
                 }
             }
         }
     }
 
-//    vector<bool> setToVector(relationsCount, true);
-//    return BestTree.at(setToVector);
-
-    return NULL;
+    // Return the best tree in the root
+    vector<bool> rootToVector(relationsCount, true);
+    return BestTree[rootToVector];
 }
 
 // returns true, if there is a join predicate between one of the relations in its first argument
@@ -127,7 +130,28 @@ bool JoinTree::connected(int relId, set<int>& idSet, set<PredicateInfo>& predSet
 
 // Merges two join trees
 JoinTree* JoinTree::CreateJoinTree(JoinTree* leftTree, JoinTree* rightTree) {
-    return NULL;
+    // Allocate memory for the new tree
+    JoinTree* joinTreePtr = (JoinTree*) malloc(sizeof(JoinTree));
+    JoinTreeNode* joinTreeNodePtr = (JoinTreeNode*) malloc(sizeof(JoinTreeNode));
+
+    // Initialise the new JoinTreeNode
+    joinTreeNodePtr->nodeId = -1; // This is an intermediate node
+    joinTreeNodePtr->left = leftTree->root;
+    joinTreeNodePtr->right = rightTree->root;
+    joinTreeNodePtr->parent = NULL;
+    joinTreeNodePtr->predicatePtr = NULL;
+    joinTreeNodePtr->filterPtr = NULL;
+
+    // Initialise the new JoinTree
+    joinTreePtr->root = joinTreeNodePtr;
+
+    // Update the parent pointers of the merged trees
+    leftTree->root->parent = joinTreePtr->root;
+    rightTree->root->parent = joinTreePtr->root;
+
+    // Estimate the new info of the merged columns
+
+    return joinTreePtr;
 }
 
 // execute the plan described by a Plan Tree
