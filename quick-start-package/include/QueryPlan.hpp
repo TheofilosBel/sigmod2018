@@ -7,6 +7,7 @@
 #include <set>
 #include <math.h>
 #include "Joiner.hpp"
+#include "Parser.hpp"
 
 // Keeps the important info/statistics for every column
 // needed to build the plan tree
@@ -15,6 +16,11 @@ struct ColumnInfo {
     uint64_t max; // Value of the maximum element
     uint64_t size; // Total number of elements
     uint64_t distinct; // Number of distinct elements
+    uint64_t n; // The size of the domain
+    uint64_t spread; // The spread of the values in the domain
+
+    // Prints a Column Info structure
+    void print();
 };
 
 // Join Tree's node
@@ -27,7 +33,16 @@ struct JoinTreeNode {
 
     PredicateInfo* predicatePtr;
     FilterInfo* filterPtr;
-    ColumnInfo intermediateColumnInfoPtr;
+    ColumnInfo columnInfo;
+
+    // Estimates the new info of a node's column
+    // after a filter predicate is applied to that column
+    void estimateInfoAfterFilter(FilterInfo& filterInfo);
+
+    // Returns the new column info
+    ColumnInfo estimateInfoAfterFilterLess(const int constant);
+    ColumnInfo estimateInfoAfterFilterGreater(const int constant);
+    ColumnInfo estimateInfoAfterFilterEqual(const int constant);
 };
 
 // Join Tree data structure
@@ -35,7 +50,7 @@ struct JoinTree {
     JoinTreeNode* root;
 
     // Constructs a Join tree from a set of relations id's
-    JoinTree* build(QueryInfo& queryInfoPtr);
+    JoinTree* build(QueryInfo& queryInfoPtr, ColumnInfo** columnInfos);
 
     // returns true, if there is a join predicate between one of the relations in its first argument
     //and one of the relations in its second

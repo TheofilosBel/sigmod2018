@@ -1,14 +1,81 @@
 #include <set>
-#include "QueryPlan.hpp"
 #include <unordered_map>
+#include <math.h>
+#include "QueryPlan.hpp"
 
 using namespace std;
 
+void ColumnInfo::print() {
+    cerr << "  min: "      << this->min << endl;
+    cerr << "  max: "      << this->max << endl;
+    cerr << "  size: "     << this->size << endl;
+    cerr << "  distinct: " << this->distinct << endl;
+    cerr << "  n: "        << this->n << endl;
+    cerr << "  spread: "   << this->spread << endl << endl;
+    flush(cerr);
+}
+
+// Estimates the new info of a node's column
+// after a filter predicate is applied to that column
+void JoinTreeNode::estimateInfoAfterFilter(FilterInfo& filterInfo) {
+    if (filterInfo.comparison == FilterInfo::Comparison::Less) {
+        this->columnInfo = estimateInfoAfterFilterLess(filterInfo.constant);
+    }
+    else if (filterInfo.comparison == FilterInfo::Comparison::Greater) {
+        this->columnInfo = estimateInfoAfterFilterGreater(filterInfo.constant);
+    }
+    else if (filterInfo.comparison == FilterInfo::Comparison::Equal) {
+        this->columnInfo = estimateInfoAfterFilterEqual(filterInfo.constant);
+    }
+}
+
+// Returns the new column info
+ColumnInfo JoinTreeNode::estimateInfoAfterFilterLess(const int constant) {
+    ColumnInfo newColumnInfo;
+
+    newColumnInfo.min      = this->columnInfo.min;
+    newColumnInfo.max      = constant;
+    newColumnInfo.distinct = (newColumnInfo.max - newColumnInfo.min) / this->columnInfo.spread;
+    newColumnInfo.size     = newColumnInfo.distinct * (this->columnInfo.size / this->columnInfo.distinct);
+    newColumnInfo.n        = newColumnInfo.max - newColumnInfo.min + 1;
+    newColumnInfo.spread   = floor(newColumnInfo.n / newColumnInfo.distinct);
+
+    return newColumnInfo;
+}
+
+// Returns the new column info
+ColumnInfo JoinTreeNode::estimateInfoAfterFilterGreater(const int constant) {
+    ColumnInfo newColumnInfo;
+
+    newColumnInfo.min      = constant;
+    newColumnInfo.max      = this->columnInfo.max;
+    newColumnInfo.distinct = (newColumnInfo.max - newColumnInfo.min) / this->columnInfo.spread;
+    newColumnInfo.size     = newColumnInfo.distinct * (this->columnInfo.size / this->columnInfo.distinct);
+    newColumnInfo.n        = newColumnInfo.max - newColumnInfo.min + 1;
+    newColumnInfo.spread   = floor(newColumnInfo.n / newColumnInfo.distinct);
+
+    return newColumnInfo;
+}
+
+// Returns the new column info
+ColumnInfo JoinTreeNode::estimateInfoAfterFilterEqual(const int constant) {
+    ColumnInfo newColumnInfo;
+
+    newColumnInfo.min      = constant;
+    newColumnInfo.max      = constant;
+    newColumnInfo.distinct = 1;
+    newColumnInfo.size     = this->columnInfo.size / this->columnInfo.distinct;
+    newColumnInfo.n        = 1;
+    newColumnInfo.spread   = 1;
+
+    return newColumnInfo;
+}
+
 // Construct a plan tree from set of relations IDs
-JoinTree* JoinTree::build(QueryInfo& queryInfoPtr) {
+JoinTree* JoinTree::build(QueryInfo& queryInfo, ColumnInfo** columnInfos) {
     // Maps every possible set of relations to its respective best plan tree
     unordered_map< vector<bool>, JoinTree* > BestTree;
-    int relationsCount = queryInfoPtr.relationIds.size();
+    int relationsCount = queryInfo.relationIds.size();
 
     // Initialise the BestTree structure with nodes
     // for every single relation in the input
@@ -18,7 +85,7 @@ JoinTree* JoinTree::build(QueryInfo& queryInfoPtr) {
         JoinTreeNode* joinTreeNodePtr = (JoinTreeNode*) malloc(sizeof(JoinTreeNode));
         
         // Initialise JoinTreeNode
-        joinTreeNodePtr->nodeId = queryInfoPtr.relationIds[i]; // The true id of the relation
+        joinTreeNodePtr->nodeId = queryInfo.relationIds[i]; // The true id of the relation
         joinTreeNodePtr->left = NULL;
         joinTreeNodePtr->right = NULL;
         joinTreeNodePtr->parent = NULL;
@@ -76,14 +143,27 @@ JoinTree* JoinTree::build(QueryInfo& queryInfoPtr) {
         fprintf(stderr, "}\n");
     }
 */
-    
+
     // Apply all the filters first
-    for (int i=0; i < queryInfoPtr.filters.size(); i++) {
+    for (int i=0; i < queryInfo.filters.size(); i++) {
         // Update the tree (containing a single node)
         // of the relation whose column will be filtered
         vector<bool> relationToVector(relationsCount, false);
-        relationToVector[queryInfoPtr.filters[i].filterColumn.relId] = true;
-        BestTree[relationToVector]->root->filterPtr = &(queryInfoPtr.filters[i]);
+        relationToVector[queryInfo.filters[i].filterColumn.binding] = true;
+
+        const int relationId = queryInfo.filters[i].filterColumn.relId;
+        const int columnId = queryInfo.filters[i].filterColumn.colId;
+        BestTree[relationToVector]->root->filterPtr = &(queryInfo.filters[i]);
+        BestTree[relationToVector]->root->columnInfo = columnInfos[relationId][columnId];
+
+        cerr << "BEFORE\n";
+        BestTree[relationToVector]->root->columnInfo.print();
+
+        // Update the column info
+        BestTree[relationToVector]->root->estimateInfoAfterFilter(queryInfo.filters[i]);
+
+        cerr << "AFTER\n";
+        BestTree[relationToVector]->root->columnInfo.print();
     }
 
     // Dynamic programming algorithm
@@ -98,21 +178,24 @@ JoinTree* JoinTree::build(QueryInfo& queryInfoPtr) {
                     
                     // Merge the two trees
                     JoinTree* currTree = CreateJoinTree(BestTree[s], BestTree[relationToVector]);
-                    
+
                     // Save the new merged tree
                     vector<bool> s1 = s;
                     s1[j] = true;
                     if (BestTree[s1] == NULL || cost(BestTree[s1]) > cost(currTree)) {
                         BestTree[s1] = currTree;
                     }
+                    
                 }
             }
         }
     }
 
     // Return the best tree in the root
-    vector<bool> rootToVector(relationsCount, true);
-    return BestTree[rootToVector];
+    //vector<bool> rootToVector(relationsCount, true);
+    //return BestTree[rootToVector];
+
+    return NULL;
 }
 
 // returns true, if there is a join predicate between one of the relations in its first argument
@@ -169,13 +252,13 @@ double JoinTree::cost(JoinTree* joinTreePtr) {
 }
 
 // Builds a query plan with the given info
-void QueryPlan::build(QueryInfo& queryInfoPtr) {
+void QueryPlan::build(QueryInfo& queryInfo) {
 #ifdef k
     /* a map that maps each relation-ID to a pointer to it's respective table-type */
     map<RelationId, table_t*> tableTPtrMap;
 
     /* apply all filters and create a vector of table-types from the query selections */
-    for (vector<FilterInfo>::iterator it = queryInfoPtr.filters.begin(); it != queryInfoPtr.filters.end(); ++it) {
+    for (vector<FilterInfo>::iterator it = queryInfo.filters.begin(); it != queryInfo.filters.end(); ++it) {
         map<RelationId, table_t*>::iterator mapIt = tableTPtrMap.find(it->filterColumn.relId);
 
         /* if table-type for this relation-ID already in map, then update the respective table-type */
@@ -192,7 +275,7 @@ void QueryPlan::build(QueryInfo& queryInfoPtr) {
 
     /* create a set of pointers to the table-types that are to be joined */
     set<table_t*> tableTPtrSet;
-    for (vector<PredicateInfo>::iterator it = queryInfoPtr.predicates.begin(); it != queryInfoPtr.predicates.end(); ++it) {
+    for (vector<PredicateInfo>::iterator it = queryInfo.predicates.begin(); it != queryInfo.predicates.end(); ++it) {
         map<RelationId, table_t*>::iterator mapItLeft = tableTPtrMap.find(it->left.relId),
                                             mapItRight = tableTPtrMap.find(it->right.relId);
         /* sanity check -- REMOVE in the end */
@@ -206,7 +289,7 @@ void QueryPlan::build(QueryInfo& queryInfoPtr) {
     JoinTree* tempJoinTreePtr = constrJoinTreeFromRelations(tableTPtrSet);
 
     /* apply all filters */
-    for (vector<int>::iterator it = queryInfoPtr.filters.begin() ; it != queryInfoPtr.filters.end(); ++it) {}
+    for (vector<int>::iterator it = queryInfo.filters.begin() ; it != queryInfo.filters.end(); ++it) {}
 
     /* create an array of sets of relations to be joined */
 
@@ -234,9 +317,6 @@ void QueryPlan::fillColumnInfo(Joiner& joiner) {
         // Allocate memory for the columns
         columnInfos[rel] = (ColumnInfo*) malloc(columnsCount * sizeof(ColumnInfo));
 
-        cerr << "relation: " << rel << endl;
-        flush(cerr);
-
         // Get the info of every column
         for (int col = 0; col < columnsCount; col++) {
             uint64_t minimum = numeric_limits<uint64_t>::max(); // Value of minimum element
@@ -256,13 +336,8 @@ void QueryPlan::fillColumnInfo(Joiner& joiner) {
             columnInfos[rel][col].max = maximum;
             columnInfos[rel][col].size = tuples;
             columnInfos[rel][col].distinct = (uint64_t) distinctElements.size();
-
-            cerr << "    column: " << col << endl;
-            cerr << "    min: " << columnInfos[rel][col].min << endl;
-            cerr << "    max: " << columnInfos[rel][col].max << endl;
-            cerr << "    size: " << columnInfos[rel][col].size << endl;
-            cerr << "    distinct: " << columnInfos[rel][col].distinct << endl << endl;
-            flush(cerr);
+            columnInfos[rel][col].n = maximum - minimum + 1;
+            columnInfos[rel][col].spread = floor((maximum - minimum + 1) / (columnInfos[rel][col].distinct));
         }
     }
 }
