@@ -239,10 +239,14 @@ table_t* jTreeMakePlan(JTree* jTreePtr, Joiner& joiner, int *depth) {
         //std::cerr << "Left: "  << jTreePtr->predPtr->left.relId << "." << jTreePtr->predPtr->left.colId << '\n';
         //std::cerr << "Right: " << jTreePtr->predPtr->right.relId << "." << jTreePtr->predPtr->right.colId << '\n';
         //flush(std::cerr);
+        std::cerr<<"IN TREE PLAN EXEC JOIN\n";
+        flush(std::cerr);
         res = joiner.join(table_l, table_r, jTreePtr->predPtr);
         //std::cerr << "Intermediate rows: " << res->size_of_row_ids << '\n';
         //std::cerr << "-------" << '\n';
         //flush(std::cerr);
+        std::cerr<<"WILL EXIT JTREEMAKEPLAN\n";
+        flush(std::cerr);
         return res;
 
     }
