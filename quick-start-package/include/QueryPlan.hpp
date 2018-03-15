@@ -61,13 +61,16 @@ struct JoinTree {
     JoinTree* CreateJoinTree(JoinTree* leftTree, JoinTree* rightTree);
 
     // Execute a Join Tree
-    table_t* execute(JoinTree* joinTreePtr, Joiner& joiner, int *depth)
+    table_t* execute(JoinTreeNode* joinTreeNodePtr, Joiner& joiner, int *depth);
 
     // Destoys a Join Tree properly
     void freeJoinTree(JoinTree* joinTreePtr);
 
     // Prints a Join Tree -- for debugging
     void printJoinTree(JoinTree* joinTreePtr);
+
+    // Estimates the cost of a given Plan Tree */
+    double cost(JoinTree* joinTreePtr);
 };
 
 // Query Plan data structure
@@ -83,7 +86,7 @@ struct QueryPlan {
     void build(QueryInfo& queryInfoPtr);
 
     // destructor
-    ~QueryPlan(Joiner& joiner);
+    void destrQueryPlan(Joiner& joiner);
 
     // Execute a query plan with the given info
     void execute(QueryInfo& queryInfoPtr);

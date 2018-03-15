@@ -232,42 +232,42 @@ JoinTree* JoinTree::CreateJoinTree(JoinTree* leftTree, JoinTree* rightTree) {
 }
 
 // execute the plan described by a Plan Tree
-table_t* JoinTree::execute(JoinTree* joinTreePtr, Joiner& joiner, int *depth) {
-    /* initialize variables */
-    JoinTree *left = joinTreePtr->left, *right = joinTreePtr->right;
-    table_t *table_l, *table_r, *res;
-
-    if (left == NULL && right == NULL) {
-        return joiner.CreateTableTFromId(joinTreePtr->node_id, joinTreePtr->binding_id);
-    }
-
-    table_l = execute(left, joiner, depth);
-
-    /* Its join for sure */
-    if (right != NULL) {
-        table_r = execute(right, joiner, depth);
-
-        /* Filter on right ? */
-        std::cerr<<"IN TREE PLAN EXEC JOIN\n";
-        flush(std::cerr);
-        res = joiner.radix_join(table_l, table_r, joinTreePtr->predPtr);
-        std::cerr<<"WILL EXIT JTREEMAKEPLAN\n";
-        flush(std::cerr);
-        return res;
-
-    }
-    /* Fiter or predicate to the same table (simple constrain )*/
-    else {
-        if (joinTreePtr->filterPtr == NULL) {
-            res = joiner.SelfJoin(table_l, joinTreePtr->predPtr);
-            return res;
-        }
-        else {
-            FilterInfo &filter = *(joinTreePtr->filterPtr);
-            joiner.Select(filter, table_l);
-            return table_l;
-        }
-    }
+table_t* JoinTree::execute(JoinTreeNode* joinTreeNodePtr, Joiner& joiner, int *depth) {
+    // /* initialize variables */
+    // JoinTreeNode *left = joinTreeNodePtr->left, *right = joinTreeNodePtr->right;
+    // table_t *table_l, *table_r, *res;
+    //
+    // if (left == NULL && right == NULL) {
+    //     return joiner.CreateTableTFromId(joinTreeNodePtr->nodeId, joinTreeNodePtr->binding_id);
+    // }
+    //
+    // table_l = execute(left, joiner, depth);
+    //
+    // /* Its join for sure */
+    // if (right != NULL) {
+    //     table_r = execute(right, joiner, depth);
+    //
+    //     /* Filter on right ? */
+    //     std::cerr<<"IN TREE PLAN EXEC JOIN\n";
+    //     flush(std::cerr);
+    //     res = joiner.radix_join(table_l, table_r, joinTreeNodePtr->predicatePtr);
+    //     std::cerr<<"WILL EXIT JTREEMAKEPLAN\n";
+    //     flush(std::cerr);
+    //     return res;
+    //
+    // }
+    // /* Fiter or predicate to the same table (simple constrain )*/
+    // else {
+    //     if (joinTreeNodePtr->filterPtr == NULL) {
+    //         res = joiner.SelfJoin(table_l, joinTreeNodePtr->predicatePtr);
+    //         return res;
+    //     }
+    //     else {
+    //         FilterInfo &filter = *(joinTreeNodePtr->filterPtr);
+    //         joiner.Select(filter, table_l);
+    //         return table_l;
+    //     }
+    // }
 }
 
 // Destoys a Plan Tree properly
@@ -278,48 +278,7 @@ void JoinTree::printJoinTree(JoinTree* joinTreePtr) {}
 
 // Estimates the cost of a given Plan Tree */
 double JoinTree::cost(JoinTree* joinTreePtr) {
-    /* traverse join-tree in a DFS fassion and estimate a cost for every node,
-        then sum up this cost and return it */
-    int total_cost = 0;
-    JoinTreeNode *currNodePtr = joinTreePtr->root;
-    bool from_left = true, went_left = false, went_right = false;
-
-    while(currNodePtr) {
-        /* if you can go to the left children */
-        if (!went_left && currNodePtr->left) {
-            currNodePtr = currNodePtr->left;
-            from_left = true;
-            /* you may now go left or right again */
-            went_left = false;
-            went_right = false;
-        }
-        /* if you can go to the right children */
-        else if (!went_right && currNodePtr->right) {
-            currNodePtr = currNodePtr->right;
-            from_left = false;
-            /* you may now go left or right again */
-            went_left = false;
-            went_right = false;
-        }
-        /* if you can't go to the left or to the right children */
-        else {
-            /* print node ID */
-            total_cost += currNodePtr->cost();
-            /* go to the parent */
-            currNodePtr = currNodePtr->parent;
-            /* deside liberty of transitions */
-            if (from_left) {
-                went_left = true;
-                went_right = false;
-            }
-            else {
-                went_left = true;
-                went_right = true;
-            }
-        }
-    }
-
-    return total_cost;
+    return treeCost;
 }
 
 // Builds a query plan with the given info
@@ -419,7 +378,7 @@ void QueryPlan::fillColumnInfo(Joiner& joiner) {
 }
 
 // QueryPlan destructor
-QueryPlan::~QueryPlan(Joiner& joiner) {
+void QueryPlan::destrQueryPlan(Joiner& joiner) {
     int relationsCount = joiner.getRelationsCount(); // Get the number of relations
 
     // For every relation get its column statistics
@@ -427,5 +386,5 @@ QueryPlan::~QueryPlan(Joiner& joiner) {
         // Allocate memory for the columns
         free(columnInfos[rel]);
 
-    free(columnInfos)
+    free(columnInfos);
 }
