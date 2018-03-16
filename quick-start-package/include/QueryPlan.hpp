@@ -43,12 +43,15 @@ struct JoinTreeNode {
     ColumnInfo estimateInfoAfterFilterLess(const int constant);
     ColumnInfo estimateInfoAfterFilterGreater(const int constant);
     ColumnInfo estimateInfoAfterFilterEqual(const int constant);
+
+    // Estimates the cost of a given Plan Tree Node
+    double cost();
 };
 
 // Join Tree data structure
 struct JoinTree {
     JoinTreeNode* root;
-    double treeCost; // The total cost of the join tree
+    double treeCostEstimation;      // an estimation of the total cost of the join tree
 
     // Constructs a Join tree from a set of relations id's
     JoinTree* build(QueryInfo& queryInfoPtr, ColumnInfo** columnInfos);
@@ -63,14 +66,14 @@ struct JoinTree {
     // Execute a Join Tree
     table_t* execute(JoinTreeNode* joinTreeNodePtr, Joiner& joiner, int *depth);
 
-    // Destoys a Join Tree properly
-    void freeJoinTree(JoinTree* joinTreePtr);
-
     // Prints a Join Tree -- for debugging
     void printJoinTree(JoinTree* joinTreePtr);
 
-    // Estimates the cost of a given Plan Tree */
+    // Estimates the cost of a given Plan Tree
     double cost(JoinTree* joinTreePtr);
+
+    // destructor
+    void destrJoinTree();
 };
 
 // Query Plan data structure

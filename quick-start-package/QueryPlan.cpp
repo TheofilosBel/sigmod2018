@@ -270,15 +270,38 @@ table_t* JoinTree::execute(JoinTreeNode* joinTreeNodePtr, Joiner& joiner, int *d
     // }
 }
 
-// Destoys a Plan Tree properly
-void JoinTree::freeJoinTree(JoinTree* joinTreePtr) {}
-
 // Prints a Plan Tree -- for debugging
 void JoinTree::printJoinTree(JoinTree* joinTreePtr) {}
 
-// Estimates the cost of a given Plan Tree */
+// Estimates the cost of a given Plan Tree
+double JoinTreeNode::cost() {
+    double nodeEstimation = 1.0;
+
+    // if it is a leaf or a filter
+    if ((this->filterPtr == NULL && this->predicatePtr == NULL) || this->filterPtr != NULL)
+        nodeEstimation = 0;
+    // if it is a join
+    if (this->predicatePtr != NULL) {
+        // if it is a self join
+        if (this->left->nodeId != -1 && this->left->nodeId == this->right->nodeId)
+            nodeEstimation = (this->left->columnInfo.size * this->left->columnInfo.size) / this->left->columnInfo.distinct;
+        // if left relation may be a subset of the right
+        else if ((this->left->columnInfo.min >= this->right->columnInfo.min) && (this->left->columnInfo.max <= this->right->columnInfo.max))
+            nodeEstimation = (this->left->columnInfo.size * this->right->columnInfo.size) / this->right->columnInfo.distinct;
+        // if right relation may be a subset of the right
+        else if ((this->left->columnInfo.min <= this->right->columnInfo.min) && (this->left->columnInfo.max >= this->right->columnInfo.max))
+            nodeEstimation = (this->left->columnInfo.size * this->right->columnInfo.size) / this->left->columnInfo.distinct;
+        // if the columns may be independent
+        else
+            nodeEstimation = (this->left->columnInfo.size * this->right->columnInfo.size) / this->left->columnInfo.n;
+    }
+
+    return nodeEstimation + this->left->cost() + this->right->cost();
+}
+
+// Estimates the cost of a given Plan Tree
 double JoinTree::cost(JoinTree* joinTreePtr) {
-    return treeCost;
+    return joinTreePtr->root->cost();
 }
 
 // Builds a query plan with the given info
@@ -377,9 +400,58 @@ void QueryPlan::fillColumnInfo(Joiner& joiner) {
     }
 }
 
+// JoinTree destructor
+void JoinTree::destrJoinTree() {
+    /* destruct query-tree in a DFS fassion */
+    JoinTreeNode *currNodePtr = this->root;
+    bool from_left = false;
+
+    while(currNodePtr) {
+        /* if there are left children */
+        if (currNodePtr->left) {
+            currNodePtr = currNodePtr->left;
+            from_left = true;
+        }
+        /* if there are right children */
+        else if (currNodePtr->right) {
+            currNodePtr = currNodePtr->right;
+            from_left = false;
+        }
+        /* if there are no left or right children */
+        else {
+            /* clean-up node */
+            free(currNodePtr->filterPtr);
+            currNodePtr->filterPtr = NULL;
+            free(currNodePtr->predicatePtr);
+            currNodePtr->predicatePtr = NULL;
+            /* essentially, not head node */
+            if (currNodePtr->parent) {
+                /* go to the parent */
+                currNodePtr = currNodePtr->parent;
+                /* free the correct child's node */
+                if (from_left) {
+                    free(currNodePtr->left);
+                    currNodePtr->left = NULL;
+                }
+                else {
+                    free(currNodePtr->right);
+                    currNodePtr->right = NULL;
+                }
+            }
+            /* essentially, head node */
+            else {
+                free(currNodePtr);
+                currNodePtr = NULL;
+            }
+        }
+    }
+}
+
 // QueryPlan destructor
 void QueryPlan::destrQueryPlan(Joiner& joiner) {
     int relationsCount = joiner.getRelationsCount(); // Get the number of relations
+
+    joinTreePtr->destrJoinTree();
 
     // For every relation get its column statistics
     for (int rel = 0; rel < relationsCount; rel++)
