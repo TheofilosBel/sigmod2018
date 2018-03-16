@@ -94,7 +94,6 @@ JoinTree* JoinTree::build(QueryInfo& queryInfo, ColumnInfo** columnInfos) {
 
         // Initialise JoinTree
         joinTreePtr->root = joinTreeNodePtr;
-        joinTreePtr->columnInfos = columnInfos;
 
         // Insert into the BestTree
         vector<bool> relationToVector(relationsCount, false);

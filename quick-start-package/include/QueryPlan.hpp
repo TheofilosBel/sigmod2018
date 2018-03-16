@@ -50,11 +50,8 @@ struct JoinTreeNode {
 
 // Join Tree data structure
 struct JoinTree {
-    // Keeps the info of every column of every relation
-    // Every row represents a relation
-    // Every item of a row represents a column of the relation
-    ColumnInfo** columnInfos;
     JoinTreeNode* root;
+    double treeCost; // The total cost of the join tree
 
     // Constructs a Join tree from a set of relations id's
     JoinTree* build(QueryInfo& queryInfoPtr, ColumnInfo** columnInfos);
