@@ -157,14 +157,8 @@ JoinTree* JoinTree::build(QueryInfo& queryInfo, ColumnInfo** columnInfos) {
         BestTree[relationToVector]->root->filterPtr = &(queryInfo.filters[i]);
         BestTree[relationToVector]->root->columnInfo = columnInfos[relationId][columnId];
 
-        cerr << "BEFORE\n";
-        BestTree[relationToVector]->root->columnInfo.print();
-
         // Update the column info
         BestTree[relationToVector]->root->estimateInfoAfterFilter(queryInfo.filters[i]);
-
-        cerr << "AFTER\n";
-        BestTree[relationToVector]->root->columnInfo.print();
     }
 
     // Dynamic programming algorithm
