@@ -231,8 +231,9 @@ table_t* jTreeMakePlan(JTree* jTreePtr, Joiner& joiner, int *depth) {
 
     /* Its join for sure */
     if (right != NULL) {
-
         table_r = jTreeMakePlan(right, joiner, depth);
+        joiner.AddColumnToTableT(jTreePtr->predPtr->left, table_l);
+        joiner.AddColumnToTableT(jTreePtr->predPtr->right, table_r);
 
         /* Filter on right ? */
         joiner.AddColumnToTableT(jTreePtr->predPtr->left, table_l);
@@ -273,9 +274,6 @@ table_t* jTreeMakePlan(JTree* jTreePtr, Joiner& joiner, int *depth) {
             return table_l;
         }
     }
-
-    /**/
-
 }
 
 /* Print plan -- for debugging */
