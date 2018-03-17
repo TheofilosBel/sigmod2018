@@ -123,26 +123,6 @@ JoinTree* JoinTree::build(QueryInfo& queryInfo, ColumnInfo** columnInfos) {
             powerSetMap[setSize].insert(tempVec);
         }
     }
-/*
-    // Print the power set
-    fprintf(stderr, "\nrelations = ");
-    for (int i = 0; i < relationsCount; i++) fprintf(stderr, "%d ", relationIds[i]);
-    fprintf(stderr, "\n");
-
-    for (int i = 1; i <= relationsCount; i++) {
-        fprintf(stderr, "set size = %d contains sets = {", i);
-        for (auto s : powerSetMap[i]) {
-            fprintf(stderr, "{");
-            for (int j = 0; j < relationsCount; j++) {
-                if (s[j] == true) {
-                    fprintf(stderr, " %d ", relationIds[j]);
-                }
-            }
-            fprintf(stderr, "}");
-        }
-        fprintf(stderr, "}\n");
-    }
-*/
 
     // Apply all the filters first
     for (int i=0; i < queryInfo.filters.size(); i++) {
@@ -347,6 +327,7 @@ table_t* JoinTree::execute(JoinTreeNode* joinTreeNodePtr, Joiner& joiner, int *d
 void JoinTree::printJoinTree(JoinTree* joinTreePtr) {}
 
 // Estimates the cost of a given Plan Tree
+/*
 double JoinTreeNode::cost() {
     double nodeEstimation = 1.0;
 
@@ -371,43 +352,35 @@ double JoinTreeNode::cost() {
 
     return nodeEstimation + this->left->cost() + this->right->cost();
 }
-
+*/
 // Estimates the cost of a given Plan Tree
 double JoinTree::cost(JoinTree* joinTreePtr) {
-    return joinTreePtr->root->cost();
+    //return joinTreePtr->root->cost();
+    return 1.0;
 }
 
-void JoinTreeNode::print(int depth) {
-    if (this == NULL) {
+void JoinTreeNode::print(JoinTreeNode* joinTreeNodePtr) {
+    if (joinTreeNodePtr == NULL) {
         return;
     }
 
-    if (this->nodeId == -1) {
-        // Filter of rhs
-        if (this->right->filterPtr != NULL) {
-            for (int i=0; i < depth; i++) fprintf(stderr,"\t");
-            fprintf(stderr,"%d.%d%c%ld\n", this->right->filterPtr->filterColumn.relId,
-                    this->right->filterPtr->filterColumn.colId, 
-                    this->right->filterPtr->comparison, this->right->filterPtr->constant);
+    while (joinTreeNodePtr->nodeId == -1) {
+        if (joinTreeNodePtr->right->filterPtr != NULL) {
+            fprintf(stderr,"%d.%d %c %ld\n", joinTreeNodePtr->right->filterPtr->filterColumn.relId,
+                joinTreeNodePtr->right->filterPtr->filterColumn.colId, 
+                joinTreeNodePtr->right->filterPtr->comparison, joinTreeNodePtr->right->filterPtr->constant);
         }
 
-        // Filter of lhs
-        if (this->left->filterPtr != NULL) {
-            for (int i=0; i < depth; i++) fprintf(stderr,"\t");
-            fprintf(stderr,"%d.%d%c%ld\n", this->left->filterPtr->filterColumn.relId,
-                    this->left->filterPtr->filterColumn.colId, 
-                    this->left->filterPtr->comparison, this->left->filterPtr->constant);
+        if (joinTreeNodePtr->left->filterPtr != NULL) {
+            fprintf(stderr,"%d.%d %c %ld\n", joinTreeNodePtr->left->filterPtr->filterColumn.relId,
+                joinTreeNodePtr->left->filterPtr->filterColumn.colId, 
+                joinTreeNodePtr->left->filterPtr->comparison, joinTreeNodePtr->left->filterPtr->constant);
         }
 
-        if (this->predicatePtr != NULL) {
-            for (int i=0; i < depth; i++) fprintf(stderr,"\t");
-            fprintf(stderr,"%d.%d=%d.%d\n", this->predicatePtr->left.relId, 
-                    this->predicatePtr->left.colId, this->predicatePtr->right.relId, 
-                    this->predicatePtr->right.colId);
-            
-            this->left->print(depth+1);
-            this->right->print(depth+1);
-        }
+        fprintf(stderr,"%d.%d=%d.%d\n", joinTreeNodePtr->predicatePtr->left.relId, 
+            joinTreeNodePtr->predicatePtr->left.colId, joinTreeNodePtr->predicatePtr->right.relId, 
+            joinTreeNodePtr->predicatePtr->right.colId);
+        joinTreeNodePtr = joinTreeNodePtr->left;
     }
 }
 

@@ -635,9 +635,9 @@ int main(int argc, char* argv[]) {
 
         JTree *jTreePtr = treegen(&i);
         // Create the optimal join tree
-        //JoinTree* optimalJoinTree = queryPlan.joinTreePtr->build(i, queryPlan.columnInfos);
-        //optimalJoinTree->root->print(0);
-
+        JoinTree* optimalJoinTree = queryPlan.joinTreePtr->build(i, queryPlan.columnInfos);
+        optimalJoinTree->root->print(optimalJoinTree->root);
+/*
         #ifdef time
         gettimeofday(&end, NULL);
         timeTreegen += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
@@ -645,10 +645,6 @@ int main(int argc, char* argv[]) {
 
         int *plan = NULL, plan_size = 0;
         table_t *result = jTreeMakePlan(jTreePtr, joiner, plan);
-        std::cerr<<"outttttttttttttttttttttttttttttttttttttttttttttttttt\n\n\n\n\n\n\n\n";
-        flush(std::cerr);
-        // join
-        //joiner.join(i);
 
         #ifdef time
         gettimeofday(&start, NULL);
@@ -678,9 +674,7 @@ int main(int argc, char* argv[]) {
 
         // Print the result
         std::cout << result_str << endl;
-
-        //std::cout << "Implelemt JOIN " << '\n';
-
+*/
     }
 
     #ifdef time

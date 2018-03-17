@@ -47,7 +47,7 @@ struct JoinTreeNode {
     // Estimates the cost of a given Plan Tree Node
     double cost();
 
-    void print(int depth);
+    void print(JoinTreeNode* joinTreeNodePtr);
 };
 
 // Join Tree data structure
