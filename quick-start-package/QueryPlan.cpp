@@ -92,6 +92,14 @@ JoinTree* JoinTree::build(QueryInfo& queryInfo, ColumnInfo** columnInfos) {
         joinTreeNodePtr->predicatePtr = NULL;
         joinTreeNodePtr->filterPtr = NULL;
 
+        // Initialise column info
+        joinTreeNodePtr->columnInfo.min = 1; //columnInfos[queryInfo.relationIds[i]][col].min;
+        joinTreeNodePtr->columnInfo.max = 1; //columnInfos[queryInfo.relationIds[i]][col].max;
+        joinTreeNodePtr->columnInfo.size = 1; //columnInfos[queryInfo.relationIds[i]][col].size;
+        joinTreeNodePtr->columnInfo.distinct = 1; //columnInfos[queryInfo.relationIds[i]][col].distinct;
+        joinTreeNodePtr->columnInfo.n = 1; //columnInfos[queryInfo.relationIds[i]][col].n;
+        joinTreeNodePtr->columnInfo.spread = 1; //columnInfos[queryInfo.relationIds[i]][col].spread;
+
         // Initialise JoinTree
         joinTreePtr->root = joinTreeNodePtr;
 
@@ -182,6 +190,8 @@ JoinTree* JoinTree::build(QueryInfo& queryInfo, ColumnInfo** columnInfos) {
                         // Save the new merged tree
                         vector<bool> s1 = s;
                         s1[j] = true;
+
+                        // cerr << "comparing costs\n";
                         if (BestTree[s1] == NULL || cost(BestTree[s1]) > cost(currTree)) {
                             BestTree[s1] = currTree;
                         }
@@ -327,35 +337,61 @@ table_t* JoinTree::execute(JoinTreeNode* joinTreeNodePtr, Joiner& joiner, int *d
 void JoinTree::printJoinTree(JoinTree* joinTreePtr) {}
 
 // Estimates the cost of a given Plan Tree
-/*
 double JoinTreeNode::cost() {
+    // cerr << "JoinTreeNode::cost\n";
     double nodeEstimation = 1.0;
 
     // if it is a leaf or a filter
-    if ((this->filterPtr == NULL && this->predicatePtr == NULL) || this->filterPtr != NULL)
+    // cerr << "pre A\n";
+    if ((this->filterPtr == NULL && this->predicatePtr == NULL) || this->filterPtr != NULL) {
+        // cerr << "A\n";
         nodeEstimation = 0;
+    }
     // if it is a join
-    if (this->predicatePtr != NULL) {
+    else if (this->predicatePtr != NULL && this->left != NULL && this->right != NULL) {
         // if it is a self join
-        if (this->left->nodeId != -1 && this->left->nodeId == this->right->nodeId)
+        // cerr << "pre B\n";
+        if (this->left->nodeId != -1 && this->left->nodeId == this->right->nodeId) {
+            // cerr << "B\n";
             nodeEstimation = (this->left->columnInfo.size * this->left->columnInfo.size) / this->left->columnInfo.distinct;
+            // cerr << "pre C\n";
+        }
         // if left relation may be a subset of the right
-        else if ((this->left->columnInfo.min >= this->right->columnInfo.min) && (this->left->columnInfo.max <= this->right->columnInfo.max))
+        else if ((this->left->columnInfo.min >= this->right->columnInfo.min) && (this->left->columnInfo.max <= this->right->columnInfo.max)) {
+            // cerr << "C\n";
             nodeEstimation = (this->left->columnInfo.size * this->right->columnInfo.size) / this->right->columnInfo.distinct;
+            // cerr << "pre D\n";
+        }
         // if right relation may be a subset of the right
-        else if ((this->left->columnInfo.min <= this->right->columnInfo.min) && (this->left->columnInfo.max >= this->right->columnInfo.max))
+        else if ((this->left->columnInfo.min <= this->right->columnInfo.min) && (this->left->columnInfo.max >= this->right->columnInfo.max)) {
+            // cerr << "D\n";
             nodeEstimation = (this->left->columnInfo.size * this->right->columnInfo.size) / this->left->columnInfo.distinct;
+            // cerr << "pre E\n";
+        }
         // if the columns may be independent
-        else
+        else {
+            // cerr << "E\n";
             nodeEstimation = (this->left->columnInfo.size * this->right->columnInfo.size) / this->left->columnInfo.n;
+        }
     }
 
-    return nodeEstimation + this->left->cost() + this->right->cost();
+    if (this->left != NULL && this->right != NULL)
+        nodeEstimation += this->left->cost() + this->right->cost();
+    else if (this->left != NULL)
+        nodeEstimation += this->left->cost();
+    else if (this->right != NULL)
+        nodeEstimation += this->right->cost();
+
+    // cerr << "getting out of JoinTreeNode::cost\n";
+    return nodeEstimation;
 }
-*/
+
 // Estimates the cost of a given Plan Tree
 double JoinTree::cost(JoinTree* joinTreePtr) {
-    //return joinTreePtr->root->cost();
+    // cerr << "JoinTree::cost\n";
+    if (joinTreePtr != NULL && joinTreePtr->root != NULL)
+        return joinTreePtr->root->cost();
+
     return 1.0;
 }
 
@@ -367,18 +403,18 @@ void JoinTreeNode::print(JoinTreeNode* joinTreeNodePtr) {
     while (joinTreeNodePtr->nodeId == -1) {
         if (joinTreeNodePtr->right->filterPtr != NULL) {
             fprintf(stderr,"%d.%d %c %ld\n", joinTreeNodePtr->right->filterPtr->filterColumn.relId,
-                joinTreeNodePtr->right->filterPtr->filterColumn.colId, 
+                joinTreeNodePtr->right->filterPtr->filterColumn.colId,
                 joinTreeNodePtr->right->filterPtr->comparison, joinTreeNodePtr->right->filterPtr->constant);
         }
 
         if (joinTreeNodePtr->left->filterPtr != NULL) {
             fprintf(stderr,"%d.%d %c %ld\n", joinTreeNodePtr->left->filterPtr->filterColumn.relId,
-                joinTreeNodePtr->left->filterPtr->filterColumn.colId, 
+                joinTreeNodePtr->left->filterPtr->filterColumn.colId,
                 joinTreeNodePtr->left->filterPtr->comparison, joinTreeNodePtr->left->filterPtr->constant);
         }
 
-        fprintf(stderr,"%d.%d=%d.%d\n", joinTreeNodePtr->predicatePtr->left.relId, 
-            joinTreeNodePtr->predicatePtr->left.colId, joinTreeNodePtr->predicatePtr->right.relId, 
+        fprintf(stderr,"%d.%d=%d.%d\n", joinTreeNodePtr->predicatePtr->left.relId,
+            joinTreeNodePtr->predicatePtr->left.colId, joinTreeNodePtr->predicatePtr->right.relId,
             joinTreeNodePtr->predicatePtr->right.colId);
         joinTreeNodePtr = joinTreeNodePtr->left;
     }
