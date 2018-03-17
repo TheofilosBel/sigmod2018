@@ -8,8 +8,8 @@ quick-start-package/test/
 quick-start-package/CMakeFiles/
 # Don't push the CMakeList.txt
 quick-start-package/CMakeLists.txt
+# Dont push public
 quick-start-package/workloads/public/
 
 # for now...
 execution_plan/
-
