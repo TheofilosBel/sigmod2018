@@ -8,7 +8,7 @@
 #include "Parser.hpp"
 #include "QueryPlan.hpp"
 #include "header.hpp"
-#include "RadixJoin.hpp"
+#include "parallel_radix_join.h"
 
 // #define time
 
@@ -140,6 +140,52 @@ void Joiner::SelectLess(table_t *table, int filter){
     table->intermediate_res = true;
 }
 
+relation_t * Joiner::CreateRelationT(table_t * table, SelectInfo &sel_info) {
+
+    /* Create a new column_t for table */
+    std::vector<unsigned> &relation_mapping = table->relations_bindings;
+    matrix & row_ids = *table->relations_row_ids;
+
+    /* Get the relation from joiner */
+    Relation &rel = getRelation(sel_info.relId);
+    uint64_t * values = rel.columns.at(sel_info.colId);
+    unsigned table_index = -1;
+    unsigned relation_binding = sel_info.binding;
+
+    /* Get the right index from the relation id table */
+    for (size_t index = 0; index < relation_mapping.size(); index++) {
+        if (relation_mapping[index] == relation_binding){
+            table_index = index;
+            break;
+        }
+    }
+
+    /* Error msg for debuging */
+    if (table_index == -1)
+        std::cerr << "At AddColumnToTableT, Id not matchin with intermediate result vectors" << '\n';
+
+
+    /* Create the relatin_t */
+    relation_t * new_relation = (relation_t *) malloc(sizeof(relation_t));
+
+    /* Initialize relation */
+    uint32_t size = 5;//table->relations_row_ids->at(0).size();
+    new_relation->num_tuples = size;
+    tuple_t * tuples = (tuple_t *) malloc(sizeof(tuple_t) * size);
+
+    /* Initialize the tuple array */
+    for (uint32_t i = 0; i < size; i++) {
+        tuples[i].key     = i;//values[row_ids[table_index][i]];
+        tuples[i].payload = i;
+    }
+
+    //std::cerr << "HERE " << tuples[0].key << '\n';
+
+    return new_relation;
+ }
+
+
+
 void Joiner::AddColumnToTableT(SelectInfo &sel_info, table_t *table) {
 
 #ifdef time
@@ -217,34 +263,43 @@ table_t* Joiner::CreateTableTFromId(unsigned rel_id, unsigned rel_binding) {
     return table_t_ptr;
 }
 
-table_t* Joiner::join(table_t *table_r, table_t *table_s) {
+table_t* Joiner::join(table_t *table_r, table_t *table_s, PredicateInfo & pred_info) {
 
+#define no
+#ifdef no
+    relation_t * rel_r = CreateRelationT(table_r, pred_info.left);
+    relation_t * rel_s = CreateRelationT(table_s, pred_info.right);
+
+    std::cerr << "HERE" << '\n';
+    flush(cerr);
+
+    result_t * res  = RJ(rel_r, rel_s, 0);
+
+    std::cerr << "SUM is " << res->totalresults << '\n';
+    table_t * intermediate_result = table_r;
+#endif
+
+#ifdef el
     /* Construct the tables in case of intermediate results */
-    //std::cerr << "HERE 1" << '\n';
-    //flush(cerr);
     (table_r->intermediate_res)? (construct(table_r)) : ((void)0);
     (table_s->intermediate_res)? (construct(table_s)) : ((void)0);
-    //std::cerr << "HERE 1" << '\n';
-    //flush(cerr);
 
     /* Join the columns */
-    //table_t * intermediate_result  = low_join(table_r, table_s);
-    table_t * intermediate_result =  radix_join(table_r, table_s);
-
-    //std::cerr << "HERE 2" << '\n';
-    //flush(cerr);
+    table_t * intermediate_result  = low_join(table_r, table_s);
+    //table_t * intermediate_result =  radix_join(table_r, table_s);
 
     /* Free some results */
-    (table_r->intermediate_res)? (delete table_r->column_j->values) : ((void)0);
-    delete table_r->relations_row_ids;
-    delete table_r;
+    //(table_r->intermediate_res)? (delete table_r->column_j->values) : ((void)0);
+    //delete table_r->relations_row_ids;
+    //delete table_r;
 
-    (table_s->intermediate_res)? (delete table_s->column_j->values) : ((void)0);
-    delete table_s->relations_row_ids;
-    delete table_s;
+    //(table_s->intermediate_res)? (delete table_s->column_j->values) : ((void)0);
+    //delete table_s->relations_row_ids;
+    //delete table_s;
 
     //std::cerr << "HERE 2" << '\n';
     //flush(cerr);
+#endif
 
     return intermediate_result;
 }
