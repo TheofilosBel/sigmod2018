@@ -6,11 +6,8 @@
 #include <utility>
 #include <vector>
 #include "Parser.hpp"
-#include "QueryPlan.hpp"
-#include "header.hpp"
-#include "parallel_radix_join.h"
-
-//#define time
+#include "QueryGraph.hpp"
+#include "./include/header.hpp"
 
 using namespace std;
 
@@ -22,10 +19,11 @@ double timeCreateTable = 0;
 double timeAddColumn = 0;
 double timeTreegen = 0;
 double timeCheckSum = 0;
-double timeConstruct = 0;
-double timePartition = 0;
 double timeBuildPhase = 0;
 double timeProbePhase = 0;
+
+
+//#define time
 
 /* ================================ */
 /* Table_t <=> Relation_t fuctnions */
@@ -214,10 +212,10 @@ void Joiner::SelectEqual(table_t *table, int filter) {
     int table_index         = table->column_j->table_index;
     const uint64_t rel_num  = table->relations_row_ids->size();
 
-    matrix & old_row_ids = *table->relations_row_ids;
-    const uint64_t size  = old_row_ids[table_index].size();
-    matrix * new_row_ids = new matrix(rel_num);
-    new_row_ids->at(0).reserve(size/2);
+    std::vector<std::vector<int>> &old_row_ids = *table->relations_row_ids;
+    std::vector<std::vector<int>> *new_row_ids = new std::vector<std::vector<int>>(rel_num, std::vector<int>());
+
+    const uint64_t size     = old_row_ids[table_index].size();
 
     /* Update the row ids of the table */
     for (size_t index = 0; index < size; index++) {
@@ -240,10 +238,10 @@ void Joiner::SelectGreater(table_t *table, int filter){
     int table_index         = table->column_j->table_index;
     const uint64_t rel_num  = table->relations_row_ids->size();
 
-    matrix & old_row_ids = *table->relations_row_ids;
-    const uint64_t size  = old_row_ids[table_index].size();
-    matrix * new_row_ids = new matrix(rel_num);
-    new_row_ids->at(0).reserve(size/2);
+    std::vector<std::vector<int>> &old_row_ids = *table->relations_row_ids;
+    std::vector<std::vector<int>> *new_row_ids = new std::vector<std::vector<int>>(rel_num, std::vector<int>());
+
+    const uint64_t size     = old_row_ids[table_index].size();
 
     /* Update the row ids of the table */
 
@@ -267,10 +265,10 @@ void Joiner::SelectLess(table_t *table, int filter){
     int table_index         = table->column_j->table_index;
     const uint64_t rel_num  = table->relations_row_ids->size();
 
-    matrix & old_row_ids = *table->relations_row_ids;
-    const uint64_t size  = old_row_ids[table_index].size();
-    matrix * new_row_ids = new matrix(rel_num);
-    new_row_ids->at(0).reserve(size/2);
+    std::vector<std::vector<int>> &old_row_ids = *table->relations_row_ids;
+    std::vector<std::vector<int>> *new_row_ids = new std::vector<std::vector<int>>(rel_num, std::vector<int>());
+
+    const uint64_t size     = old_row_ids[table_index].size();
 
     /* Update the row ids of the table */
     for (size_t index = 0; index < size; index++) {
@@ -286,7 +284,6 @@ void Joiner::SelectLess(table_t *table, int filter){
     table->relations_row_ids = new_row_ids;
     table->intermediate_res = true;
 }
-
 
 void Joiner::AddColumnToTableT(SelectInfo &sel_info, table_t *table) {
 
@@ -307,7 +304,6 @@ void Joiner::AddColumnToTableT(SelectInfo &sel_info, table_t *table) {
     column.table_index = -1;
     unsigned relation_binding = sel_info.binding;
 
-
     /* Get the right index from the relation id table */
     for (size_t index = 0; index < relation_mapping.size(); index++) {
         if (relation_mapping[index] == relation_binding){
@@ -316,10 +312,10 @@ void Joiner::AddColumnToTableT(SelectInfo &sel_info, table_t *table) {
         }
     }
 
-
     /* Error msg for debuging */
-    if (column.table_index == -1)
+    if (column.table_index == -1) {
         std::cerr << "At AddColumnToTableT, Id not matchin with intermediate result vectors" << '\n';
+    }
 
 #ifdef time
     struct timeval end;
@@ -336,23 +332,25 @@ table_t* Joiner::CreateTableTFromId(unsigned rel_id, unsigned rel_binding) {
     gettimeofday(&start, NULL);
 #endif
 
-    /* Get the relation */
-    Relation &rel  = getRelation(rel_id);
-
     /* Crate - Initialize a table_t */
     table_t *const table_t_ptr = new table_t;
     table_t_ptr->column_j = new column_t;
     table_t_ptr->intermediate_res = false;
-    table_t_ptr->relations_row_ids = new matrix(1, j_vector(rel.size));
-    matrix & rel_row_ids = *table_t_ptr->relations_row_ids;
+    table_t_ptr->relations_row_ids = new std::vector<std::vector<int>>;
+
+    std::vector<std::vector<int>> &rel_row_ids = *table_t_ptr->relations_row_ids;
+
+    /* Get the relation */
+    Relation &rel  = getRelation(rel_id);
 
     /* Create the relations_row_ids and relation_ids vectors */
     uint64_t rel_size  = rel.size;
+    rel_row_ids.resize(1);
+    rel_row_ids[0].resize(rel_size);
     for (size_t i = 0; i < rel_size; i++) {
         rel_row_ids[0][i] = i;
     }
 
-    /* Keep a mapping with the rowids table and the relaito ids na bindings */
     table_t_ptr->relation_ids.push_back(rel_id);
     table_t_ptr->relations_bindings.push_back(rel_binding);
 
@@ -365,47 +363,21 @@ table_t* Joiner::CreateTableTFromId(unsigned rel_id, unsigned rel_binding) {
     return table_t_ptr;
 }
 
-table_t* Joiner::join(table_t *table_r, table_t *table_s, PredicateInfo & pred_info) {
-
-#ifdef time
-    struct timeval start;
-    gettimeofday(&start, NULL);
-#endif
-
-#define rj
-#ifdef rj
+table_t* Joiner::join(table_t *table_r, table_t *table_s, PredicateInfo &pred_info) {
 
     relation_t * r1 = CreateRelationT(table_r, pred_info.left);
     relation_t * r2 = CreateRelationT(table_s, pred_info.right);
 
     result_t * res  = RJ(r1, r2, 0);
 
-    table_t * intermediate_result = CreateTableT(res, table_r, table_s);
-#else
+    return CreateTableT(res, table_r, table_s);
 
-    (table_r->intermediate_res)? (construct(table_r)) : ((void)0);
-    (table_s->intermediate_res)? (construct(table_s)) : ((void)0);
 
+    /* Construct the tables in case of intermediate results */
+    //(table_r->intermediate_res)? (construct(table_r)) : ((void)0);
+    //(table_s->intermediate_res)? (construct(table_s)) : ((void)0);
     /* Join the columns */
-    table_t * intermediate_result =  low_join(table_r, table_s);
-#endif
-
-#ifdef time
-        struct timeval end;
-        gettimeofday(&end, NULL);
-        timeLowJoin += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
-#endif
-
-    /* Free some results */
-    //(table_r->intermediate_res)? (delete table_r->column_j->values) : ((void)0);
-    //delete table_r->relations_row_ids;
-    //delete table_r;
-
-    //(table_s->intermediate_res)? (delete table_s->column_j->values) : ((void)0);
-    //delete table_s->relations_row_ids;
-    //delete table_s;
-
-    return intermediate_result;
+    //return low_join(table_r, table_s);
 }
 
 /* The self Join Function */
@@ -418,9 +390,9 @@ table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
 
     /* Create - Initialize a new table */
     table_t *new_table            = new table_t;
-    new_table->relation_ids       = std::vector<unsigned>(table->relation_ids);
+    new_table->relation_ids       = std::vector<int>(table->relation_ids);
     new_table->relations_bindings = std::vector<unsigned>(table->relations_bindings);
-    new_table->relations_row_ids  = new matrix;
+    new_table->relations_row_ids  = new std::vector<std::vector<int>>;
     new_table->intermediate_res   = true;
     new_table->column_j           = new column_t;
 
@@ -455,7 +427,7 @@ table_t * Joiner::SelfJoin(table_t *table, PredicateInfo *predicate_ptr) {
         }
 
         /* Initialize the new matrix */
-        new_row_ids_matrix.push_back(j_vector());
+        new_row_ids_matrix.push_back(std::vector<int>());
     }
 
 #ifdef com
@@ -519,11 +491,11 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
     if (table_r->column_j->size <= table_s->column_j->size) {
         hash_size = table_r->column_j->size;
         hash_col = table_r->column_j;
-        matrix &h_rows = *table_r->relations_row_ids;
+        std::vector<std::vector<int>> &h_rows = *table_r->relations_row_ids;
 
         iter_size = table_s->column_j->size;
         iter_col = table_s->column_j;
-        matrix &i_rows = *table_s->relations_row_ids;
+        std::vector<std::vector<int>> &i_rows = *table_s->relations_row_ids;
 
 #ifdef time
         struct timeval start_build;
@@ -549,12 +521,12 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
         gettimeofday(&start_probe, NULL);
 #endif
         /* create the updated relations_row_ids, merge the sizes*/
-        updated_table_t->relations_row_ids = new matrix(h_rows.size()+i_rows.size());
-        uint64_t  allocated_size = (hash_size < iter_size ) ? (uint64_t)(hash_size) : (uint64_t)(iter_size);
+        updated_table_t->relations_row_ids = new std::vector<std::vector<int>>(h_rows.size()+i_rows.size());
+        //uint64_t size = ((uint64_t) (hash_size * hash_size)) / 100;
         for (size_t relation = 0; relation < h_rows.size()+i_rows.size(); relation++) {
-                updated_table_t->relations_row_ids->operator[](relation).reserve(allocated_size);
+                updated_table_t->relations_row_ids->operator[](relation).reserve(((uint64_t)(hash_size/10) * (hash_size)/10));
         }
-        matrix &update_row_ids = *updated_table_t->relations_row_ids;
+        std::vector<std::vector<int>> &update_row_ids = *updated_table_t->relations_row_ids;
 
         /* now the phase of hashing */
         for (uint64_t i = 0; i < iter_size; i++) {
@@ -596,11 +568,11 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
 #endif
         hash_size = table_s->column_j->size;
         hash_col = table_s->column_j;
-        matrix &h_rows = *table_s->relations_row_ids;
+        std::vector<std::vector<int>> &h_rows = *table_s->relations_row_ids;
 
         iter_size = table_r->column_j->size;
         iter_col = table_r->column_j;
-        matrix &i_rows = *table_r->relations_row_ids;
+        std::vector<std::vector<int>> &i_rows = *table_r->relations_row_ids;
 
         /* now put the values of the column_r in the hash_table(construction phase) */
         for (uint64_t i = 0; i < hash_size; i++) {
@@ -619,13 +591,13 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
         gettimeofday(&start_probe, NULL);
 #endif
         /* create the updated relations_row_ids, merge the sizes*/
-        updated_table_t->relations_row_ids = new matrix(h_rows.size()+i_rows.size());
-        uint64_t  allocated_size = (hash_size < iter_size ) ? (uint64_t)(hash_size) : (uint64_t)(iter_size);
+        updated_table_t->relations_row_ids = new std::vector<std::vector<int>>(h_rows.size()+i_rows.size());
+        //uint64_t size = ((uint64_t) (hash_size * hash_size)) / 100;
         for (size_t relation = 0; relation < h_rows.size()+i_rows.size(); relation++) {
-                updated_table_t->relations_row_ids->operator[](relation).reserve(allocated_size);
+                updated_table_t->relations_row_ids->operator[](relation).reserve(((uint64_t)(hash_size/10) * (hash_size)/10));
         }
-        //updated_table_t->relations_row_ids->resize(h_rows.size()+i_rows.size(), std::vector<uint64_t>());
-        matrix &update_row_ids = *updated_table_t->relations_row_ids;
+        //updated_table_t->relations_row_ids->resize(h_rows.size()+i_rows.size(), std::vector<int>());
+        std::vector<std::vector<int>> &update_row_ids = *updated_table_t->relations_row_ids;
 
         /* now the phase of hashing */
         for (uint64_t i = 0; i < iter_size; i++) {
@@ -677,17 +649,13 @@ table_t* Joiner::low_join(table_t *table_r, table_t *table_s) {
 }
 
 void Joiner::construct(table_t *table) {
-#ifdef time
-    struct timeval start;
-    gettimeofday(&start, NULL);
-#endif
 
     /* Innitilize helping variables */
     column_t &column = *table->column_j;
     const uint64_t *column_values = column.values;
     const int       table_index   = column.table_index;
     const uint64_t  column_size   = table->relations_row_ids->operator[](table_index).size();
-    matrix &row_ids = *table->relations_row_ids;
+    std::vector<std::vector<int>> &row_ids = *table->relations_row_ids;
 
     /* Create a new value's array  */
     uint64_t *const new_values  = new uint64_t[column_size];
@@ -700,12 +668,6 @@ void Joiner::construct(table_t *table) {
     /* Update the column of the table */
     column.values = new_values;
     column.size   = column_size;
-
-#ifdef time
-    struct timeval end;
-    gettimeofday(&end, NULL);
-    timeConstruct += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
-#endif
 }
 
 //CHECK SUM FUNCTION
@@ -773,11 +735,13 @@ int main(int argc, char* argv[]) {
     }
 
     // Preparation phase (not timed)
-    //QueryPlan queryPlan;
+    // Build histograms, indices,...
+    /* For starters make the hash maps for the 0 and 1 relatiosn */
 
-    /*
-      somehow collect relationships stats
-    */
+
+
+    // Create a persistent query graph
+    QueryGraph queryGraph(joiner.getRelationsCount());
 
     // The test harness will send the first query after 1 second.
     QueryInfo i;
@@ -786,22 +750,22 @@ int main(int argc, char* argv[]) {
         if (line == "F") continue; // End of a batch
 
         // Parse the query
-        //std::cerr << q_counter  << ": " << line << '\n';
+        //std::cerr << "Q " << q_counter  << ":" << line << '\n';
         i.parseQuery(line);
         q_counter++;
 
-        #ifdef time
+#ifdef time
         struct timeval start;
         gettimeofday(&start, NULL);
-        #endif
+#endif
 
         JTree *jTreePtr = treegen(&i);
 
-        #ifdef time
+#ifdef time
         struct timeval end;
         gettimeofday(&end, NULL);
         timeTreegen += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
-        #endif
+#endif
 
         int *plan = NULL, plan_size = 0;
         //print_rec(jTreePtr, 0);
@@ -810,9 +774,9 @@ int main(int argc, char* argv[]) {
         // join
         //joiner.join(i);
 
-        #ifdef time
+#ifdef time
         gettimeofday(&start, NULL);
-        #endif
+#endif
 
         string result_str;
         uint64_t checksum = 0;
@@ -831,30 +795,28 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        #ifdef time
+#ifdef time
         gettimeofday(&end, NULL);
         timeCheckSum += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
-        #endif
+#endif
 
         /* Print the result */
         std::cout << result_str << endl;
         //std::cout << "Implelemt JOIN " << '\n';
     }
 
-    #ifdef time
+#ifdef time
     std::cerr << "timeSelectFilter: " << (long)(timeSelectFilter * 1000) << endl;
     std::cerr << "timeSelfJoin: " << (long)(timeSelfJoin * 1000) << endl;
     std::cerr << "timeLowJoin: " << (long)(timeLowJoin * 1000) << endl;
-    std::cerr << "    timeConstruct: " << (long)(timeConstruct * 1000) << endl;
-    std::cerr << "    timeBuildPhase: " << (long)(timeBuildPhase * 1000) << endl;
-    std::cerr << "    timeProbePhase: " << (long)(timeProbePhase * 1000) << endl;
+    std::cerr << "->timeBuildPhase: " << (long)(timeBuildPhase * 1000) << endl;
+    std::cerr << "->timeProbePhase: " << (long)(timeProbePhase * 1000) << endl;
     std::cerr << "timeAddColumn: " << (long)(timeAddColumn * 1000) << endl;
     std::cerr << "timeCreateTable: " << (long)(timeCreateTable * 1000) << endl;
     std::cerr << "timeTreegen: " << (long)(timeTreegen * 1000) << endl;
     std::cerr << "timeCheckSum: " << (long)(timeCheckSum * 1000) << endl;
-    std::cerr << "timeConstruct: " << (long)(timeConstruct * 1000) << endl;
     flush(std::cerr);
-    #endif
+#endif
 
     return 0;
 }

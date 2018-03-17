@@ -1,9 +1,6 @@
 #pragma once
 
-#include <vector>
-
-typedef std::vector<std::vector<uint64_t>> matrix;
-typedef std::vector<uint64_t> j_vector;
+typedef std::vector<std::vector<int>> matrix;
 typedef struct table_t table_t;
 typedef struct column_t column_t;
 typedef struct hash_entry hash_entry;
@@ -24,10 +21,10 @@ struct column_t {
 struct table_t {
 
     /* Row Ids and relation Ids */
-    matrix  *relations_row_ids;
+    std::vector<std::vector<int>>  *relations_row_ids;
 
     /* use it for the filtrering TODO hash map ?*/
-    std::vector<unsigned>          relation_ids;
+    std::vector<int>               relation_ids;
 
     /* use the binfing to map the relations */
     std::vector<unsigned>          relations_bindings;

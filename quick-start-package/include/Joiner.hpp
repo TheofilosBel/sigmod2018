@@ -5,7 +5,7 @@
 #include "Relation.hpp"
 #include "Parser.hpp"
 #include "table_t.hpp"
-#include "types.h"
+#include "parallel_radix_join.h"
 
 /* Timing variables */
 extern double timeSelfJoin;
@@ -15,7 +15,6 @@ extern double timeCreateTable;
 extern double timeAddColumn;
 extern double timeTreegen;
 extern double timeCheckSum;
-extern double timeConstruct;
 
 /*
  * Prints a column
@@ -45,11 +44,9 @@ class Joiner {
     int getRelationsCount();
 
     table_t* CreateTableTFromId(unsigned rel_id, unsigned rel_binding);
-    void AddColumnToTableT(SelectInfo &sel_info, table_t *table);
-
-    /* Connect Table_t with relation_t */
     relation_t * CreateRelationT(table_t * table, SelectInfo &sel_info);
     table_t * CreateTableT(result_t * result, table_t * table_r, table_t * table_s);
+    void AddColumnToTableT(SelectInfo &sel_info, table_t *table);
 
     // The select functions
     void Select(FilterInfo &sel_info, table_t *table);
@@ -59,8 +56,9 @@ class Joiner {
 
     // Joins a given set of relations
     void join(QueryInfo& i);
-    table_t* join(table_t *table_r, table_t *table_s, PredicateInfo & pred_info);
+    table_t* join(table_t *table_r, table_t *table_s, PredicateInfo &pred_info);
     table_t* SelfJoin(table_t *table, PredicateInfo *pred_info);
+
 
     /* The join function
      *

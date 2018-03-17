@@ -2,11 +2,11 @@
  * @file    tuple_buffer.h
  * @author  Cagri Balkesen <cagri.balkesen@inf.ethz.ch>
  * @date    Thu Nov  8 22:08:54 2012
- * @version $Id: tuple_buffer.h 3203 2013-01-21 22:10:35Z bcagri $ 
- * 
+ * @version $Id: tuple_buffer.h 3203 2013-01-21 22:10:35Z bcagri $
+ *
  * @brief   Implements a chained-buffer storage model for tuples.
- * 
- * 
+ *
+ *
  */
 #ifndef TUPLE_BUFFER_H
 #define TUPLE_BUFFER_H
@@ -46,7 +46,7 @@ struct chainedtuplebuffer_t {
     uint32_t numbufs;
 };
 
-static inline void 
+static inline void
 cb_begin(chainedtuplebuffer_t * cb)
 {
     cb->readpos = 0;
@@ -54,7 +54,7 @@ cb_begin(chainedtuplebuffer_t * cb)
     cb->readcursor = cb->buf;
 }
 
-static inline void 
+static inline void
 cb_begin_backwards(chainedtuplebuffer_t * cb)
 {
     cb->readpos = cb->writepos - 1;
@@ -94,7 +94,7 @@ cb_next_writepos(chainedtuplebuffer_t * cb)
 {
     if(cb->writepos == CHAINEDBUFF_NUMTUPLESPERBUF) {
         tuplebuffer_t * newbuf = (tuplebuffer_t*) malloc(sizeof(tuplebuffer_t));
-        posix_memalign ((void **)&newbuf->tuples, 
+        posix_memalign ((void **)&newbuf->tuples,
                             CACHE_LINE_SIZE, sizeof(tuple_t)
                             * CHAINEDBUFF_NUMTUPLESPERBUF);
 
@@ -110,14 +110,14 @@ cb_next_writepos(chainedtuplebuffer_t * cb)
 static chainedtuplebuffer_t *
 chainedtuplebuffer_init(void)
 {
-    chainedtuplebuffer_t * newcb = (chainedtuplebuffer_t *) 
+    chainedtuplebuffer_t * newcb = (chainedtuplebuffer_t *)
                                    malloc(sizeof(chainedtuplebuffer_t));
     tuplebuffer_t * newbuf = (tuplebuffer_t *) malloc(sizeof(tuplebuffer_t));
 
     newbuf->tuples = (tuple_t *) malloc(sizeof(tuple_t)
                                         * CHAINEDBUFF_NUMTUPLESPERBUF);
     newbuf->next   = NULL;
-    
+
     newcb->buf      = newcb->readcursor = newcb->writecursor = newbuf;
     newcb->writepos = newcb->readpos = 0;
     newcb->numbufs  = 1;
@@ -223,7 +223,7 @@ write_result_relation(result_t * res, char * filename)
 
         for (j = 0; j < nresults; j++) {
             tuple_t * tup = cb_read_backwards(cb);
-            fprintf(fp, "%d %d\n", tup->key, tup->payload);
+            fprintf(fp, "%ld %ld\n", tup->key, tup->payload);
         }
 
         // fclose(fp);

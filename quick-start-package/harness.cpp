@@ -291,8 +291,7 @@ int main(int argc, char *argv[]) {
 
   struct timeval end;
   gettimeofday(&end, NULL);
-
-  failure_cnt = 0;
+  
   if (failure_cnt == 0) {
     // Output the elapsed time in milliseconds
     double elapsed_sec = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;

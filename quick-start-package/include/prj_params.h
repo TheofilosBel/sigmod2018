@@ -3,9 +3,9 @@
  * @author  Cagri Balkesen <cagri.balkesen@inf.ethz.ch>
  * @date    Tue May 22 14:03:52 2012
  * @version $Id: prj_params.h 4548 2013-12-07 16:05:16Z bcagri $
- * 
+ *
  * @brief  Constant parameters used by Parallel Radix Join implementations.
- * 
+ *
  */
 
 #ifndef PRJ_PARAMS_H
@@ -13,7 +13,7 @@
 
 /** number of total radix bits used for partitioning. */
 #ifndef NUM_RADIX_BITS
-#define NUM_RADIX_BITS 18
+#define NUM_RADIX_BITS 14
 #endif
 
 /** number of passes in multipass partitioning, currently fixed at 2. */
@@ -26,15 +26,15 @@
 #define PROBE_BUFFER_SIZE 4
 #endif
 
-/** 
- * Whether to use software write-combining optimized partitioning, 
- * see --enable-optimized-part config option 
+/**
+ * Whether to use software write-combining optimized partitioning,
+ * see --enable-optimized-part config option
  */
 /* #define USE_SWWC_OPTIMIZED_PART 1 */
 
 /** @defgroup SystemParameters System Parameters
  *  Various system specific parameters such as cache/cache-line sizes,
- *  associativity, etc. 
+ *  associativity, etc.
  *  @{
  */
 
@@ -67,12 +67,12 @@
 
 
 /** \internal some padding space is allocated for relations in order to
- *  avoid L1 conflict misses and PADDING_TUPLES is placed between 
+ *  avoid L1 conflict misses and PADDING_TUPLES is placed between
  *  partitions in pass-1 of partitioning and SMALL_PADDING_TUPLES is placed
- *  between partitions in pass-2 of partitioning. 3 is a magic number. 
+ *  between partitions in pass-2 of partitioning. 3 is a magic number.
  */
 
-#define PASS1RADIXBITS (NUM_RADIX_BITS/NUM_PASSES) 
+#define PASS1RADIXBITS (NUM_RADIX_BITS/NUM_PASSES)
 #define PASS2RADIXBITS (NUM_RADIX_BITS-(NUM_RADIX_BITS/NUM_PASSES))
 
 /* num-parts at pass-1 */
@@ -81,7 +81,7 @@
 #define FANOUT_PASS2 (1 << (NUM_RADIX_BITS-(NUM_RADIX_BITS/NUM_PASSES))) //(1<<PASS2RADIXBITS)
 
 
-/** 
+/**
  * Put an odd number of cache lines between partitions in pass-2:
  * Here we put 3 cache lines.
  */
