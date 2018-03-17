@@ -1,50 +1,35 @@
 #pragma once
 #include <vector>
 #include <cstdint>
+#include <sys/time.h>
 #include "Relation.hpp"
 #include "Parser.hpp"
+#include "table_t.hpp"
+#include "parallel_radix_join.h"
 
+/* Timing variables */
+extern double timeSelfJoin;
+extern double timeSelectFilter;
+extern double timeLowJoin;
+extern double timeCreateTable;
+extern double timeAddColumn;
+extern double timeTreegen;
+extern double timeCheckSum;
 
-/*------COLUMN STURCT & FUNCTIONS----------*/
-typedef struct {
-    uint64_t *values;
-    uint64_t  size;
-    int       table_id;
-} column_t;
-
-/* Column Print Function
- *
+/*
  * Prints a column
- *
  * Arguments : A @column of column_t type
  */
 void PrintColumn(column_t *column);
 
 
-/*--------- JOINER STUCT & FUNCTIONS---------*/
 class Joiner {
 
     std::vector<Relation> relations;  // The relations that might be joined
-    std::vector<int> **row_ids;       /* It keeps the row Ids of the reults of all the joined tables,update:vector instead of int */
-    int *sizes;                       /* It keeps the sizes of all the tables of the above array of tables */
 
-    /* Each Join has two columns */
-    column_t left_column;             /**/
-    column_t right_column;            /**/
-
-    /*  The row id Table
-    +--------------------------------------+
-    |  rows_S*  |  rows_R*  |   ...  | ... |
-    +--------------------------------------+
-        |
-     +--+---+
-     |rowS.0|
-     |rowS.1|
-     |rowS.2|
-     | ...  |
-     +------+
-    */
     public:
+    /* do the checksum */
+    uint64_t check_sum(SelectInfo &sel_info, table_t *table);
 
     /* Initialize the row_id Array */
     void RowIdArrayInit(QueryInfo &query_info);
@@ -55,9 +40,25 @@ class Joiner {
     // Get relation
     Relation& getRelation(unsigned id);
 
+    // Get the total number of relations
+    int getRelationsCount();
+
+    table_t* CreateTableTFromId(unsigned rel_id, unsigned rel_binding);
+    relation_t * CreateRelationT(table_t * table, SelectInfo &sel_info);
+    table_t * CreateTableT(result_t * result, table_t * table_r, table_t * table_s);
+    void AddColumnToTableT(SelectInfo &sel_info, table_t *table);
+
+    // The select functions
+    void Select(FilterInfo &sel_info, table_t *table);
+    void SelectEqual(table_t *table, int filter);
+    void SelectGreater(table_t *table, int filter);
+    void SelectLess(table_t *table, int filter);
+
     // Joins a given set of relations
     void join(QueryInfo& i);
-    void join(PredicateInfo &pred_info);
+    table_t* join(table_t *table_r, table_t *table_s, PredicateInfo &pred_info);
+    table_t* SelfJoin(table_t *table, PredicateInfo *pred_info);
+
 
     /* The join function
      *
@@ -67,7 +68,7 @@ class Joiner {
      * Arguments: @column_r is an array with the values of the r relation , and @size_r it's size
      *            @column_s is an array with the values of the s relation , and @size_s it's size
      */
-    void low_join(column_t *column_r, column_t *column_s);
+    table_t* low_join(table_t *table_r, table_t *table_s);
 
     /* The construct function
      *
@@ -77,5 +78,5 @@ class Joiner {
      * Arguments: @column is an array with the values of the r relation
      *            @joiner is the object that holds the row_ids of the reults after the joins
      */
-     column_t* construct(const column_t *column);
+     void construct(table_t *table);
 };
