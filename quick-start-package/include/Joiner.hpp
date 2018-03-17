@@ -33,20 +33,37 @@ class Joiner {
     // Get the total number of relations
     int getRelationsCount();
 
-    table_t*  CreateTableTFromId(unsigned rel_id, unsigned rel_binding);
-    column_t* CreateColumn(SelectInfo& sel_info);
+    table_t* CreateTableTFromId(unsigned rel_id, unsigned rel_binding);
+    void AddColumnToTableT(SelectInfo &sel_info, table_t *table);
 
     // The select functions
     void Select(FilterInfo &sel_info, table_t *table);
-    void SelectEqual(table_t *table, column_t *column, int filter);
-    void SelectGreater(table_t *table, column_t *column, int filter);
-    void SelectLess(table_t *table, column_t *column, int filter);
+    void SelectEqual(table_t *table, int filter);
+    void SelectGreater(table_t *table, int filter);
+    void SelectLess(table_t *table, int filter);
 
     // Joins a given set of relations
     void join(QueryInfo& i);
-    table_t* join(table_t *table_r, table_t *table_s, PredicateInfo * pred_info);
+    table_t* join(table_t *table_r, table_t *table_s);
     table_t* SelfJoin(table_t *table, PredicateInfo *pred_info);
 
-    //table_t* radix_join(table_t *table_left, column_t *column_left, table_t *table_right, column_t *column_right);
+    /* The join function
+     *
+     * Joins two columns and returns the result(row_ids).
+     *
+     * Returns:   A joiner_t pointer with the row_ids of the results updated.
+     * Arguments: @column_r is an array with the values of the r relation , and @size_r it's size
+     *            @column_s is an array with the values of the s relation , and @size_s it's size
+     */
+    table_t* low_join(table_t *table_r, table_t *table_s);
 
+    /* The construct function
+     *
+     * Constructs a column bases on the row_ids of the joiner struct (which holds the result lines after join)
+     *
+     * Returns:   A column_t pointer with column's values updated.
+     * Arguments: @column is an array with the values of the r relation
+     *            @joiner is the object that holds the row_ids of the reults after the joins
+     */
+     void construct(table_t *table);
 };

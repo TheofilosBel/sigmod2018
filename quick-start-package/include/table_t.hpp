@@ -1,7 +1,9 @@
 #pragma once
+
 #include <vector>
 
-typedef std::vector<std::vector<int>> matrix;
+typedef std::vector<std::vector<uint64_t>> matrix;
+typedef std::vector<uint64_t> j_vector;
 typedef struct table_t table_t;
 typedef struct column_t column_t;
 typedef struct hash_entry hash_entry;
@@ -15,27 +17,24 @@ struct hash_entry {
 struct column_t {
     uint64_t *values;
     uint64_t  size;
-    unsigned  binding;
+    uint64_t  table_index;
+    unsigned  id;
 };
 
 struct table_t {
 
     /* Row Ids and relation Ids */
-    uint64_t                   **row_ids;
+    matrix  *relations_row_ids;
 
     /* use it for the filtrering TODO hash map ?*/
-    /* relations_ids[real] = row ids */
-    std::vector<unsigned>      relation_ids;
+    std::vector<unsigned>          relation_ids;
 
     /* use the binfing to map the relations */
-    /* relations_bindings[row ids] = allias */
-    std::vector<unsigned>      relations_bindings;
+    std::vector<unsigned>          relations_bindings;
 
     /* Intermediate result falg */
     bool intermediate_res;
 
-    ssize_t allocated_size;
-    int size_of_row_ids;
-    int num_of_relations;
-
+    /* column_t pointer of column to join */
+    column_t *column_j;
 };

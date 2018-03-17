@@ -234,6 +234,9 @@ table_t* jTreeMakePlan(JTree* jTreePtr, Joiner& joiner, int *depth) {
 
         table_r = jTreeMakePlan(right, joiner, depth);
 
+        joiner.AddColumnToTableT(jTreePtr->predPtr->left, table_l);
+        joiner.AddColumnToTableT(jTreePtr->predPtr->right, table_r);
+
         /* Filter on right ? */
         //std::cerr << "++++JOIN Predicates: " <<  '\n';
         //std::cerr << "Left: "  << jTreePtr->predPtr->left.relId << "." << jTreePtr->predPtr->left.colId << '\n';
@@ -241,7 +244,7 @@ table_t* jTreeMakePlan(JTree* jTreePtr, Joiner& joiner, int *depth) {
         //flush(std::cerr);
         std::cerr<<"IN TREE PLAN EXEC JOIN\n";
         flush(std::cerr);
-        res = joiner.join(table_l, table_r, jTreePtr->predPtr);
+        res = joiner.join(table_l, table_r);
         //std::cerr << "Intermediate rows: " << res->size_of_row_ids << '\n';
         //std::cerr << "-------" << '\n';
         //flush(std::cerr);
@@ -267,6 +270,7 @@ table_t* jTreeMakePlan(JTree* jTreePtr, Joiner& joiner, int *depth) {
         }
         else {
             FilterInfo &filter = *(jTreePtr->filterPtr);
+            joiner.AddColumnToTableT(jTreePtr->filterPtr->filterColumn, table_l);
             joiner.Select(filter, table_l);
             //std::cerr << "----Filter Predicates: " <<  '\n';
             //std::cerr << "Relation.column: "  << filter.filterColumn.relId << "." << filter.filterColumn.colId << '\n';
