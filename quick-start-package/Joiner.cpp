@@ -10,7 +10,7 @@
 #include "header.hpp"
 #include "parallel_radix_join.h"
 
-// #define time
+//#define time
 
 using namespace std;
 
@@ -23,10 +23,157 @@ double timeAddColumn = 0;
 double timeTreegen = 0;
 double timeCheckSum = 0;
 double timeConstruct = 0;
+double timePartition = 0;
+double timeBuildPhase = 0;
+double timeProbePhase = 0;
 
-extern double timePartition;
-extern double timeBuildPhase;
-extern double timeProbePhase;
+/* ================================ */
+/* Table_t <=> Relation_t fuctnions */
+/* ================================ */
+
+relation_t * Joiner::CreateRelationT(table_t * table, SelectInfo &sel_info) {
+
+    /* Create a new column_t for table */
+    std::vector<unsigned> &relation_mapping = table->relations_bindings;
+    matrix & row_ids = *table->relations_row_ids;
+
+    /* Get the relation from joiner */
+    Relation &rel = getRelation(sel_info.relId);
+    uint64_t * values = rel.columns.at(sel_info.colId);
+
+    /* Create the relatin_t */
+    relation_t * new_relation = (relation_t *) malloc(sizeof(relation_t));
+
+    if (table->intermediate_res) {
+        unsigned table_index = -1;
+        unsigned relation_binding = sel_info.binding;
+
+        /* Get the right index from the relation id table */
+        for (size_t index = 0; index < relation_mapping.size(); index++) {
+            if (relation_mapping[index] == relation_binding){
+                table_index = index;
+            }
+        }
+
+        /* Error msg for debuging */
+        if (table_index == -1)
+            std::cerr << "At AddColumnToTableT, Id not matchin with intermediate result vectors" << '\n';
+
+        /* Initialize relation */
+        uint32_t size = table->relations_row_ids->at(0).size();
+        new_relation->num_tuples = size;
+        tuple_t * tuples = (tuple_t *) malloc(sizeof(tuple_t) * size);
+
+        /* Initialize the tuple array */
+        for (uint32_t i = 0; i < size; i++) {
+            tuples[i].key     = values[row_ids[table_index][i]];
+            tuples[i].payload = i;
+        }
+
+        new_relation->tuples = tuples;
+    }
+    else {
+
+        /* Initialize relation */
+        uint32_t size = table->relations_row_ids->at(0).size();
+        new_relation->num_tuples = size;
+        tuple_t * tuples = (tuple_t *) malloc(sizeof(tuple_t) * size);
+
+        /* Initialize the tuple array */
+        for (uint32_t i = 0; i < size; i++) {
+            tuples[i].key     = values[i];
+            tuples[i].payload = i;
+        }
+
+        new_relation->tuples = tuples;
+    }
+
+    return new_relation;
+ }
+
+table_t * Joiner::CreateTableT(result_t * result, table_t * table_r, table_t * table_s) {
+
+    /* The num of relations for the two tables */
+    const unsigned relnum_r = table_r->relations_bindings.size();
+    const unsigned relnum_s = table_s->relations_bindings.size();
+
+    /* Create - Initialize the new table_t */
+    uint32_t num_relations = table_r->relations_bindings.size() + table_s->relations_bindings.size();
+    table_t * new_table = new table_t;
+    new_table->intermediate_res = true;
+    new_table->column_j = new column_t;
+    new_table->relations_row_ids = new matrix(num_relations);
+
+    /* Allocate space for the row ids matrix */
+    uint64_t  allocated_size = result->totalresults;
+    for (size_t relation = 0; relation < num_relations; relation++) {
+            new_table->relations_row_ids->at(relation).reserve(allocated_size);
+    }
+
+    new_table->relation_ids.reserve(table_r->relation_ids.size() + table_s->relation_ids.size());
+    new_table->relation_ids.insert(new_table->relation_ids.end() ,table_r->relation_ids.begin(), table_r->relation_ids.end());
+    new_table->relation_ids.insert(new_table->relation_ids.end() ,table_s->relation_ids.begin(), table_s->relation_ids.end());
+
+    new_table->relations_bindings.reserve(num_relations);
+    new_table->relations_bindings.insert(new_table->relations_bindings.end() ,table_r->relations_bindings.begin(), table_r->relations_bindings.end());
+    new_table->relations_bindings.insert(new_table->relations_bindings.end() ,table_s->relations_bindings.begin(), table_s->relations_bindings.end());
+
+    /* Get the 3 row_ids matrixes in referances */
+    matrix & rids_res = *new_table->relations_row_ids;
+    matrix & rids_r   = *table_r->relations_row_ids;
+    matrix & rids_s   = *table_s->relations_row_ids;
+
+    /* Get the chained buffer */
+    /* TODO Make it possible for multi threading */
+    chainedtuplebuffer_t * cb = (chainedtuplebuffer_t *) result->resultlist[0].results;
+
+    /* Get the touples form the results */
+    tuplebuffer_t * tb = cb->buf;
+    uint32_t   numbufs = cb->numbufs;
+    uint32_t     row_i;
+
+    /* Create table_t from tuples */
+    for (uint32_t tup_i = 0; tup_i < cb->writepos; tup_i++) {
+
+        row_i = tb->tuples[tup_i].key;
+        for (uint32_t rel = 0; rel < relnum_r; rel++) {
+            rids_res[rel].push_back( rids_r[rel][row_i] );
+        }
+
+        row_i = tb->tuples[tup_i].payload;
+        for (uint32_t rel = 0; rel < relnum_s; rel++) {
+            rids_res[relnum_r + rel].push_back( rids_s[rel][row_i] );
+        }
+    }
+
+    /* --------------------------------------------------------------------------------------
+    The N-1 buffer loops , where the num of tups are CHAINEDBUFF_NUMTUPLESPERBUF
+    ---------------------------------------------------------------------------------------- */
+    tb = tb->next;
+    for (uint32_t buf_i = 0; buf_i < numbufs - 1; buf_i++) {
+
+        /* Create table_t from tuples */
+        for (uint32_t tup_i = 0; tup_i < CHAINEDBUFF_NUMTUPLESPERBUF; tup_i++) {
+
+            row_i = tb->tuples[tup_i].key;
+            for (uint32_t rel = 0; rel < relnum_r; rel++) {
+                rids_res[rel].push_back( rids_r[rel][row_i] );
+            }
+
+            row_i = tb->tuples[tup_i].payload;
+            for (uint32_t rel = 0; rel < relnum_s; rel++) {
+                rids_res[relnum_r + rel].push_back( rids_s[rel][row_i] );
+            }
+        }
+
+        /* Go the the next buffer */
+        tb = tb->next;
+    }
+
+    return new_table;
+}
+
+/* =================================== */
 
 /* +---------------------+
    |The joiner functions |
@@ -140,51 +287,6 @@ void Joiner::SelectLess(table_t *table, int filter){
     table->intermediate_res = true;
 }
 
-relation_t * Joiner::CreateRelationT(table_t * table, SelectInfo &sel_info) {
-
-    /* Create a new column_t for table */
-    std::vector<unsigned> &relation_mapping = table->relations_bindings;
-    matrix & row_ids = *table->relations_row_ids;
-
-    /* Get the relation from joiner */
-    Relation &rel = getRelation(sel_info.relId);
-    uint64_t * values = rel.columns.at(sel_info.colId);
-    unsigned table_index = -1;
-    unsigned relation_binding = sel_info.binding;
-
-    /* Get the right index from the relation id table */
-    for (size_t index = 0; index < relation_mapping.size(); index++) {
-        if (relation_mapping[index] == relation_binding){
-            table_index = index;
-            break;
-        }
-    }
-
-    /* Error msg for debuging */
-    if (table_index == -1)
-        std::cerr << "At AddColumnToTableT, Id not matchin with intermediate result vectors" << '\n';
-
-
-    /* Create the relatin_t */
-    relation_t * new_relation = (relation_t *) malloc(sizeof(relation_t));
-
-    /* Initialize relation */
-    uint32_t size = 5;//table->relations_row_ids->at(0).size();
-    new_relation->num_tuples = size;
-    tuple_t * tuples = (tuple_t *) malloc(sizeof(tuple_t) * size);
-
-    /* Initialize the tuple array */
-    for (uint32_t i = 0; i < size; i++) {
-        tuples[i].key     = i;//values[row_ids[table_index][i]];
-        tuples[i].payload = i;
-    }
-
-    //std::cerr << "HERE " << tuples[0].key << '\n';
-
-    return new_relation;
- }
-
-
 
 void Joiner::AddColumnToTableT(SelectInfo &sel_info, table_t *table) {
 
@@ -265,28 +367,34 @@ table_t* Joiner::CreateTableTFromId(unsigned rel_id, unsigned rel_binding) {
 
 table_t* Joiner::join(table_t *table_r, table_t *table_s, PredicateInfo & pred_info) {
 
-#define no
-#ifdef no
-    relation_t * rel_r = CreateRelationT(table_r, pred_info.left);
-    relation_t * rel_s = CreateRelationT(table_s, pred_info.right);
-
-    std::cerr << "HERE" << '\n';
-    flush(cerr);
-
-    result_t * res  = RJ(rel_r, rel_s, 0);
-
-    std::cerr << "SUM is " << res->totalresults << '\n';
-    table_t * intermediate_result = table_r;
+#ifdef time
+    struct timeval start;
+    gettimeofday(&start, NULL);
 #endif
 
-#ifdef el
-    /* Construct the tables in case of intermediate results */
+#define rj
+#ifdef rj
+
+    relation_t * r1 = CreateRelationT(table_r, pred_info.left);
+    relation_t * r2 = CreateRelationT(table_s, pred_info.right);
+
+    result_t * res  = RJ(r1, r2, 0);
+
+    table_t * intermediate_result = CreateTableT(res, table_r, table_s);
+#else
+
     (table_r->intermediate_res)? (construct(table_r)) : ((void)0);
     (table_s->intermediate_res)? (construct(table_s)) : ((void)0);
 
     /* Join the columns */
-    table_t * intermediate_result  = low_join(table_r, table_s);
-    //table_t * intermediate_result =  radix_join(table_r, table_s);
+    table_t * intermediate_result =  low_join(table_r, table_s);
+#endif
+
+#ifdef time
+        struct timeval end;
+        gettimeofday(&end, NULL);
+        timeLowJoin += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+#endif
 
     /* Free some results */
     //(table_r->intermediate_res)? (delete table_r->column_j->values) : ((void)0);
@@ -296,10 +404,6 @@ table_t* Joiner::join(table_t *table_r, table_t *table_s, PredicateInfo & pred_i
     //(table_s->intermediate_res)? (delete table_s->column_j->values) : ((void)0);
     //delete table_s->relations_row_ids;
     //delete table_s;
-
-    //std::cerr << "HERE 2" << '\n';
-    //flush(cerr);
-#endif
 
     return intermediate_result;
 }
@@ -669,7 +773,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Preparation phase (not timed)
-    QueryPlan queryPlan;
+    //QueryPlan queryPlan;
 
     /*
       somehow collect relationships stats
@@ -682,7 +786,7 @@ int main(int argc, char* argv[]) {
         if (line == "F") continue; // End of a batch
 
         // Parse the query
-        std::cerr << q_counter  << ": " << line << '\n';
+        //std::cerr << q_counter  << ": " << line << '\n';
         i.parseQuery(line);
         q_counter++;
 

@@ -46,7 +46,10 @@ class Joiner {
 
     table_t* CreateTableTFromId(unsigned rel_id, unsigned rel_binding);
     void AddColumnToTableT(SelectInfo &sel_info, table_t *table);
+
+    /* Connect Table_t with relation_t */
     relation_t * CreateRelationT(table_t * table, SelectInfo &sel_info);
+    table_t * CreateTableT(result_t * result, table_t * table_r, table_t * table_s);
 
     // The select functions
     void Select(FilterInfo &sel_info, table_t *table);

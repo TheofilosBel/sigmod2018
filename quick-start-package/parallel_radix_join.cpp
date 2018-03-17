@@ -3,8 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "prj_params.h"
-#include "tuple_buffer.h"
+#include "parallel_radix_join.h"
 
 /* #define RADIX_HASH(V)  ((V>>7)^(V>>13)^(V>>21)^V) */
 #define HASH_BIT_MODULO(K, MASK, NBITS) (((K) & MASK) >> NBITS)

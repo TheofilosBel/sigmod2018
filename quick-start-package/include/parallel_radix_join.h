@@ -14,6 +14,8 @@
 #define PARALLEL_RADIX_JOIN_H
 
 #include "types.h" /* relation_t */
+#include "prj_params.h"
+#include "tuple_buffer.h"
 
 /**
  * PRO: Parallel Radix Join Optimized.
