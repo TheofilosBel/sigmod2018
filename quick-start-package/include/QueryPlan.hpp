@@ -43,6 +43,8 @@ struct JoinTreeNode {
     ColumnInfo estimateInfoAfterFilterLess(const int constant);
     ColumnInfo estimateInfoAfterFilterGreater(const int constant);
     ColumnInfo estimateInfoAfterFilterEqual(const int constant);
+    ColumnInfo estimateInfoAfterSelfJoin();
+    ColumnInfo estimateInfoAfterJoin(ColumnInfo& leftColumnInfo, ColumnInfo& rightColumnInfo, const int tuples);
 
     // Estimates the cost of a given Plan Tree Node
     double cost();
@@ -65,7 +67,7 @@ struct JoinTree {
     table_t* execute(JoinTreeNode* joinTreeNodePtr, Joiner& joiner, int *depth);
 
     // Prints a Join Tree -- for debugging
-    void printJoinTree(JoinTree* joinTreePtr);
+    void printJoinTree();
 
     // Estimates the cost of a given Plan Tree
     double cost(JoinTree* joinTreePtr);

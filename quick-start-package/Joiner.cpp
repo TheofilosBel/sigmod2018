@@ -637,44 +637,44 @@ int main(int argc, char* argv[]) {
         // Create the optimal join tree
         JoinTree* optimalJoinTree = queryPlan.joinTreePtr->build(i, queryPlan.columnInfos);
         optimalJoinTree->root->print(optimalJoinTree->root);
-/*
-        #ifdef time
-        gettimeofday(&end, NULL);
-        timeTreegen += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
-        #endif
 
-        int *plan = NULL, plan_size = 0;
-        table_t *result = jTreeMakePlan(jTreePtr, joiner, plan);
+        // #ifdef time
+        // gettimeofday(&end, NULL);
+        // timeTreegen += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+        // #endif
+        //
+        // int *plan = NULL, plan_size = 0;
+        // table_t *result = optimalJoinTree->execute(optimalJoinTree->root, joiner, plan);
+        //
+        // #ifdef time
+        // gettimeofday(&start, NULL);
+        // #endif
+        //
+        // string result_str;
+        // uint64_t checksum = 0;
+        // std::vector<SelectInfo> &selections = i.selections;
+        // for (size_t i = 0; i < selections.size(); i++) {
+        //     checksum = joiner.check_sum(selections[i], result);
+        //
+        //     if (checksum == 0) {
+        //         result_str += "NULL";
+        //     } else {
+        //         result_str += std::to_string(checksum);
+        //     }
+        //
+        //     if (i != selections.size() - 1) {
+        //         result_str +=  " ";
+        //     }
+        // }
+        //
+        // #ifdef time
+        // gettimeofday(&end, NULL);
+        // timeCheckSum += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+        // #endif
+        //
+        // // Print the result
+        // std::cout << result_str << endl;
 
-        #ifdef time
-        gettimeofday(&start, NULL);
-        #endif
-
-        string result_str;
-        uint64_t checksum = 0;
-        std::vector<SelectInfo> &selections = i.selections;
-        for (size_t i = 0; i < selections.size(); i++) {
-            checksum = joiner.check_sum(selections[i], result);
-
-            if (checksum == 0) {
-                result_str += "NULL";
-            } else {
-                result_str += std::to_string(checksum);
-            }
-
-            if (i != selections.size() - 1) {
-                result_str +=  " ";
-            }
-        }
-
-        #ifdef time
-        gettimeofday(&end, NULL);
-        timeCheckSum += (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
-        #endif
-
-        // Print the result
-        std::cout << result_str << endl;
-*/
     }
 
     #ifdef time

@@ -71,6 +71,34 @@ ColumnInfo JoinTreeNode::estimateInfoAfterFilterEqual(const int constant) {
     return newColumnInfo;
 }
 
+// Returns the new column info
+ColumnInfo JoinTreeNode::estimateInfoAfterSelfJoin() {
+    ColumnInfo newColumnInfo;
+
+    newColumnInfo.min      = this->columnInfo.min;
+    newColumnInfo.max      = this->columnInfo.max;
+    newColumnInfo.distinct = this->columnInfo.distinct;
+    newColumnInfo.size     = this->columnInfo.size * this->columnInfo.size;
+    newColumnInfo.n        = this->columnInfo.n;
+    newColumnInfo.spread   = floor((newColumnInfo.max - newColumnInfo.min + 1) / (newColumnInfo.distinct));
+
+    return newColumnInfo;
+}
+
+// Returns the new column info
+ColumnInfo JoinTreeNode::estimateInfoAfterJoin(ColumnInfo& leftColumnInfo, ColumnInfo& rightColumnInfo, const int tuples) {
+    ColumnInfo newColumnInfo;
+
+    newColumnInfo.min      = min(leftColumnInfo.min, rightColumnInfo.min);
+    newColumnInfo.max      = max(leftColumnInfo.max, rightColumnInfo.max);
+    newColumnInfo.n        = newColumnInfo.max - newColumnInfo.min + 1;
+    newColumnInfo.distinct = (leftColumnInfo.distinct * rightColumnInfo.distinct) / newColumnInfo.n;
+    newColumnInfo.size     = tuples;
+    newColumnInfo.spread   = floor((newColumnInfo.max - newColumnInfo.min + 1) / (newColumnInfo.distinct));
+
+    return newColumnInfo;
+}
+
 // Construct a plan tree from set of relations IDs
 JoinTree* JoinTree::build(QueryInfo& queryInfo, ColumnInfo** columnInfos) {
     // Maps every possible set of relations to its respective best plan tree
@@ -334,7 +362,7 @@ table_t* JoinTree::execute(JoinTreeNode* joinTreeNodePtr, Joiner& joiner, int *d
 }
 
 // Prints a Plan Tree -- for debugging
-void JoinTree::printJoinTree(JoinTree* joinTreePtr) {}
+void JoinTree::printJoinTree() {}
 
 // Estimates the cost of a given Plan Tree
 double JoinTreeNode::cost() {
