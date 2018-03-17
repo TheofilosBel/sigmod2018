@@ -44,7 +44,7 @@ struct JoinTreeNode {
     ColumnInfo estimateInfoAfterFilterGreater(const int constant);
     ColumnInfo estimateInfoAfterFilterEqual(const int constant);
 
-    // Estimates the cost of a given Join Tree node
+    // Estimates the cost of a given Plan Tree Node
     double cost();
 
     void print(int depth);
@@ -53,7 +53,7 @@ struct JoinTreeNode {
 // Join Tree data structure
 struct JoinTree {
     JoinTreeNode* root;
-    double treeCost; // The total cost of the join tree
+    double treeCostEstimation;      // an estimation of the total cost of the join tree
 
     // Constructs a Join tree from a set of relations id's
     JoinTree* build(QueryInfo& queryInfoPtr, ColumnInfo** columnInfos);
@@ -62,16 +62,16 @@ struct JoinTree {
     JoinTree* CreateJoinTree(JoinTree* leftTree, JoinTree* rightTree);
 
     // Execute a Join Tree
-    void execute(JoinTree* joinTreePtr);
-
-    // Destoys a Join Tree properly
-    void freeJoinTree(JoinTree* joinTreePtr);
+    table_t* execute(JoinTreeNode* joinTreeNodePtr, Joiner& joiner, int *depth);
 
     // Prints a Join Tree -- for debugging
     void printJoinTree(JoinTree* joinTreePtr);
 
-    // Estimates the cost of a given Join Tree
+    // Estimates the cost of a given Plan Tree
     double cost(JoinTree* joinTreePtr);
+
+    // destructor
+    void destrJoinTree();
 };
 
 // Query Plan data structure
@@ -83,17 +83,15 @@ struct QueryPlan {
 
     JoinTree* joinTreePtr; // The plan tree to execute
 
+    // Build a query plan with the given info
+    void build(QueryInfo& queryInfoPtr);
+
+    // destructor
+    void destrQueryPlan(Joiner& joiner);
+
+    // Execute a query plan with the given info
+    void execute(QueryInfo& queryInfoPtr);
+
     // Fills the columnInfo matrix with the data of every column
     void fillColumnInfo(Joiner& joiner);
 };
-
-/*
-// destruct a Join Tree node properly
-void destrJoinTreeNode(JoinTreeNode* joinTreeNodePtr);
-
-// print a Join Tree node -- for debugging
-void printJoinTreeNode(JoinTreeNode* joinTreeNodePtr);
-
-// estimate the cost of a given Join Tree node
-double joinTreeNodeCost(JoinTreeNode* joinTreeNodePtr);
-*/
