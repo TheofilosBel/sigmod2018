@@ -149,7 +149,6 @@ void print_rec(JTree *ptr, int depth)
     if (ptr == NULL)
         return;
     if (ptr->node_id == -1) {
-
             for (int i=0; i < depth; i++)
                 fprintf(stderr,"\t");
             if (ptr->filterPtr != NULL) {

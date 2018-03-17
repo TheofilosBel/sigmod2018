@@ -46,6 +46,8 @@ struct JoinTreeNode {
 
     // Estimates the cost of a given Join Tree node
     double cost();
+
+    void print(int depth);
 };
 
 // Join Tree data structure
@@ -55,10 +57,6 @@ struct JoinTree {
 
     // Constructs a Join tree from a set of relations id's
     JoinTree* build(QueryInfo& queryInfoPtr, ColumnInfo** columnInfos);
-
-    // returns true, if there is a join predicate between one of the relations in its first argument
-    //and one of the relations in its second
-    //bool connected(int relId, std::set<int>& idSet, std::set<PredicateInfo>& predSet);
 
     // Merges two join trees
     JoinTree* CreateJoinTree(JoinTree* leftTree, JoinTree* rightTree);
@@ -84,12 +82,6 @@ struct QueryPlan {
     ColumnInfo** columnInfos;
 
     JoinTree* joinTreePtr; // The plan tree to execute
-
-    // Build a query plan with the given info
-    void build(QueryInfo& queryInfoPtr);
-
-    // Execute a query plan with the given info
-    void execute(QueryInfo& queryInfoPtr);
 
     // Fills the columnInfo matrix with the data of every column
     void fillColumnInfo(Joiner& joiner);

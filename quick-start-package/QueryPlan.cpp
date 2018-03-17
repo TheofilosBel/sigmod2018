@@ -85,7 +85,7 @@ JoinTree* JoinTree::build(QueryInfo& queryInfo, ColumnInfo** columnInfos) {
         JoinTreeNode* joinTreeNodePtr = (JoinTreeNode*) malloc(sizeof(JoinTreeNode));
 
         // Initialise JoinTreeNode
-        joinTreeNodePtr->nodeId = queryInfo.relationIds[i]; // The true id of the relation
+        joinTreeNodePtr->nodeId = i; // The binding of the relation
         joinTreeNodePtr->left = NULL;
         joinTreeNodePtr->right = NULL;
         joinTreeNodePtr->parent = NULL;
@@ -166,47 +166,120 @@ JoinTree* JoinTree::build(QueryInfo& queryInfo, ColumnInfo** columnInfos) {
             for (int j = 0; j < relationsCount; j++) {
                 // If j is not in the set
                 if (s[j] == false) {
-                    // Create the bit vector representation of the relation j
-                    vector<bool> relationToVector(relationsCount, false);
-                    relationToVector[j] = true;
+                    // Check if there is a corresponding predicate
+                    bool predicateFound = false;
+                    for (auto predicate : queryInfo.predicates) {
+                        // If the right relation is found on the left hand side of a predicate
+                        if (predicate.left.binding == j) {
+                            for (int n = 0; n < relationsCount; n++) {
+                                if ((s[n] == true) && (predicate.right.binding == n)) {
+                                    predicateFound = true;
+                                    break;
+                                }
+                            }
+                        }
+                        // If the right relation is found on the left hand side of a predicate
+                        else if (predicate.right.binding == j) {
+                            for (int n = 0; n < relationsCount; n++) {
+                                if ((s[n] == true) && (predicate.left.binding == n)) {
+                                    predicateFound = true;
+                                    break;
+                                }
+                            }
+                        }
 
-                    // Merge the two trees
-                    JoinTree* currTree = CreateJoinTree(BestTree[s], BestTree[relationToVector]);
-
-                    // Save the new merged tree
-                    vector<bool> s1 = s;
-                    s1[j] = true;
-                    if (BestTree[s1] == NULL || cost(BestTree[s1]) > cost(currTree)) {
-                        BestTree[s1] = currTree;
+                        if (predicateFound == true) break;
                     }
-                    
+
+                    if (predicateFound == true) {
+                        // Create the bit vector representation of the relation j
+                        vector<bool> relationToVector(relationsCount, false);
+                        relationToVector[j] = true;
+
+                        // Merge the two trees
+                        JoinTree* currTree = CreateJoinTree(BestTree[s], BestTree[relationToVector]);
+
+                        // Save the new merged tree
+                        vector<bool> s1 = s;
+                        s1[j] = true;
+                        if (BestTree[s1] == NULL || cost(BestTree[s1]) > cost(currTree)) {
+                            BestTree[s1] = currTree;
+                        }
+                    }
                 }
             }
         }
     }
 
-    // Return the best tree in the root
-    //vector<bool> rootToVector(relationsCount, true);
-    //return BestTree[rootToVector];
+    // Create a set of the predicate's vector
+    set<PredicateInfo*> predicatesSet;
+    for (int i = 0; i < queryInfo.predicates.size(); i++) {
+        predicatesSet.insert(&(queryInfo.predicates[i]));
+    }
 
-    return NULL;
+    // Set the predicates for every node
+    vector<bool> rootToVector(relationsCount, true);
+    JoinTreeNode* joinTreeNodePtr = BestTree[rootToVector]->root;
+    set<int> joinedNodes; // Keep the bindings of the already joined nodes
+
+    // Go to the leftmost join
+    while (joinTreeNodePtr->left->nodeId == -1) {
+        joinTreeNodePtr = joinTreeNodePtr->left;
+    }
+
+    // Go bottom-up and save the corresponding predicates
+    joinedNodes.insert(joinTreeNodePtr->left->nodeId);
+
+    while (1) {
+        bool predicateFound = false;
+        for (auto predicate : predicatesSet) {
+            // If the right relation is found on the left hand side of a predicate
+            if (predicate->left.binding == joinTreeNodePtr->right->nodeId) {
+                for (auto n : joinedNodes) {
+                    if (predicate->right.binding == n) {
+                        joinTreeNodePtr->predicatePtr = predicate;
+                        predicatesSet.erase(predicate);
+                        joinedNodes.insert(joinTreeNodePtr->right->nodeId);
+                        predicateFound = true;
+                        break;
+                    }
+                }
+            }
+            // If the right relation is found on the left hand side of a predicate
+            else if (predicate->right.binding == joinTreeNodePtr->right->nodeId) {
+                for (auto n : joinedNodes) {
+                    if (predicate->left.binding == n) {
+                        joinTreeNodePtr->predicatePtr = predicate;
+                        predicatesSet.erase(predicate);
+                        joinedNodes.insert(joinTreeNodePtr->right->nodeId);
+                        predicateFound = true;
+                        break;
+                    }
+                }
+            }
+
+            if (predicateFound == true) break;
+        }
+
+        // Go to parent
+        if (joinTreeNodePtr->parent != NULL) {
+            joinTreeNodePtr = joinTreeNodePtr->parent;
+        }
+        else {
+            break;
+        }
+    }
+
+    // Return the best tree
+    return BestTree[rootToVector];
 }
-
-// returns true, if there is a join predicate between one of the relations in its first argument
-// and one of the relations in its second
-/*
-bool JoinTree::connected(int relId, set<int>& idSet, set<PredicateInfo>& predSet) {
-    for (auto p : predSet)
-        for (auto s : idSet)
-            if ((p.left.relId == relId && p.right.relId == s) && (p.left.relId == s && p.right.relId == relId))
-                return true;
-
-    return false;
-}
-*/
 
 // Merges two join trees
 JoinTree* JoinTree::CreateJoinTree(JoinTree* leftTree, JoinTree* rightTree) {
+    if ((leftTree == NULL) || (rightTree == NULL)) {
+        return NULL;
+    }
+
     // Allocate memory for the new tree
     JoinTree* joinTreePtr = (JoinTree*) malloc(sizeof(JoinTree));
     JoinTreeNode* joinTreeNodePtr = (JoinTreeNode*) malloc(sizeof(JoinTreeNode));
@@ -242,48 +315,7 @@ void JoinTree::printJoinTree(JoinTree* joinTreePtr) {}
 
 // Estimates the cost of a given Plan Tree */
 double JoinTree::cost(JoinTree* joinTreePtr) {
-    /* traverse join-tree in a DFS fassion and estimate a cost for every node,
-        then sum up this cost and return it */
-    int total_cost = 0;
-    JoinTreeNode *currNodePtr = joinTreePtr->root;
-    bool from_left = true, went_left = false, went_right = false;
-
-    while(currNodePtr) {
-        /* if you can go to the left children */
-        if (!went_left && currNodePtr->left) {
-            currNodePtr = currNodePtr->left;
-            from_left = true;
-            /* you may now go left or right again */
-            went_left = false;
-            went_right = false;
-        }
-        /* if you can go to the right children */
-        else if (!went_right && currNodePtr->right) {
-            currNodePtr = currNodePtr->right;
-            from_left = false;
-            /* you may now go left or right again */
-            went_left = false;
-            went_right = false;
-        }
-        /* if you can't go to the left or to the right children */
-        else {
-            /* print node ID */
-            total_cost += currNodePtr->cost();
-            /* go to the parent */
-            currNodePtr = currNodePtr->parent;
-            /* deside liberty of transitions */
-            if (from_left) {
-                went_left = true;
-                went_right = false;
-            }
-            else {
-                went_left = true;
-                went_right = true;
-            }
-        }
-    }
-
-    return total_cost;
+    return 1.0;
 }
 
 // Estimates the cost of a given Join Tree node
@@ -291,57 +323,38 @@ double JoinTreeNode::cost() {
     return 1.0;
 }
 
-// Builds a query plan with the given info
-void QueryPlan::build(QueryInfo& queryInfo) {
-#ifdef k
-    /* a map that maps each relation-ID to a pointer to it's respective table-type */
-    map<RelationId, table_t*> tableTPtrMap;
-
-    /* apply all filters and create a vector of table-types from the query selections */
-    for (vector<FilterInfo>::iterator it = queryInfo.filters.begin(); it != queryInfo.filters.end(); ++it) {
-        map<RelationId, table_t*>::iterator mapIt = tableTPtrMap.find(it->filterColumn.relId);
-
-        /* if table-type for this relation-ID already in map, then update the respective table-type */
-        if (mapIt != tableTPtrMap.end()) {
-            Select(it, mapIt->second);
-        }
-        else {
-            /* otherwise add the table-type's mapping to the map */
-            table_t* tempTableTPtr = CreateTableTFromId(it->filterColumn.relId, it->filterColumn.binding);
-            Select(it, tempTableTPtr);
-            tableTPtrMap.insert(it->filterColumn.relId, tempTableTPtr);
-        }
+void JoinTreeNode::print(int depth) {
+    if (this == NULL) {
+        return;
     }
 
-    /* create a set of pointers to the table-types that are to be joined */
-    set<table_t*> tableTPtrSet;
-    for (vector<PredicateInfo>::iterator it = queryInfo.predicates.begin(); it != queryInfo.predicates.end(); ++it) {
-        map<RelationId, table_t*>::iterator mapItLeft = tableTPtrMap.find(it->left.relId),
-                                            mapItRight = tableTPtrMap.find(it->right.relId);
-        /* sanity check -- REMOVE in the end */
-        assert(mapItLeft != tableTPtrMap.end() && mapItRight != tableTPtrMap.end());
+    if (this->nodeId == -1) {
+        // Filter of rhs
+        if (this->right->filterPtr != NULL) {
+            for (int i=0; i < depth; i++) fprintf(stderr,"\t");
+            fprintf(stderr,"%d.%d%c%ld\n", this->right->filterPtr->filterColumn.relId,
+                    this->right->filterPtr->filterColumn.colId, 
+                    this->right->filterPtr->comparison, this->right->filterPtr->constant);
+        }
 
-        tableTPtrSet.insert(mapItLeft);
-        tableTPtrSet.insert(mapItRight);
+        // Filter of lhs
+        if (this->left->filterPtr != NULL) {
+            for (int i=0; i < depth; i++) fprintf(stderr,"\t");
+            fprintf(stderr,"%d.%d%c%ld\n", this->left->filterPtr->filterColumn.relId,
+                    this->left->filterPtr->filterColumn.colId, 
+                    this->left->filterPtr->comparison, this->left->filterPtr->constant);
+        }
+
+        if (this->predicatePtr != NULL) {
+            for (int i=0; i < depth; i++) fprintf(stderr,"\t");
+            fprintf(stderr,"%d.%d=%d.%d\n", this->predicatePtr->left.relId, 
+                    this->predicatePtr->left.colId, this->predicatePtr->right.relId, 
+                    this->predicatePtr->right.colId);
+            
+            this->left->print(depth+1);
+            this->right->print(depth+1);
+        }
     }
-
-    /* create a Join Tree by joining all the table-types of the set */
-    JoinTree* tempJoinTreePtr = constrJoinTreeFromRelations(tableTPtrSet);
-
-    /* apply all filters */
-    for (vector<int>::iterator it = queryInfo.filters.begin() ; it != queryInfo.filters.end(); ++it) {}
-
-    /* create an array of sets of relations to be joined */
-
-    /* create an array of Join Trees for each set of relations */
-
-    /* merge all Join Trees to one final Join Tree */
-#endif
-}
-
-// Executes a query plan with the given info
-void QueryPlan::execute(QueryInfo& queryInfoPtr) {
-
 }
 
 // Fills the columnInfo matrix with the data of every column
