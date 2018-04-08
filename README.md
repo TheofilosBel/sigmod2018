@@ -17,7 +17,7 @@
 
 ### Acknowledgements
 
-* The team members want to thank Evangelos Nikolpoulos (University of Athens, Madgik Lab) for his fruitful discussions during the development of the algorithms. 
+* The team members want to thank Evangelos Nikolopoulos (University of Athens, Madgik Lab) for his fruitful discussions during the development of the algorithms. 
 
 * The team members would like to thank professor Yannis Ioannidis (University of Athens, Madgik Lab, Athena RC) for motivating them.
 
