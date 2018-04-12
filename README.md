@@ -9,7 +9,7 @@
 * Gkini Orest <sdi1400036@di.uoa.gr>, University of Athens, Department of Informatics and Telecommunications, B.Sc. student
 * Kamaras Georgios <sdi1400058@di.uoa.gr>, University of Athens, Department of Informatics and Telecommunications, B.Sc. student
 * Michas Georgios <sdi1400109@di.uoa.gr>, University of Athens, Department of Informatics and Telecommunications, B.Sc. student
-* Svingos Christoforos <csvingos@di.uoa.gr>, University of Athens, Department of Informatics and Telecommunications, Ph.D. student
+* Svingos Christoforos <csvingos@di.uoa.gr>, University of Athens, Department of Informatics and Telecommunications, Ph.D. student (coordinator)
 
 ### Supervisors
 
