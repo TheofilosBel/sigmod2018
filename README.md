@@ -23,7 +23,7 @@
 
 ## About
 
-This **Join queries** project was developed at **Spring of 2018** for the **ACM SIGMOD Programming Contest 2018**. For more information on the contest, please visit [the contest's website](http://sigmod18contest.db.in.tum.de/index.shtml).
+This **Join queries** project was developed during the **Spring of 2018** for the **ACM SIGMOD Programming Contest 2018**. For more information on the contest, please visit [the contest's website](http://sigmod18contest.db.in.tum.de/index.shtml).
 
 ### A brief explanation of our solution
 
